@@ -98,9 +98,35 @@ h3 {
   gap: var(--space-md);
 }
 
+.message-inline {
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-hairline);
+  padding: var(--space-md);
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body-sm);
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.message-inline-success {
+  background: var(--color-block-mint);
+}
+
+.message-inline-error {
+  background: rgba(255, 122, 92, 0.22);
+  border-color: rgba(179, 38, 30, 0.35);
+}
+
 .top-google-result {
   margin-bottom: 0;
-  padding: var(--space-lg);
+  padding: var(--space-md);
+}
+
+.top-google-result .google-links-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-xs);
 }
 
 /* 로그인 카드 안 피드백 (상단 message-block만 있으면 스크롤 밖에 있어 ‘무반응’처럼 보임) */
@@ -235,7 +261,7 @@ h3 {
   display: grid;
   align-items: center;
   gap: var(--space-xs);
-  padding: 6px 10px;
+  padding: 8px 10px;
   border: 1px solid var(--color-hairline);
   border-radius: var(--r-md);
 }
@@ -500,6 +526,7 @@ h3 {
   .settings-panel,
   .builder-grid,
   .top-feedback-row,
+  .top-google-result .google-links-row,
   .filters,
   .school-table-head,
   .school-table-row {

@@ -666,38 +666,40 @@ export function SchoolEvaluationApp() {
           <div className="top-feedback-row">
             <div className="top-feedback-main">
               {status ? (
-                <ColorBlockSection tone="mint" className="message-block">
+                <div className="message-inline message-inline-success">
                   {status}
-                </ColorBlockSection>
+                </div>
               ) : null}
               {error ? (
-                <ColorBlockSection tone="coral" className="message-block">
+                <div className="message-inline message-inline-error">
                   {error}
-                </ColorBlockSection>
+                </div>
               ) : null}
             </div>
             {Object.keys(latestGoogleForms).length > 0 ? (
               <ColorBlockSection tone="mint" className="google-result top-google-result">
                 <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
-                {AUDIENCES.map((audience) => {
-                  const form = latestGoogleForms[audience];
-                  if (!form) {
-                    return null;
-                  }
-                  return (
-                    <div key={audience} className="google-links-group">
-                      <strong>{AUDIENCE_LABELS[audience]}</strong>
-                      <a href={form.editUrl} target="_blank" rel="noreferrer">
-                        편집 링크
-                      </a>
-                      {form.responderUrl ? (
-                        <a href={form.responderUrl} target="_blank" rel="noreferrer">
-                          응답 링크
+                <div className="google-links-row">
+                  {AUDIENCES.map((audience) => {
+                    const form = latestGoogleForms[audience];
+                    if (!form) {
+                      return null;
+                    }
+                    return (
+                      <div key={audience} className="google-links-group">
+                        <strong>{AUDIENCE_LABELS[audience]}</strong>
+                        <a href={form.editUrl} target="_blank" rel="noreferrer">
+                          편집 링크
                         </a>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                        {form.responderUrl ? (
+                          <a href={form.responderUrl} target="_blank" rel="noreferrer">
+                            응답 링크
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </ColorBlockSection>
             ) : null}
           </div>
