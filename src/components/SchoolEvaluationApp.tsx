@@ -32,17 +32,6 @@ import {
 
 type Mode = "user" | "admin";
 type AuthMode = "login" | "register";
-type UserPanel = "builder" | "recommend";
-type RecommendApiItem = {
-  id: string;
-  audience: Audience;
-  indicator: string;
-  question: string;
-  area: string;
-  subarea: string;
-  score: number;
-};
-type RecommendByAudience = Partial<Record<Audience, RecommendApiItem[]>>;
 
 const emptyFilters = {
   area: "",
@@ -88,24 +77,6 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-async function parseApiJson<T>(response: Response): Promise<ApiResult<T>> {
-  const raw = await response.text();
-  try {
-    return JSON.parse(raw) as ApiResult<T>;
-  } catch {
-    if (raw.includes("<!DOCTYPE") || raw.includes("<html")) {
-      return {
-        ok: false,
-        error: `서버 내부 오류가 발생했습니다. (HTTP ${response.status})`
-      };
-    }
-    return {
-      ok: false,
-      error: raw || `요청 처리에 실패했습니다. (HTTP ${response.status})`
-    };
-  }
-}
-
 function normalizeOrder(items: SelectedQuestion[]): SelectedQuestion[] {
   return items
     .slice()
@@ -131,12 +102,6 @@ export function SchoolEvaluationApp() {
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [schools, setSchools] = useState<PublicSchool[]>([]);
   const [authSubmitting, setAuthSubmitting] = useState(false);
-  const [userPanel, setUserPanel] = useState<UserPanel>("builder");
-  const [recommendLoading, setRecommendLoading] = useState(false);
-  const [recommendKeywords, setRecommendKeywords] = useState<string[]>([]);
-  const [recommendedQuestions, setRecommendedQuestions] = useState<RecommendApiItem[]>([]);
-  const [recommendSourceName, setRecommendSourceName] = useState("");
-  const [recommendFile, setRecommendFile] = useState<File | null>(null);
   const [customQuestionText, setCustomQuestionText] = useState("");
 
   const showAuthForm = mode === "user" && !(school && draft);
@@ -528,104 +493,6 @@ export function SchoolEvaluationApp() {
   function switchAudience(audience: Audience) {
     setActiveAudience(audience);
     setFilters(emptyFilters);
-    setUserPanel("builder");
-  }
-
-  async function analyzePdfRecommendations(file: File) {
-    if (!draft) {
-      return;
-    }
-    setRecommendLoading(true);
-    setError("");
-    setStatus("");
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("audience", activeAudience);
-
-      const response = await fetch("/api/recommend/pdf", {
-        method: "POST",
-        body: formData
-      });
-      const payload = await parseApiJson<{
-        audience: Audience;
-        recommendations: RecommendApiItem[];
-        keywords: string[];
-      }>(response);
-      if (!payload.ok) {
-        throw new Error(payload.error);
-      }
-
-      setRecommendedQuestions(payload.data.recommendations);
-      setRecommendKeywords(payload.data.keywords);
-      setRecommendSourceName(file.name);
-      setUserPanel("recommend");
-      setStatus(
-        payload.data.recommendations.length > 0
-          ? `${AUDIENCE_LABELS[activeAudience]} 추천 문항 ${payload.data.recommendations.length}개를 찾았습니다.`
-          : `${AUDIENCE_LABELS[activeAudience]}에서 일치하는 추천 문항을 찾지 못했습니다.`
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF 추천 분석에 실패했습니다.");
-    } finally {
-      setRecommendLoading(false);
-    }
-  }
-
-  async function autoFillFromPdf(file: File) {
-    if (!draft) {
-      return;
-    }
-    if (!window.confirm("PDF를 분석해 4개 대상 문항을 자동으로 채울까요? 기존 선택 문항은 대체됩니다.")) {
-      return;
-    }
-    setRecommendLoading(true);
-    setError("");
-    setStatus("");
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", "autofill");
-
-      const response = await fetch("/api/recommend/pdf", {
-        method: "POST",
-        body: formData
-      });
-      const payload = await parseApiJson<{
-        byAudience: RecommendByAudience;
-        keywords: string[];
-      }>(response);
-      if (!payload.ok) {
-        throw new Error(payload.error);
-      }
-
-      updateDraft((current) => {
-        const nextByAudience: SurveyDraft["itemsByAudience"] = { ...current.itemsByAudience };
-        for (const audience of AUDIENCES) {
-          const recs = payload.data.byAudience[audience] ?? [];
-          const selected = recs
-            .map((rec, index) => {
-              const source = questionBank.find((item) => item.id === rec.id && item.audience === audience);
-              return source ? createSelectedQuestionFromBank(source, index + 1) : null;
-            })
-            .filter((item): item is SelectedQuestion => Boolean(item));
-          nextByAudience[audience] = normalizeOrder(selected);
-        }
-        return {
-          ...current,
-          itemsByAudience: nextByAudience
-        };
-      });
-
-      setRecommendKeywords(payload.data.keywords);
-      setRecommendSourceName(file.name);
-      setUserPanel("builder");
-      setStatus("PDF 분석 결과를 기준으로 교원/학부모/학생/교직원 문항을 자동 채웠습니다.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF 자동 채우기에 실패했습니다.");
-    } finally {
-      setRecommendLoading(false);
-    }
   }
 
   const latestGoogleForms: Partial<Record<Audience, GoogleFormInfo>> =
@@ -757,109 +624,9 @@ export function SchoolEvaluationApp() {
                           <span className="audience-count">{draft.itemsByAudience[audience]?.length ?? 0}</span>
                         </Pill>
                       ))}
-                      <Pill
-                        type="button"
-                        selected={userPanel === "recommend"}
-                        onClick={() => setUserPanel("recommend")}
-                      >
-                        업로드
-                      </Pill>
                     </nav>
 
-                    {userPanel === "recommend" ? (
-                      <>
-                        <section className="intro-panel">
-                          <label className="field-label">
-                            {AUDIENCE_LABELS[activeAudience]} 안내문
-                            <Textarea
-                              rows={3}
-                              value={draft.introByAudience[activeAudience]}
-                              onChange={(event) => setIntro(activeAudience, event.target.value)}
-                            />
-                          </label>
-                        </section>
-                        <ColorBlockSection tone="lilac" className="recommend-panel">
-                          <div className="panel-title">
-                            <h3>PDF 기반 추천 ({AUDIENCE_LABELS[activeAudience]})</h3>
-                          </div>
-                          <div className="recommend-upload">
-                            <TextInput
-                              type="file"
-                              accept="application/pdf"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (file) {
-                                  setRecommendFile(file);
-                                }
-                              }}
-                            />
-                            <div className="actions">
-                              <Button
-                                variant="secondary"
-                                loading={recommendLoading}
-                                onClick={() => {
-                                  if (recommendFile) {
-                                    void analyzePdfRecommendations(recommendFile);
-                                  } else {
-                                    setError("먼저 PDF 파일을 선택해 주세요.");
-                                  }
-                                }}
-                              >
-                                현재 대상 추천 보기
-                              </Button>
-                              <Button
-                                loading={recommendLoading}
-                                onClick={() => {
-                                  if (recommendFile) {
-                                    void autoFillFromPdf(recommendFile);
-                                  } else {
-                                    setError("먼저 PDF 파일을 선택해 주세요.");
-                                  }
-                                }}
-                              >
-                                4개 대상 자동 채우기
-                              </Button>
-                            </div>
-                            {recommendLoading ? <span className="typ-body-sm w-540">PDF 분석 중...</span> : null}
-                            {recommendSourceName ? (
-                              <span className="typ-body-sm w-540">분석 파일: {recommendSourceName}</span>
-                            ) : null}
-                            {recommendKeywords.length > 0 ? (
-                              <div className="recommend-keywords">
-                                <strong>핵심 키워드:</strong> {recommendKeywords.join(", ")}
-                              </div>
-                            ) : null}
-                          </div>
-                          <div className="question-list">
-                            {recommendedQuestions.length === 0 ? (
-                              <div className="empty-state">
-                                2025년 설문 양식 PDF를 선택한 뒤 `현재 대상 추천 보기` 또는 `4개 대상 자동 채우기`를 실행하세요.
-                              </div>
-                            ) : (
-                              recommendedQuestions.map((item) => (
-                                <Button
-                                  key={item.id}
-                                  variant="secondary"
-                                  className="question-row"
-                                  onClick={() => {
-                                    const source = questionBank.find((q) => q.id === item.id);
-                                    if (source) {
-                                      addQuestion(source);
-                                    }
-                                  }}
-                                >
-                                  <span>
-                                    추천점수 {item.score} · {item.indicator}
-                                  </span>
-                                  <strong>{item.question}</strong>
-                                </Button>
-                              ))
-                            )}
-                          </div>
-                        </ColorBlockSection>
-                      </>
-                    ) : (
-                      <section className="builder-grid">
+                    <section className="builder-grid">
                         <div className="builder-left">
                   <section className="intro-panel">
                     <label className="field-label">
@@ -1039,7 +806,6 @@ export function SchoolEvaluationApp() {
                 )}
               </ColorBlockSection>
                       </section>
-                    )}
                   </div>
 
                 </div>
