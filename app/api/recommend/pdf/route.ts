@@ -1,7 +1,8 @@
-import { PDFParse } from "pdf-parse";
 import { jsonError, jsonOk, requireSchoolSession } from "@/lib/api";
 import { questionBank } from "@/lib/questionBank";
 import { AUDIENCES, type Audience } from "@/lib/types";
+
+export const runtime = "nodejs";
 
 type RecommendationItem = {
   id: string;
@@ -178,6 +179,7 @@ export async function POST(request: Request) {
       return jsonError("PDF 파일만 업로드할 수 있습니다.");
     }
 
+    const { PDFParse } = await import("pdf-parse");
     const arrayBuffer = await file.arrayBuffer();
     const parser = new PDFParse({ data: Buffer.from(arrayBuffer) });
     const parsed = await parser.getText();

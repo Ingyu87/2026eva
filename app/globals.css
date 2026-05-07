@@ -146,7 +146,7 @@ h3 {
 
 .workspace-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+  grid-template-columns: minmax(0, 1.75fr) minmax(280px, 0.25fr);
   gap: var(--space-md);
 }
 
@@ -274,9 +274,15 @@ h3 {
 
 .builder-grid {
   display: grid;
-  grid-template-columns: minmax(360px, 0.9fr) minmax(460px, 1.1fr);
+  grid-template-columns: minmax(360px, 0.85fr) minmax(620px, 1.35fr);
   gap: var(--space-md);
   align-items: start;
+}
+
+.builder-left {
+  display: grid;
+  gap: var(--space-md);
+  align-content: start;
 }
 
 .question-browser,
@@ -284,7 +290,7 @@ h3 {
   border: 1px solid var(--color-hairline);
   border-radius: var(--r-lg);
   background: var(--color-canvas);
-  min-height: 520px;
+  min-height: 620px;
 }
 
 .selected-editor-inner {
@@ -313,8 +319,16 @@ h3 {
   display: grid;
   gap: var(--space-xs);
   padding: var(--space-md);
-  max-height: 720px;
+  max-height: 780px;
   overflow: auto;
+}
+
+.custom-question-create {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-hairline);
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .question-row {

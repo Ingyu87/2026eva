@@ -86,6 +86,24 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+async function parseApiJson<T>(response: Response): Promise<ApiResult<T>> {
+  const raw = await response.text();
+  try {
+    return JSON.parse(raw) as ApiResult<T>;
+  } catch {
+    if (raw.includes("<!DOCTYPE") || raw.includes("<html")) {
+      return {
+        ok: false,
+        error: `서버 내부 오류가 발생했습니다. (HTTP ${response.status})`
+      };
+    }
+    return {
+      ok: false,
+      error: raw || `요청 처리에 실패했습니다. (HTTP ${response.status})`
+    };
+  }
+}
+
 function normalizeOrder(items: SelectedQuestion[]): SelectedQuestion[] {
   return items
     .slice()
@@ -117,6 +135,7 @@ export function SchoolEvaluationApp() {
   const [recommendedQuestions, setRecommendedQuestions] = useState<RecommendApiItem[]>([]);
   const [recommendSourceName, setRecommendSourceName] = useState("");
   const [recommendFile, setRecommendFile] = useState<File | null>(null);
+  const [customQuestionText, setCustomQuestionText] = useState("");
 
   const showAuthForm = mode === "user" && !(school && draft);
 
@@ -330,6 +349,44 @@ export function SchoolEvaluationApp() {
     setStatus("문항을 담았습니다.");
   }
 
+  function addCustomDescriptiveQuestion() {
+    if (!draft) {
+      return;
+    }
+    const text = customQuestionText.trim();
+    if (!text) {
+      setError("서술형 문항 내용을 입력해 주세요.");
+      return;
+    }
+    const currentItems = draft.itemsByAudience[activeAudience] ?? [];
+    const timestamp = nowIso();
+    const customItem: SelectedQuestion = {
+      id: crypto.randomUUID(),
+      sourceQuestionId: `custom-${timestamp}`,
+      audience: activeAudience,
+      sourceRow: 0,
+      area: "직접입력",
+      subarea: "직접입력",
+      indicator: "서술형",
+      originalQuestion: text,
+      editedQuestion: text,
+      responseType: "text",
+      order: currentItems.length + 1,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    updateDraft((current) => ({
+      ...current,
+      itemsByAudience: {
+        ...current.itemsByAudience,
+        [activeAudience]: normalizeOrder([...currentItems, customItem])
+      }
+    }));
+    setCustomQuestionText("");
+    setError("");
+    setStatus("서술형 문항을 추가했습니다.");
+  }
+
   function updateSelectedItem(id: string, patch: Partial<SelectedQuestion>) {
     updateDraft((current) => {
       const items = current.itemsByAudience[activeAudience] ?? [];
@@ -488,11 +545,11 @@ export function SchoolEvaluationApp() {
         method: "POST",
         body: formData
       });
-      const payload = (await response.json()) as ApiResult<{
+      const payload = await parseApiJson<{
         audience: Audience;
         recommendations: RecommendApiItem[];
         keywords: string[];
-      }>;
+      }>(response);
       if (!payload.ok) {
         throw new Error(payload.error);
       }
@@ -532,10 +589,10 @@ export function SchoolEvaluationApp() {
         method: "POST",
         body: formData
       });
-      const payload = (await response.json()) as ApiResult<{
+      const payload = await parseApiJson<{
         byAudience: RecommendByAudience;
         keywords: string[];
-      }>;
+      }>(response);
       if (!payload.ok) {
         throw new Error(payload.error);
       }
@@ -675,99 +732,111 @@ export function SchoolEvaluationApp() {
                       </Pill>
                     </nav>
 
-                    <section className="intro-panel">
-                      <label className="field-label">
-                        {AUDIENCE_LABELS[activeAudience]} 안내문
-                        <Textarea
-                          rows={3}
-                          value={draft.introByAudience[activeAudience]}
-                          onChange={(event) => setIntro(activeAudience, event.target.value)}
-                        />
-                      </label>
-                    </section>
-
                     {userPanel === "recommend" ? (
-                      <ColorBlockSection tone="lilac" className="recommend-panel">
-                        <div className="panel-title">
-                          <h3>PDF 기반 추천 ({AUDIENCE_LABELS[activeAudience]})</h3>
-                        </div>
-                        <div className="recommend-upload">
-                          <TextInput
-                            type="file"
-                            accept="application/pdf"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (file) {
-                                setRecommendFile(file);
-                              }
-                            }}
-                          />
-                          <div className="actions">
-                            <Button
-                              variant="secondary"
-                              loading={recommendLoading}
-                              onClick={() => {
-                                if (recommendFile) {
-                                  void analyzePdfRecommendations(recommendFile);
-                                } else {
-                                  setError("먼저 PDF 파일을 선택해 주세요.");
-                                }
-                              }}
-                            >
-                              현재 대상 추천 보기
-                            </Button>
-                            <Button
-                              loading={recommendLoading}
-                              onClick={() => {
-                                if (recommendFile) {
-                                  void autoFillFromPdf(recommendFile);
-                                } else {
-                                  setError("먼저 PDF 파일을 선택해 주세요.");
-                                }
-                              }}
-                            >
-                              4개 대상 자동 채우기
-                            </Button>
+                      <>
+                        <section className="intro-panel">
+                          <label className="field-label">
+                            {AUDIENCE_LABELS[activeAudience]} 안내문
+                            <Textarea
+                              rows={3}
+                              value={draft.introByAudience[activeAudience]}
+                              onChange={(event) => setIntro(activeAudience, event.target.value)}
+                            />
+                          </label>
+                        </section>
+                        <ColorBlockSection tone="lilac" className="recommend-panel">
+                          <div className="panel-title">
+                            <h3>PDF 기반 추천 ({AUDIENCE_LABELS[activeAudience]})</h3>
                           </div>
-                          {recommendLoading ? <span className="typ-body-sm w-540">PDF 분석 중...</span> : null}
-                          {recommendSourceName ? (
-                            <span className="typ-body-sm w-540">분석 파일: {recommendSourceName}</span>
-                          ) : null}
-                          {recommendKeywords.length > 0 ? (
-                            <div className="recommend-keywords">
-                              <strong>핵심 키워드:</strong> {recommendKeywords.join(", ")}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="question-list">
-                          {recommendedQuestions.length === 0 ? (
-                            <div className="empty-state">
-                              2025년 설문 양식 PDF를 선택한 뒤 `현재 대상 추천 보기` 또는 `4개 대상 자동 채우기`를 실행하세요.
-                            </div>
-                          ) : (
-                            recommendedQuestions.map((item) => (
+                          <div className="recommend-upload">
+                            <TextInput
+                              type="file"
+                              accept="application/pdf"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (file) {
+                                  setRecommendFile(file);
+                                }
+                              }}
+                            />
+                            <div className="actions">
                               <Button
-                                key={item.id}
                                 variant="secondary"
-                                className="question-row"
+                                loading={recommendLoading}
                                 onClick={() => {
-                                  const source = questionBank.find((q) => q.id === item.id);
-                                  if (source) {
-                                    addQuestion(source);
+                                  if (recommendFile) {
+                                    void analyzePdfRecommendations(recommendFile);
+                                  } else {
+                                    setError("먼저 PDF 파일을 선택해 주세요.");
                                   }
                                 }}
                               >
-                                <span>
-                                  추천점수 {item.score} · {item.indicator}
-                                </span>
-                                <strong>{item.question}</strong>
+                                현재 대상 추천 보기
                               </Button>
-                            ))
-                          )}
-                        </div>
-                      </ColorBlockSection>
+                              <Button
+                                loading={recommendLoading}
+                                onClick={() => {
+                                  if (recommendFile) {
+                                    void autoFillFromPdf(recommendFile);
+                                  } else {
+                                    setError("먼저 PDF 파일을 선택해 주세요.");
+                                  }
+                                }}
+                              >
+                                4개 대상 자동 채우기
+                              </Button>
+                            </div>
+                            {recommendLoading ? <span className="typ-body-sm w-540">PDF 분석 중...</span> : null}
+                            {recommendSourceName ? (
+                              <span className="typ-body-sm w-540">분석 파일: {recommendSourceName}</span>
+                            ) : null}
+                            {recommendKeywords.length > 0 ? (
+                              <div className="recommend-keywords">
+                                <strong>핵심 키워드:</strong> {recommendKeywords.join(", ")}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="question-list">
+                            {recommendedQuestions.length === 0 ? (
+                              <div className="empty-state">
+                                2025년 설문 양식 PDF를 선택한 뒤 `현재 대상 추천 보기` 또는 `4개 대상 자동 채우기`를 실행하세요.
+                              </div>
+                            ) : (
+                              recommendedQuestions.map((item) => (
+                                <Button
+                                  key={item.id}
+                                  variant="secondary"
+                                  className="question-row"
+                                  onClick={() => {
+                                    const source = questionBank.find((q) => q.id === item.id);
+                                    if (source) {
+                                      addQuestion(source);
+                                    }
+                                  }}
+                                >
+                                  <span>
+                                    추천점수 {item.score} · {item.indicator}
+                                  </span>
+                                  <strong>{item.question}</strong>
+                                </Button>
+                              ))
+                            )}
+                          </div>
+                        </ColorBlockSection>
+                      </>
                     ) : (
                       <section className="builder-grid">
+                        <div className="builder-left">
+                  <section className="intro-panel">
+                    <label className="field-label">
+                      {AUDIENCE_LABELS[activeAudience]} 안내문
+                      <Textarea
+                        rows={3}
+                        value={draft.introByAudience[activeAudience]}
+                        onChange={(event) => setIntro(activeAudience, event.target.value)}
+                      />
+                    </label>
+                  </section>
                         <div className="question-browser">
                   <div className="panel-title">
                     <h3>문항 찾기</h3>
@@ -845,6 +914,7 @@ export function SchoolEvaluationApp() {
                   ))}
                 </div>
               </div>
+                        </div>
 
               <ColorBlockSection tone="lime" aria-label="선택 문항 편집">
                 <div className="panel-title">
@@ -855,6 +925,20 @@ export function SchoolEvaluationApp() {
                       선택문항 초기화
                     </Button>
                   </div>
+                </div>
+                <div className="custom-question-create">
+                  <label className="field-label">
+                    서술형 문항 직접 추가
+                    <Textarea
+                      rows={2}
+                      value={customQuestionText}
+                      placeholder="예: 학교 교육활동 중 개선이 필요한 점을 자유롭게 작성해 주세요."
+                      onChange={(event) => setCustomQuestionText(event.target.value)}
+                    />
+                  </label>
+                  <Button variant="secondary" onClick={addCustomDescriptiveQuestion}>
+                    서술형 문항 추가
+                  </Button>
                 </div>
                 {selectedItems.length === 0 ? (
                   <div className="empty-state">왼쪽 문항을 클릭하면 이곳에 담깁니다.</div>
