@@ -9,7 +9,7 @@ export const AUDIENCE_LABELS: Record<Audience, string> = {
   staff: "교직원용"
 };
 
-export type ResponseType = "likert_5" | "text";
+export type ResponseType = "likert_5" | "likert_3" | "yes_no" | "checklist" | "text";
 
 export type QuestionBankItem = {
   id: string;
@@ -93,3 +93,7 @@ export const LIKERT_5_OPTIONS = [
   "그렇지 않다",
   "전혀 그렇지 않다"
 ];
+
+export const LIKERT_3_OPTIONS = ["그렇다", "보통이다", "그렇지 않다"];
+
+export const YES_NO_OPTIONS = ["예", "아니오"];

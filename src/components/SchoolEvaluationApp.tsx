@@ -18,7 +18,9 @@ import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
   AUDIENCE_LABELS,
+  LIKERT_3_OPTIONS,
   LIKERT_5_OPTIONS,
+  YES_NO_OPTIONS,
   type ApiResult,
   type Audience,
   type GoogleFormInfo,
@@ -928,7 +930,7 @@ export function SchoolEvaluationApp() {
                 </div>
                 <div className="custom-question-create">
                   <label className="field-label">
-                    서술형 문항 직접 추가
+                    문항 직접 추가
                     <Textarea
                       rows={2}
                       value={customQuestionText}
@@ -937,7 +939,7 @@ export function SchoolEvaluationApp() {
                     />
                   </label>
                   <Button variant="secondary" onClick={addCustomDescriptiveQuestion}>
-                    서술형 문항 추가
+                    문항 추가
                   </Button>
                 </div>
                 {selectedItems.length === 0 ? (
@@ -962,15 +964,32 @@ export function SchoolEvaluationApp() {
                             value={item.responseType}
                             onChange={(event) =>
                               updateSelectedItem(item.id, {
-                                responseType: event.target.value === "text" ? "text" : "likert_5"
+                                responseType:
+                                  event.target.value === "text" ||
+                                  event.target.value === "likert_3" ||
+                                  event.target.value === "yes_no" ||
+                                  event.target.value === "checklist"
+                                    ? event.target.value
+                                    : "likert_5"
                               })
                             }
                           >
                             <option value="likert_5">5점 척도</option>
+                            <option value="likert_3">3점 척도</option>
+                            <option value="yes_no">예/아니오</option>
+                            <option value="checklist">체크리스트</option>
                             <option value="text">서술형</option>
                           </Select>
                           <span className="scale-preview">
-                            {item.responseType === "likert_5" ? LIKERT_5_OPTIONS.join(" / ") : "서술형 답변"}
+                            {item.responseType === "likert_5"
+                              ? LIKERT_5_OPTIONS.join(" / ")
+                              : item.responseType === "likert_3"
+                                ? LIKERT_3_OPTIONS.join(" / ")
+                                : item.responseType === "yes_no"
+                                  ? YES_NO_OPTIONS.join(" / ")
+                                  : item.responseType === "checklist"
+                                    ? "복수 선택 가능"
+                                    : "서술형 답변"}
                           </span>
                           <Button variant="secondary" onClick={() => moveSelectedItem(item.id, -1)}>
                             위로

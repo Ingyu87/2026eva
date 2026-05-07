@@ -12,7 +12,15 @@ import {
   TextRun,
   WidthType
 } from "docx";
-import { AUDIENCES, AUDIENCE_LABELS, LIKERT_5_OPTIONS, type SelectedQuestion, type SurveyDraft } from "./types";
+import {
+  AUDIENCES,
+  AUDIENCE_LABELS,
+  LIKERT_3_OPTIONS,
+  LIKERT_5_OPTIONS,
+  YES_NO_OPTIONS,
+  type SelectedQuestion,
+  type SurveyDraft
+} from "./types";
 
 function textParagraph(text: string, bold = false): Paragraph {
   return new Paragraph({
@@ -48,6 +56,13 @@ function questionParagraphs(question: SelectedQuestion): Paragraph[] {
 
   if (question.responseType === "likert_5") {
     paragraphs.push(textParagraph(LIKERT_5_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));
+  } else if (question.responseType === "likert_3") {
+    paragraphs.push(textParagraph(LIKERT_3_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));
+  } else if (question.responseType === "yes_no") {
+    paragraphs.push(textParagraph(YES_NO_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));
+  } else if (question.responseType === "checklist") {
+    paragraphs.push(textParagraph("해당되는 항목을 모두 선택하세요."));
+    paragraphs.push(textParagraph(YES_NO_OPTIONS.map((option) => `□ ${option}`).join("    ")));
   } else {
     paragraphs.push(textParagraph("답변:"));
     paragraphs.push(textParagraph("                                                                 "));

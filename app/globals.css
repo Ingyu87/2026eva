@@ -276,7 +276,7 @@ h3 {
   display: grid;
   grid-template-columns: minmax(560px, 1.2fr) minmax(620px, 1.15fr);
   gap: var(--space-md);
-  align-items: start;
+  align-items: stretch;
 }
 
 .builder-left {
@@ -333,6 +333,9 @@ h3 {
 }
 
 .selected-panel {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
   padding: var(--space-md);
 }
 
@@ -341,6 +344,15 @@ h3 {
 }
 
 .selected-panel .selected-list {
+  max-height: none;
+  min-height: 0;
+}
+
+.selected-panel .empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  text-align: center;
   max-height: 620px;
 }
 

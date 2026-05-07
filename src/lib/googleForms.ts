@@ -2,9 +2,12 @@ import { decodeSignedToken, encodeSignedToken } from "./session";
 import {
   AUDIENCES,
   AUDIENCE_LABELS,
+  LIKERT_3_OPTIONS,
   LIKERT_5_OPTIONS,
+  YES_NO_OPTIONS,
   type Audience,
   type GoogleFormInfo,
+  type ResponseType,
   type SurveyDraft
 } from "./types";
 
@@ -124,7 +127,29 @@ function textItem(title: string, description?: string) {
   };
 }
 
-function questionItem(title: string, description: string, responseType: string) {
+function choiceItem(
+  title: string,
+  description: string,
+  options: string[],
+  type: "RADIO" | "CHECKBOX" = "RADIO"
+) {
+  return {
+    title,
+    description,
+    questionItem: {
+      question: {
+        required: false,
+        choiceQuestion: {
+          type,
+          options: options.map((value) => ({ value })),
+          shuffle: false
+        }
+      }
+    }
+  };
+}
+
+function questionItem(title: string, description: string, responseType: ResponseType) {
   if (responseType === "text") {
     return {
       title,
@@ -140,20 +165,16 @@ function questionItem(title: string, description: string, responseType: string) 
     };
   }
 
-  return {
-    title,
-    description,
-    questionItem: {
-      question: {
-        required: false,
-        choiceQuestion: {
-          type: "RADIO",
-          options: LIKERT_5_OPTIONS.map((value) => ({ value })),
-          shuffle: false
-        }
-      }
-    }
-  };
+  if (responseType === "likert_3") {
+    return choiceItem(title, description, LIKERT_3_OPTIONS, "RADIO");
+  }
+  if (responseType === "yes_no") {
+    return choiceItem(title, description, YES_NO_OPTIONS, "RADIO");
+  }
+  if (responseType === "checklist") {
+    return choiceItem(title, description, YES_NO_OPTIONS, "CHECKBOX");
+  }
+  return choiceItem(title, description, LIKERT_5_OPTIONS, "RADIO");
 }
 
 async function createGoogleFormForAudience(
