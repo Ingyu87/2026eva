@@ -68,7 +68,8 @@ h3 {
 }
 
 .app-shell {
-  width: min(var(--container-max), calc(100% - 2 * var(--container-gutter)));
+  width: calc(100% - 2 * var(--container-gutter));
+  max-width: none;
   margin: 0 auto;
   padding: var(--space-xl) 0 var(--space-section);
 }

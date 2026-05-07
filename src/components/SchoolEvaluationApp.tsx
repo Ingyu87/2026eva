@@ -671,7 +671,7 @@ export function SchoolEvaluationApp() {
                         selected={userPanel === "recommend"}
                         onClick={() => setUserPanel("recommend")}
                       >
-                        추천
+                        업로드
                       </Pill>
                     </nav>
 
@@ -932,21 +932,6 @@ export function SchoolEvaluationApp() {
                         })}
                       </ColorBlockSection>
                     ) : null}
-
-                    <ColorBlockSection tone="cream">
-                      <h3>빠른 작업</h3>
-                      <div className="actions">
-                        <Button variant="secondary" onClick={() => setUserPanel("builder")}>
-                          문항 편집 탭
-                        </Button>
-                        <Button variant="secondary" onClick={() => setUserPanel("recommend")}>
-                          추천 탭
-                        </Button>
-                      </div>
-                      <p className="typ-body-sm w-540">
-                        관리자 화면에서는 계정 관리만 가능하며, 학교별 문항 상세 내용 열람 UI는 현재 제공되지 않습니다.
-                      </p>
-                    </ColorBlockSection>
                   </aside>
                 </div>
           </section>
