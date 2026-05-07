@@ -787,7 +787,14 @@ export function SchoolEvaluationApp() {
       )}
       </main>
 
-      <Footer wordmark="School Evaluation" />
+      <Footer wordmark="School Evaluation">
+        <a href="/privacy" target="_blank" rel="noreferrer">
+          개인정보처리방침
+        </a>
+        <a href="/terms" target="_blank" rel="noreferrer">
+          이용약관
+        </a>
+      </Footer>
     </div>
   );
 }

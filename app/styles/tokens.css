@@ -420,6 +420,20 @@
   margin: 0 0 var(--space-md);
 }
 
+.ds-footer__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: var(--fs-body-sm);
+}
+
+.ds-footer__meta a {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .ds-eyebrow {
   margin: 0;
   font-family: var(--font-mono), ui-monospace, monospace;

@@ -62,3 +62,9 @@ npm run build
 ## 참고
 
 Firebase 환경변수가 없으면 로컬 개발용 메모리 저장소로 동작합니다. 이 경우 서버를 재시작하면 등록 학교와 초안이 사라집니다. Vercel 배포에서는 반드시 Firebase 환경변수를 설정해야 합니다.
+
+## OAuth 검증 준비
+
+- 개인정보처리방침: `https://2026eva.vercel.app/privacy`
+- 이용약관: `https://2026eva.vercel.app/terms`
+- 검증 체크리스트: `docs/google-oauth-verification-checklist.md`

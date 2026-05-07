@@ -10,7 +10,7 @@ export function Footer({ wordmark = "School Evaluation", children, className = "
   return (
     <footer className={["ds-footer", className].filter(Boolean).join(" ")}>
       <p className="ds-footer__wordmark w-340">{wordmark}</p>
-      {children}
+      {children ? <div className="ds-footer__meta">{children}</div> : null}
     </footer>
   );
 }
