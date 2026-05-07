@@ -47,6 +47,8 @@ export type GoogleFormInfo = {
   googleEmail?: string;
 };
 
+export type GoogleFormsByAudience = Partial<Record<Audience, GoogleFormInfo>>;
+
 export type SurveyDraft = {
   id: string;
   schoolId: string;
@@ -56,6 +58,7 @@ export type SurveyDraft = {
   introByAudience: Record<Audience, string>;
   itemsByAudience: Record<Audience, SelectedQuestion[]>;
   googleForm?: GoogleFormInfo;
+  googleFormsByAudience?: GoogleFormsByAudience;
   createdAt: string;
   updatedAt: string;
 };

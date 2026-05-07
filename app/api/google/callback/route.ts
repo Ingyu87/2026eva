@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createGoogleFormFromDraft, decodeGoogleState, exchangeGoogleCode } from "@/lib/googleForms";
+import { createGoogleFormsByAudienceFromDraft, decodeGoogleState, exchangeGoogleCode } from "@/lib/googleForms";
+import { AUDIENCES, type GoogleFormsByAudience } from "@/lib/types";
 import { getOrCreateDraft, saveDraft } from "@/lib/store";
 
 export async function GET(request: Request) {
@@ -15,13 +16,25 @@ export async function GET(request: Request) {
   try {
     const token = await exchangeGoogleCode(code, origin);
     const draft = await getOrCreateDraft(state.schoolId, state.schoolName);
-    const form = await createGoogleFormFromDraft(draft, token.access_token);
+    const formsByAudience = await createGoogleFormsByAudienceFromDraft(draft, token.access_token);
+    const createdAt = new Date().toISOString();
+    const normalizedFormsByAudience: GoogleFormsByAudience = {};
+    for (const audience of AUDIENCES) {
+      const info = formsByAudience[audience];
+      if (!info) {
+        continue;
+      }
+      normalizedFormsByAudience[audience] = {
+        ...info,
+        createdAt
+      };
+    }
+    const firstAudience = AUDIENCES.find((audience) => normalizedFormsByAudience[audience]);
+    const firstForm = firstAudience ? normalizedFormsByAudience[firstAudience] : undefined;
     await saveDraft({
       ...draft,
-      googleForm: {
-        ...form,
-        createdAt: new Date().toISOString()
-      }
+      googleFormsByAudience: normalizedFormsByAudience,
+      googleForm: firstForm
     });
     return NextResponse.redirect(`${origin}/?google=success`);
   } catch (error) {

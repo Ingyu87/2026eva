@@ -1,5 +1,12 @@
-import { encodeSignedToken, decodeSignedToken } from "./session";
-import { AUDIENCES, AUDIENCE_LABELS, LIKERT_5_OPTIONS, type SurveyDraft } from "./types";
+import { decodeSignedToken, encodeSignedToken } from "./session";
+import {
+  AUDIENCES,
+  AUDIENCE_LABELS,
+  LIKERT_5_OPTIONS,
+  type Audience,
+  type GoogleFormInfo,
+  type SurveyDraft
+} from "./types";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -44,9 +51,7 @@ export function createGoogleAuthUrl(schoolId: string, schoolName: string, reques
   const clientId = requiredEnv("GOOGLE_CLIENT_ID");
   const redirectUri = getGoogleRedirectUri(requestOrigin);
   if (!redirectUri) {
-    throw new Error(
-      "OAuth ????? URI? ?? ? ????. ????? GOOGLE_REDIRECT_URI? ??? ?? ??? ?? ???? ????."
-    );
+    throw new Error("OAuth ????? URI? ?? ? ????.");
   }
 
   const state = encodeSignedToken({
@@ -151,14 +156,21 @@ function questionItem(title: string, description: string, responseType: string) 
   };
 }
 
-export async function createGoogleFormFromDraft(
+async function createGoogleFormForAudience(
   draft: SurveyDraft,
+  audience: Audience,
   accessToken: string
 ): Promise<{
   formId: string;
   editUrl: string;
   responderUrl?: string;
 }> {
+  const items = draft.itemsByAudience[audience] ?? [];
+  if (items.length === 0) {
+    throw new Error(`${AUDIENCE_LABELS[audience]} ??? ?? Google Form? ?? ? ????.`);
+  }
+
+  const titleForAudience = `${draft.title} (${AUDIENCE_LABELS[audience]})`;
   const createResponse = await fetch(FORMS_API_URL, {
     method: "POST",
     headers: {
@@ -167,63 +179,52 @@ export async function createGoogleFormFromDraft(
     },
     body: JSON.stringify({
       info: {
-        title: draft.title,
-        documentTitle: `${draft.title}_${draft.schoolName}`
+        title: titleForAudience,
+        documentTitle: `${titleForAudience}_${draft.schoolName}`
       }
     })
   });
 
   if (!createResponse.ok) {
     const detail = await createResponse.text();
-    throw new Error(
-      `Google Forms API? ?? ?? ? ????. Google Cloud???Google Forms API?? ?? ???? ??? ?????. ${detail}`
-    );
+    throw new Error(`Google Forms API? ?? ?? ? ????. ${detail}`);
   }
 
   const form = (await createResponse.json()) as GoogleFormResponse;
-  const requests: unknown[] = [];
-
-  for (const audience of AUDIENCES) {
-    const items = draft.itemsByAudience[audience] ?? [];
-    if (items.length === 0) {
-      continue;
-    }
-
-    requests.push({
+  const requests: unknown[] = [
+    {
       createItem: {
         item: textItem(`${AUDIENCE_LABELS[audience]} ??`, draft.introByAudience[audience]),
+        location: { index: 0 }
+      }
+    }
+  ];
+
+  for (const item of items.slice().sort((a, b) => a.order - b.order)) {
+    requests.push({
+      createItem: {
+        item: questionItem(
+          item.editedQuestion || item.originalQuestion,
+          `${item.area} / ${item.subarea} / ${item.indicator}`,
+          item.responseType
+        ),
         location: { index: requests.length }
       }
     });
-
-    for (const item of items.slice().sort((a, b) => a.order - b.order)) {
-      requests.push({
-        createItem: {
-          item: questionItem(
-            item.editedQuestion || item.originalQuestion,
-            `${item.area} / ${item.subarea} / ${item.indicator}`,
-            item.responseType
-          ),
-          location: { index: requests.length }
-        }
-      });
-    }
   }
 
-  if (requests.length > 0) {
-    const updateResponse = await fetch(`${FORMS_API_URL}/${form.formId}:batchUpdate`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ requests })
-    });
+  const updateResponse = await fetch(`${FORMS_API_URL}/${form.formId}:batchUpdate`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ requests })
+  });
 
-    if (!updateResponse.ok) {
-      const detail = await updateResponse.text();
-      throw new Error(`Google Form? ??? ???? batchUpdate? ??????. ${detail}`);
-    }
+  if (!updateResponse.ok) {
+    const detail = await updateResponse.text();
+    throw new Error(`Google Form ?? ??(batchUpdate)? ??????. ${detail}`);
   }
 
   let responderUrl = form.responderUri;
@@ -242,4 +243,22 @@ export async function createGoogleFormFromDraft(
     editUrl: `https://docs.google.com/forms/d/${form.formId}/edit`,
     responderUrl
   };
+}
+
+export async function createGoogleFormsByAudienceFromDraft(
+  draft: SurveyDraft,
+  accessToken: string
+): Promise<Partial<Record<Audience, Omit<GoogleFormInfo, "createdAt">>>> {
+  const nextForms: Partial<Record<Audience, Omit<GoogleFormInfo, "createdAt">>> = {};
+  for (const audience of AUDIENCES) {
+    const items = draft.itemsByAudience[audience] ?? [];
+    if (items.length === 0) {
+      continue;
+    }
+    nextForms[audience] = await createGoogleFormForAudience(draft, audience, accessToken);
+  }
+  if (Object.keys(nextForms).length === 0) {
+    throw new Error("??? ??? ?? Google Forms? ??? ? ????.");
+  }
+  return nextForms;
 }

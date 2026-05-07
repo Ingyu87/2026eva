@@ -143,6 +143,23 @@ h3 {
   padding: var(--space-lg);
 }
 
+.workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+  gap: var(--space-md);
+}
+
+.workspace-main,
+.workspace-side {
+  min-width: 0;
+}
+
+.workspace-side {
+  display: grid;
+  gap: var(--space-md);
+  align-content: start;
+}
+
 .auth-panel {
   width: min(520px, 100%);
   display: grid;
@@ -192,11 +209,34 @@ h3 {
 }
 
 .google-result {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: var(--space-md);
-  flex-wrap: wrap;
   font-size: var(--fs-body-sm);
+}
+
+.google-links-group {
+  display: grid;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 10px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--r-md);
+}
+
+.recommend-panel {
+  margin-top: 0;
+}
+
+.recommend-upload {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-hairline);
+}
+
+.recommend-keywords {
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body-sm);
 }
 
 .intro-panel {
@@ -399,6 +439,7 @@ h3 {
     flex-direction: column;
   }
 
+  .workspace-layout,
   .settings-panel,
   .builder-grid,
   .school-table-head,

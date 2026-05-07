@@ -12,6 +12,7 @@
     "docx": "^9.5.1",
     "firebase-admin": "^13.0.2",
     "next": "^15.1.4",
+    "pdf-parse": "^2.4.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

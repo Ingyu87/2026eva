@@ -21,6 +21,7 @@ import {
   LIKERT_5_OPTIONS,
   type ApiResult,
   type Audience,
+  type GoogleFormInfo,
   type PublicSchool,
   type QuestionBankItem,
   type SelectedQuestion,
@@ -29,6 +30,17 @@ import {
 
 type Mode = "user" | "admin";
 type AuthMode = "login" | "register";
+type UserPanel = "builder" | "recommend";
+type RecommendApiItem = {
+  id: string;
+  audience: Audience;
+  indicator: string;
+  question: string;
+  area: string;
+  subarea: string;
+  score: number;
+};
+type RecommendByAudience = Partial<Record<Audience, RecommendApiItem[]>>;
 
 const emptyFilters = {
   area: "",
@@ -99,6 +111,12 @@ export function SchoolEvaluationApp() {
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [schools, setSchools] = useState<PublicSchool[]>([]);
   const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [userPanel, setUserPanel] = useState<UserPanel>("builder");
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [recommendKeywords, setRecommendKeywords] = useState<string[]>([]);
+  const [recommendedQuestions, setRecommendedQuestions] = useState<RecommendApiItem[]>([]);
+  const [recommendSourceName, setRecommendSourceName] = useState("");
+  const [recommendFile, setRecommendFile] = useState<File | null>(null);
 
   const showAuthForm = mode === "user" && !(school && draft);
 
@@ -108,7 +126,7 @@ export function SchoolEvaluationApp() {
     const params = new URLSearchParams(window.location.search);
     const google = params.get("google");
     if (google === "success") {
-      setStatus("Google Forms 생성이 완료되었습니다.");
+      setStatus("대상별 Google Forms 생성이 완료되었습니다.");
       window.history.replaceState({}, "", "/");
     }
     if (google === "error") {
@@ -268,17 +286,12 @@ export function SchoolEvaluationApp() {
     }));
   }
 
-  function addQuestion(question: QuestionBankItem) {
-    if (!draft) {
-      return;
-    }
-    const currentItems = draft.itemsByAudience[question.audience] ?? [];
-    if (currentItems.some((item) => item.sourceQuestionId === question.id)) {
-      setError("이미 담긴 문항입니다.");
-      return;
-    }
+  function createSelectedQuestionFromBank(
+    question: QuestionBankItem,
+    order: number
+  ): SelectedQuestion {
     const timestamp = nowIso();
-    const item: SelectedQuestion = {
+    return {
       id: crypto.randomUUID(),
       sourceQuestionId: question.id,
       audience: question.audience,
@@ -289,10 +302,22 @@ export function SchoolEvaluationApp() {
       originalQuestion: question.question,
       editedQuestion: question.question,
       responseType: "likert_5",
-      order: currentItems.length + 1,
+      order,
       createdAt: timestamp,
       updatedAt: timestamp
     };
+  }
+
+  function addQuestion(question: QuestionBankItem) {
+    if (!draft) {
+      return;
+    }
+    const currentItems = draft.itemsByAudience[question.audience] ?? [];
+    if (currentItems.some((item) => item.sourceQuestionId === question.id)) {
+      setError("이미 담긴 문항입니다.");
+      return;
+    }
+    const item = createSelectedQuestionFromBank(question, currentItems.length + 1);
 
     updateDraft((current) => ({
       ...current,
@@ -333,6 +358,29 @@ export function SchoolEvaluationApp() {
         }
       };
     });
+  }
+
+  function resetSelectedItemsForAudience(audience: Audience) {
+    if (!draft) {
+      return;
+    }
+    const count = draft.itemsByAudience[audience]?.length ?? 0;
+    if (count === 0) {
+      setStatus(`${AUDIENCE_LABELS[audience]} 문항은 이미 비어 있습니다.`);
+      return;
+    }
+    if (!window.confirm(`${AUDIENCE_LABELS[audience]} 선택 문항 ${count}개를 모두 초기화할까요?`)) {
+      return;
+    }
+    updateDraft((current) => ({
+      ...current,
+      itemsByAudience: {
+        ...current.itemsByAudience,
+        [audience]: []
+      }
+    }));
+    setStatus(`${AUDIENCE_LABELS[audience]} 선택 문항을 초기화했습니다.`);
+    setError("");
   }
 
   function moveSelectedItem(id: string, direction: -1 | 1) {
@@ -421,7 +469,113 @@ export function SchoolEvaluationApp() {
   function switchAudience(audience: Audience) {
     setActiveAudience(audience);
     setFilters(emptyFilters);
+    setUserPanel("builder");
   }
+
+  async function analyzePdfRecommendations(file: File) {
+    if (!draft) {
+      return;
+    }
+    setRecommendLoading(true);
+    setError("");
+    setStatus("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("audience", activeAudience);
+
+      const response = await fetch("/api/recommend/pdf", {
+        method: "POST",
+        body: formData
+      });
+      const payload = (await response.json()) as ApiResult<{
+        audience: Audience;
+        recommendations: RecommendApiItem[];
+        keywords: string[];
+      }>;
+      if (!payload.ok) {
+        throw new Error(payload.error);
+      }
+
+      setRecommendedQuestions(payload.data.recommendations);
+      setRecommendKeywords(payload.data.keywords);
+      setRecommendSourceName(file.name);
+      setUserPanel("recommend");
+      setStatus(
+        payload.data.recommendations.length > 0
+          ? `${AUDIENCE_LABELS[activeAudience]} 추천 문항 ${payload.data.recommendations.length}개를 찾았습니다.`
+          : `${AUDIENCE_LABELS[activeAudience]}에서 일치하는 추천 문항을 찾지 못했습니다.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PDF 추천 분석에 실패했습니다.");
+    } finally {
+      setRecommendLoading(false);
+    }
+  }
+
+  async function autoFillFromPdf(file: File) {
+    if (!draft) {
+      return;
+    }
+    if (!window.confirm("PDF를 분석해 4개 대상 문항을 자동으로 채울까요? 기존 선택 문항은 대체됩니다.")) {
+      return;
+    }
+    setRecommendLoading(true);
+    setError("");
+    setStatus("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("mode", "autofill");
+
+      const response = await fetch("/api/recommend/pdf", {
+        method: "POST",
+        body: formData
+      });
+      const payload = (await response.json()) as ApiResult<{
+        byAudience: RecommendByAudience;
+        keywords: string[];
+      }>;
+      if (!payload.ok) {
+        throw new Error(payload.error);
+      }
+
+      updateDraft((current) => {
+        const nextByAudience: SurveyDraft["itemsByAudience"] = { ...current.itemsByAudience };
+        for (const audience of AUDIENCES) {
+          const recs = payload.data.byAudience[audience] ?? [];
+          const selected = recs
+            .map((rec, index) => {
+              const source = questionBank.find((item) => item.id === rec.id && item.audience === audience);
+              return source ? createSelectedQuestionFromBank(source, index + 1) : null;
+            })
+            .filter((item): item is SelectedQuestion => Boolean(item));
+          nextByAudience[audience] = normalizeOrder(selected);
+        }
+        return {
+          ...current,
+          itemsByAudience: nextByAudience
+        };
+      });
+
+      setRecommendKeywords(payload.data.keywords);
+      setRecommendSourceName(file.name);
+      setUserPanel("builder");
+      setStatus("PDF 분석 결과를 기준으로 교원/학부모/학생/교직원 문항을 자동 채웠습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PDF 자동 채우기에 실패했습니다.");
+    } finally {
+      setRecommendLoading(false);
+    }
+  }
+
+  const latestGoogleForms: Partial<Record<Audience, GoogleFormInfo>> =
+    draft?.googleFormsByAudience ??
+    (draft?.googleForm
+      ? {
+          teacher: draft.googleForm
+        }
+      : {});
 
   return (
     <div className="app-page">
@@ -479,66 +633,142 @@ export function SchoolEvaluationApp() {
                 </div>
               </div>
 
-              <section className="settings-panel">
-                <label className="field-label">
-                  설문 제목
-                  <TextInput value={draft.title} onChange={(event) => setMeta("title", event.target.value)} />
-                </label>
-                <label className="field-label">
-                  학교명
-                  <TextInput value={draft.schoolName} onChange={(event) => setMeta("schoolName", event.target.value)} />
-                </label>
-                <label className="field-label">
-                  기준일
-                  <TextInput
-                    type="date"
-                    value={draft.surveyDate}
-                    onChange={(event) => setMeta("surveyDate", event.target.value)}
-                  />
-                </label>
-              </section>
+                <div className="workspace-layout">
+                  <div className="workspace-main">
+                    <section className="settings-panel">
+                      <label className="field-label">
+                        설문 제목
+                        <TextInput value={draft.title} onChange={(event) => setMeta("title", event.target.value)} />
+                      </label>
+                      <label className="field-label">
+                        학교명
+                        <TextInput value={draft.schoolName} onChange={(event) => setMeta("schoolName", event.target.value)} />
+                      </label>
+                      <label className="field-label">
+                        기준일
+                        <TextInput
+                          type="date"
+                          value={draft.surveyDate}
+                          onChange={(event) => setMeta("surveyDate", event.target.value)}
+                        />
+                      </label>
+                    </section>
 
-              {draft.googleForm ? (
-                <ColorBlockSection tone="mint" className="google-result">
-                  <strong className="typ-body-sm w-540">최근 생성된 Google Forms</strong>
-                  <a href={draft.googleForm.editUrl} target="_blank" rel="noreferrer">
-                    편집 링크 열기
-                  </a>
-                  {draft.googleForm.responderUrl ? (
-                    <a href={draft.googleForm.responderUrl} target="_blank" rel="noreferrer">
-                      응답 링크 열기
-                    </a>
-                  ) : null}
-                </ColorBlockSection>
-              ) : null}
+                    <nav className="audience-tabs" aria-label="설문 대상 선택">
+                      {AUDIENCES.map((audience) => (
+                        <Pill
+                          key={audience}
+                          type="button"
+                          selected={activeAudience === audience}
+                          onClick={() => switchAudience(audience)}
+                        >
+                          {AUDIENCE_LABELS[audience]}
+                          <span className="audience-count">{draft.itemsByAudience[audience]?.length ?? 0}</span>
+                        </Pill>
+                      ))}
+                      <Pill
+                        type="button"
+                        selected={userPanel === "recommend"}
+                        onClick={() => setUserPanel("recommend")}
+                      >
+                        추천
+                      </Pill>
+                    </nav>
 
-              <nav className="audience-tabs" aria-label="설문 대상 선택">
-                {AUDIENCES.map((audience) => (
-                  <Pill
-                    key={audience}
-                    type="button"
-                    selected={activeAudience === audience}
-                    onClick={() => switchAudience(audience)}
-                  >
-                    {AUDIENCE_LABELS[audience]}
-                    <span className="audience-count">{draft.itemsByAudience[audience]?.length ?? 0}</span>
-                  </Pill>
-                ))}
-              </nav>
+                    <section className="intro-panel">
+                      <label className="field-label">
+                        {AUDIENCE_LABELS[activeAudience]} 안내문
+                        <Textarea
+                          rows={3}
+                          value={draft.introByAudience[activeAudience]}
+                          onChange={(event) => setIntro(activeAudience, event.target.value)}
+                        />
+                      </label>
+                    </section>
 
-              <section className="intro-panel">
-                <label className="field-label">
-                  {AUDIENCE_LABELS[activeAudience]} 안내문
-                  <Textarea
-                    rows={3}
-                    value={draft.introByAudience[activeAudience]}
-                    onChange={(event) => setIntro(activeAudience, event.target.value)}
-                  />
-                </label>
-              </section>
-
-              <section className="builder-grid">
-                <div className="question-browser">
+                    {userPanel === "recommend" ? (
+                      <ColorBlockSection tone="lilac" className="recommend-panel">
+                        <div className="panel-title">
+                          <h3>PDF 기반 추천 ({AUDIENCE_LABELS[activeAudience]})</h3>
+                        </div>
+                        <div className="recommend-upload">
+                          <TextInput
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) {
+                                setRecommendFile(file);
+                              }
+                            }}
+                          />
+                          <div className="actions">
+                            <Button
+                              variant="secondary"
+                              loading={recommendLoading}
+                              onClick={() => {
+                                if (recommendFile) {
+                                  void analyzePdfRecommendations(recommendFile);
+                                } else {
+                                  setError("먼저 PDF 파일을 선택해 주세요.");
+                                }
+                              }}
+                            >
+                              현재 대상 추천 보기
+                            </Button>
+                            <Button
+                              loading={recommendLoading}
+                              onClick={() => {
+                                if (recommendFile) {
+                                  void autoFillFromPdf(recommendFile);
+                                } else {
+                                  setError("먼저 PDF 파일을 선택해 주세요.");
+                                }
+                              }}
+                            >
+                              4개 대상 자동 채우기
+                            </Button>
+                          </div>
+                          {recommendLoading ? <span className="typ-body-sm w-540">PDF 분석 중...</span> : null}
+                          {recommendSourceName ? (
+                            <span className="typ-body-sm w-540">분석 파일: {recommendSourceName}</span>
+                          ) : null}
+                          {recommendKeywords.length > 0 ? (
+                            <div className="recommend-keywords">
+                              <strong>핵심 키워드:</strong> {recommendKeywords.join(", ")}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="question-list">
+                          {recommendedQuestions.length === 0 ? (
+                            <div className="empty-state">
+                              2025년 설문 양식 PDF를 선택한 뒤 `현재 대상 추천 보기` 또는 `4개 대상 자동 채우기`를 실행하세요.
+                            </div>
+                          ) : (
+                            recommendedQuestions.map((item) => (
+                              <Button
+                                key={item.id}
+                                variant="secondary"
+                                className="question-row"
+                                onClick={() => {
+                                  const source = questionBank.find((q) => q.id === item.id);
+                                  if (source) {
+                                    addQuestion(source);
+                                  }
+                                }}
+                              >
+                                <span>
+                                  추천점수 {item.score} · {item.indicator}
+                                </span>
+                                <strong>{item.question}</strong>
+                              </Button>
+                            ))
+                          )}
+                        </div>
+                      </ColorBlockSection>
+                    ) : (
+                      <section className="builder-grid">
+                        <div className="question-browser">
                   <div className="panel-title">
                     <h3>문항 찾기</h3>
                     <Button variant="secondary" onClick={() => setFilters(emptyFilters)}>
@@ -619,7 +849,12 @@ export function SchoolEvaluationApp() {
               <ColorBlockSection tone="lime" aria-label="선택 문항 편집">
                 <div className="panel-title">
                   <h3>{AUDIENCE_LABELS[activeAudience]} 선택 문항</h3>
-                  <span className="typ-body-sm w-540">{selectedItems.length}개</span>
+                  <div className="actions">
+                    <span className="typ-body-sm w-540">{selectedItems.length}개</span>
+                    <Button variant="secondary" onClick={() => resetSelectedItemsForAudience(activeAudience)}>
+                      선택문항 초기화
+                    </Button>
+                  </div>
                 </div>
                 {selectedItems.length === 0 ? (
                   <div className="empty-state">왼쪽 문항을 클릭하면 이곳에 담깁니다.</div>
@@ -668,7 +903,52 @@ export function SchoolEvaluationApp() {
                   </div>
                 )}
               </ColorBlockSection>
-            </section>
+                      </section>
+                    )}
+                  </div>
+
+                  <aside className="workspace-side">
+                    {Object.keys(latestGoogleForms).length > 0 ? (
+                      <ColorBlockSection tone="mint" className="google-result">
+                        <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
+                        {AUDIENCES.map((audience) => {
+                          const form = latestGoogleForms[audience];
+                          if (!form) {
+                            return null;
+                          }
+                          return (
+                            <div key={audience} className="google-links-group">
+                              <strong>{AUDIENCE_LABELS[audience]}</strong>
+                              <a href={form.editUrl} target="_blank" rel="noreferrer">
+                                편집 링크
+                              </a>
+                              {form.responderUrl ? (
+                                <a href={form.responderUrl} target="_blank" rel="noreferrer">
+                                  응답 링크
+                                </a>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </ColorBlockSection>
+                    ) : null}
+
+                    <ColorBlockSection tone="cream">
+                      <h3>빠른 작업</h3>
+                      <div className="actions">
+                        <Button variant="secondary" onClick={() => setUserPanel("builder")}>
+                          문항 편집 탭
+                        </Button>
+                        <Button variant="secondary" onClick={() => setUserPanel("recommend")}>
+                          추천 탭
+                        </Button>
+                      </div>
+                      <p className="typ-body-sm w-540">
+                        관리자 화면에서는 계정 관리만 가능하며, 학교별 문항 상세 내용 열람 UI는 현재 제공되지 않습니다.
+                      </p>
+                    </ColorBlockSection>
+                  </aside>
+                </div>
           </section>
         ) : (
           <ColorBlockSection tone="lilac">
