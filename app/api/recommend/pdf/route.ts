@@ -38,6 +38,10 @@ const AUDIENCE_HEADERS: Record<Audience, string[]> = {
   staff: ["교직원용", "교직원", "직원용", "직원"]
 };
 
+function normalizeCompact(input: string): string {
+  return input.toLowerCase().replace(/[^0-9a-zA-Z가-힣]+/g, "");
+}
+
 function tokenize(input: string): string[] {
   return input
     .toLowerCase()
@@ -67,11 +71,30 @@ function tokenizeWithFrequency(text: string): Map<string, number> {
   return freq;
 }
 
-function buildRecommendations(audience: Audience, tokenFreq: Map<string, number>, limit = 15): RecommendationItem[] {
+function matchBonus(compactCorpus: string, text: string, bonus: number): number {
+  const needle = normalizeCompact(text);
+  if (!needle || needle.length < 3) {
+    return 0;
+  }
+  return compactCorpus.includes(needle) ? bonus : 0;
+}
+
+function buildRecommendations(
+  audience: Audience,
+  sourceText: string,
+  tokenFreq: Map<string, number>,
+  limit = 15
+): RecommendationItem[] {
   const candidates = questionBank.filter((item) => item.audience === audience);
+  const compactCorpus = normalizeCompact(sourceText);
   return candidates
     .map((item) => {
       const joined = `${item.area} ${item.subarea} ${item.indicator} ${item.question}`;
+      const lexical = scoreItem(joined, tokenFreq);
+      const exact =
+        matchBonus(compactCorpus, item.indicator, 8) +
+        matchBonus(compactCorpus, item.subarea, 4) +
+        matchBonus(compactCorpus, item.question, 14);
       return {
         id: item.id,
         audience: item.audience,
@@ -79,7 +102,7 @@ function buildRecommendations(audience: Audience, tokenFreq: Map<string, number>
         question: item.question,
         area: item.area,
         subarea: item.subarea,
-        score: scoreItem(joined, tokenFreq)
+        score: lexical + exact
       };
     })
     .filter((item) => item.score > 0)
@@ -88,6 +111,33 @@ function buildRecommendations(audience: Audience, tokenFreq: Map<string, number>
 }
 
 function detectAudienceSections(text: string): Partial<Record<Audience, string>> {
+  const sections: Partial<Record<Audience, string>> = {};
+  const lines = text
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const linePoints: Array<{ audience: Audience; index: number }> = [];
+  for (const audience of AUDIENCES) {
+    const idx = lines.findIndex((line) =>
+      AUDIENCE_HEADERS[audience].some((name) => new RegExp(`(^|\\s|\\[|\\()${name}(\\s|\\]|\\)|$)`, "i").test(line))
+    );
+    if (idx >= 0) {
+      linePoints.push({ audience, index: idx });
+    }
+  }
+
+  if (linePoints.length >= 2) {
+    linePoints.sort((a, b) => a.index - b.index);
+    for (let i = 0; i < linePoints.length; i++) {
+      const start = linePoints[i].index;
+      const end = i + 1 < linePoints.length ? linePoints[i + 1].index : lines.length;
+      sections[linePoints[i].audience] = lines.slice(start, end).join("\n");
+    }
+    return sections;
+  }
+
+  // Fallback: whole-text marker slicing for PDFs with collapsed line breaks
   const lower = text.toLowerCase();
   const points: Array<{ audience: Audience; index: number }> = [];
   for (const audience of AUDIENCES) {
@@ -100,8 +150,6 @@ function detectAudienceSections(text: string): Partial<Record<Audience, string>>
     }
   }
   points.sort((a, b) => a.index - b.index);
-
-  const sections: Partial<Record<Audience, string>> = {};
   for (let i = 0; i < points.length; i++) {
     const start = points[i].index;
     const end = i + 1 < points.length ? points[i + 1].index : text.length;
@@ -152,7 +200,7 @@ export async function POST(request: Request) {
       for (const audienceKey of AUDIENCES) {
         const sectionText = sections[audienceKey] ?? text;
         const sectionFreq = tokenizeWithFrequency(sectionText);
-        byAudience[audienceKey] = buildRecommendations(audienceKey, sectionFreq, 12);
+        byAudience[audienceKey] = buildRecommendations(audienceKey, sectionText, sectionFreq, 12);
       }
       return jsonOk({
         mode: "autofill",
@@ -166,7 +214,7 @@ export async function POST(request: Request) {
     return jsonOk({
       mode: "single",
       audience,
-      recommendations: buildRecommendations(audience, tokenFreq),
+      recommendations: buildRecommendations(audience, text, tokenFreq),
       keywords: topKeywords,
       sourceLength: text.length
     });
