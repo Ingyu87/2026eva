@@ -274,7 +274,7 @@ h3 {
 
 .builder-grid {
   display: grid;
-  grid-template-columns: minmax(520px, 1.25fr) minmax(560px, 1fr);
+  grid-template-columns: minmax(560px, 1.2fr) minmax(620px, 1.15fr);
   gap: var(--space-md);
   align-items: start;
 }
@@ -308,6 +308,7 @@ h3 {
 
 .filters {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-sm);
   padding: var(--space-md);
   border-bottom: 1px solid var(--color-hairline);
@@ -329,6 +330,18 @@ h3 {
   padding: var(--space-md);
   border-bottom: 1px solid var(--color-hairline);
   background: rgba(255, 255, 255, 0.35);
+}
+
+.selected-panel {
+  padding: var(--space-md);
+}
+
+.selected-panel .panel-title {
+  padding: 0 0 var(--space-md);
+}
+
+.selected-panel .selected-list {
+  max-height: 620px;
 }
 
 .question-row {
@@ -457,6 +470,7 @@ h3 {
   .workspace-layout,
   .settings-panel,
   .builder-grid,
+  .filters,
   .school-table-head,
   .school-table-row {
     grid-template-columns: 1fr;

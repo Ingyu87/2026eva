@@ -916,7 +916,7 @@ export function SchoolEvaluationApp() {
               </div>
                         </div>
 
-              <ColorBlockSection tone="lime" aria-label="선택 문항 편집">
+              <ColorBlockSection tone="lime" className="selected-panel" aria-label="선택 문항 편집">
                 <div className="panel-title">
                   <h3>{AUDIENCE_LABELS[activeAudience]} 선택 문항</h3>
                   <div className="actions">

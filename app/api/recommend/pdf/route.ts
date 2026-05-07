@@ -159,6 +159,31 @@ function detectAudienceSections(text: string): Partial<Record<Audience, string>>
   return sections;
 }
 
+async function extractPdfText(arrayBuffer: ArrayBuffer): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(arrayBuffer)
+  });
+  const pdf = await loadingTask.promise;
+  try {
+    const pages: string[] = [];
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const line = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join(" ")
+        .trim();
+      if (line) {
+        pages.push(line);
+      }
+    }
+    return pages.join("\n").trim();
+  } finally {
+    await loadingTask.destroy();
+  }
+}
+
 export async function POST(request: Request) {
   const session = await requireSchoolSession();
   if ("status" in session) {
@@ -179,12 +204,8 @@ export async function POST(request: Request) {
       return jsonError("PDF 파일만 업로드할 수 있습니다.");
     }
 
-    const { PDFParse } = await import("pdf-parse");
     const arrayBuffer = await file.arrayBuffer();
-    const parser = new PDFParse({ data: Buffer.from(arrayBuffer) });
-    const parsed = await parser.getText();
-    const text = parsed.text.trim();
-    await parser.destroy();
+    const text = await extractPdfText(arrayBuffer);
     if (!text) {
       return jsonError("PDF에서 텍스트를 추출하지 못했습니다.");
     }
