@@ -662,15 +662,45 @@ export function SchoolEvaluationApp() {
       <MarqueeStrip text="학교평가 설문 생성 · 문항 풀 · DOCX 출력 · Google Forms 연동" />
 
       <main className="app-shell">
-        {!showAuthForm && status ? (
-          <ColorBlockSection tone="mint" className="message-block">
-            {status}
-          </ColorBlockSection>
-        ) : null}
-        {!showAuthForm && error ? (
-          <ColorBlockSection tone="coral" className="message-block">
-            {error}
-          </ColorBlockSection>
+        {!showAuthForm && (status || error || Object.keys(latestGoogleForms).length > 0) ? (
+          <div className="top-feedback-row">
+            <div className="top-feedback-main">
+              {status ? (
+                <ColorBlockSection tone="mint" className="message-block">
+                  {status}
+                </ColorBlockSection>
+              ) : null}
+              {error ? (
+                <ColorBlockSection tone="coral" className="message-block">
+                  {error}
+                </ColorBlockSection>
+              ) : null}
+            </div>
+            {Object.keys(latestGoogleForms).length > 0 ? (
+              <ColorBlockSection tone="mint" className="google-result top-google-result">
+                <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
+                {AUDIENCES.map((audience) => {
+                  const form = latestGoogleForms[audience];
+                  if (!form) {
+                    return null;
+                  }
+                  return (
+                    <div key={audience} className="google-links-group">
+                      <strong>{AUDIENCE_LABELS[audience]}</strong>
+                      <a href={form.editUrl} target="_blank" rel="noreferrer">
+                        편집 링크
+                      </a>
+                      {form.responderUrl ? (
+                        <a href={form.responderUrl} target="_blank" rel="noreferrer">
+                          응답 링크
+                        </a>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </ColorBlockSection>
+            ) : null}
+          </div>
         ) : null}
 
         {mode === "user" ? (
@@ -1010,32 +1040,6 @@ export function SchoolEvaluationApp() {
                     )}
                   </div>
 
-                  <aside className="workspace-side">
-                    {Object.keys(latestGoogleForms).length > 0 ? (
-                      <ColorBlockSection tone="mint" className="google-result">
-                        <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
-                        {AUDIENCES.map((audience) => {
-                          const form = latestGoogleForms[audience];
-                          if (!form) {
-                            return null;
-                          }
-                          return (
-                            <div key={audience} className="google-links-group">
-                              <strong>{AUDIENCE_LABELS[audience]}</strong>
-                              <a href={form.editUrl} target="_blank" rel="noreferrer">
-                                편집 링크
-                              </a>
-                              {form.responderUrl ? (
-                                <a href={form.responderUrl} target="_blank" rel="noreferrer">
-                                  응답 링크
-                                </a>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </ColorBlockSection>
-                    ) : null}
-                  </aside>
                 </div>
           </section>
         ) : (

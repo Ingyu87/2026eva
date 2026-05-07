@@ -79,10 +79,28 @@ h3 {
 }
 
 .message-block {
-  margin-bottom: var(--space-md);
+  margin-bottom: 0;
   font-size: var(--fs-body-sm);
   font-variation-settings: "wght" 330;
   font-weight: 330;
+}
+
+.top-feedback-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  align-items: stretch;
+}
+
+.top-feedback-main {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.top-google-result {
+  margin-bottom: 0;
+  padding: var(--space-lg);
 }
 
 /* 로그인 카드 안 피드백 (상단 message-block만 있으면 스크롤 밖에 있어 ‘무반응’처럼 보임) */
@@ -145,9 +163,7 @@ h3 {
 }
 
 .workspace-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(280px, 0.25fr);
-  gap: var(--space-md);
+  display: block;
 }
 
 .workspace-main,
@@ -344,8 +360,9 @@ h3 {
 }
 
 .selected-panel .selected-list {
-  max-height: none;
+  max-height: 500px;
   min-height: 0;
+  overflow: auto;
 }
 
 .selected-panel .empty-state {
@@ -482,6 +499,7 @@ h3 {
   .workspace-layout,
   .settings-panel,
   .builder-grid,
+  .top-feedback-row,
   .filters,
   .school-table-head,
   .school-table-row {
