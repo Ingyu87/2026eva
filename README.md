@@ -26,7 +26,7 @@ npm run dev
 `.env.example`을 참고해 Vercel 환경변수에 등록합니다.
 
 ```bash
-ADMIN_PASSWORD=백인규
+ADMIN_PASSWORD=your-secure-admin-password
 SESSION_SECRET=replace-with-a-long-random-string
 
 FIREBASE_SERVICE_ACCOUNT_JSON={"project_id":"...","client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"}
@@ -38,6 +38,8 @@ GOOGLE_REDIRECT_URI=https://your-vercel-domain.vercel.app/api/google/callback
 ```
 
 Firebase 서비스 계정은 JSON 한 줄 방식 또는 개별 `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` 방식 중 하나를 사용합니다.
+
+**보안:** `.env`는 `.gitignore`에 포함되어 있으며 GitHub에 올리지 않습니다. 실제 비밀번호·Firebase JSON·Google 클라이언트 보안 비밀은 Vercel(또는 호스트) 환경 변수로만 설정하세요.
 
 ## Google Cloud 설정
 
