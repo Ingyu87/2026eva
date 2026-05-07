@@ -9,7 +9,7 @@ export type FooterProps = {
 export function Footer({ wordmark = "School Evaluation", children, className = "" }: FooterProps) {
   return (
     <footer className={["ds-footer", className].filter(Boolean).join(" ")}>
-      <p className="ds-footer__wordmark w-340">{wordmark}</p>
+      {wordmark ? <p className="ds-footer__wordmark w-340">{wordmark}</p> : null}
       {children ? <div className="ds-footer__meta">{children}</div> : null}
     </footer>
   );

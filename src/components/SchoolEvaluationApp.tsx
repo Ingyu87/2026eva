@@ -1136,12 +1136,13 @@ export function SchoolEvaluationApp() {
       )}
       </main>
 
-      <Footer wordmark="School Evaluation">
-        <a href="/privacy" target="_blank" rel="noreferrer">
-          개인정보처리방침
-        </a>
+      <Footer wordmark="">
+        <span>2026 서울가동초 백인규 all rights reserved.</span>
         <a href="/terms" target="_blank" rel="noreferrer">
           이용약관
+        </a>
+        <a href="/privacy" target="_blank" rel="noreferrer">
+          개인정보처리방침
         </a>
       </Footer>
     </div>
