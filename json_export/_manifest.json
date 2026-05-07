@@ -1,0 +1,26 @@
+{
+  "source_file": "(초등학교)_2025 학교평가 평가문항 예시 자료.xlsx",
+  "generated_at": "2026-05-07T09:28:37",
+  "files": [
+    {
+      "sheet": "학생용",
+      "file": "json_export\\학생용.json",
+      "records": 208
+    },
+    {
+      "sheet": "학부모용",
+      "file": "json_export\\학부모용.json",
+      "records": 207
+    },
+    {
+      "sheet": "교원용",
+      "file": "json_export\\교원용.json",
+      "records": 238
+    },
+    {
+      "sheet": "직원용",
+      "file": "json_export\\직원용.json",
+      "records": 163
+    }
+  ]
+}
