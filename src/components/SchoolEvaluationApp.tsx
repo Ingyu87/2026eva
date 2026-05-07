@@ -679,7 +679,7 @@ export function SchoolEvaluationApp() {
             {Object.keys(latestGoogleForms).length > 0 ? (
               <ColorBlockSection tone="mint" className="google-result top-google-result">
                 <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
-                <div className="google-links-row">
+                <div className="google-links-inline">
                   {AUDIENCES.map((audience) => {
                     const form = latestGoogleForms[audience];
                     if (!form) {

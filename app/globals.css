@@ -86,16 +86,18 @@ h3 {
 }
 
 .top-feedback-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  display: flex;
+  align-items: stretch;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
-  align-items: stretch;
 }
 
 .top-feedback-main {
-  display: grid;
-  gap: var(--space-md);
+  flex: 0 0 auto;
+  min-width: 280px;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
 }
 
 .message-inline {
@@ -119,14 +121,18 @@ h3 {
 }
 
 .top-google-result {
+  flex: 1 1 auto;
+  min-width: 0;
   margin-bottom: 0;
   padding: var(--space-md);
 }
 
-.top-google-result .google-links-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.top-google-result .google-links-inline {
+  display: flex;
+  flex-wrap: nowrap;
   gap: var(--space-xs);
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 /* 로그인 카드 안 피드백 (상단 message-block만 있으면 스크롤 밖에 있어 ‘무반응’처럼 보임) */
@@ -258,8 +264,10 @@ h3 {
 }
 
 .google-links-group {
-  display: grid;
-  align-items: center;
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-xs);
   padding: 8px 10px;
   border: 1px solid var(--color-hairline);
@@ -526,11 +534,19 @@ h3 {
   .settings-panel,
   .builder-grid,
   .top-feedback-row,
-  .top-google-result .google-links-row,
+  .top-google-result .google-links-inline,
   .filters,
   .school-table-head,
   .school-table-row {
     grid-template-columns: 1fr;
+  }
+
+  .top-feedback-row {
+    flex-direction: column;
+  }
+
+  .top-feedback-main {
+    max-width: none;
   }
 
   .audience-tabs {
