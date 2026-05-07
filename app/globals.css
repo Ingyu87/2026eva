@@ -274,7 +274,7 @@ h3 {
 
 .builder-grid {
   display: grid;
-  grid-template-columns: minmax(360px, 0.85fr) minmax(620px, 1.35fr);
+  grid-template-columns: minmax(520px, 1.25fr) minmax(560px, 1fr);
   gap: var(--space-md);
   align-items: start;
 }
@@ -290,7 +290,7 @@ h3 {
   border: 1px solid var(--color-hairline);
   border-radius: var(--r-lg);
   background: var(--color-canvas);
-  min-height: 620px;
+  min-height: 480px;
 }
 
 .selected-editor-inner {
@@ -319,7 +319,7 @@ h3 {
   display: grid;
   gap: var(--space-xs);
   padding: var(--space-md);
-  max-height: 780px;
+  max-height: 620px;
   overflow: auto;
 }
 
