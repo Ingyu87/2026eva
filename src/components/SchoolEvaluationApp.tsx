@@ -711,48 +711,50 @@ export function SchoolEvaluationApp() {
                     역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
                   </p>
                 </div>
-                <div className="author-slot-list">
-                  {draftAuthorRows.map((row, index) => (
-                    <div
-                      className={`author-slot-card${row.done ? " author-slot-card--done" : " author-slot-card--pending"}`}
-                      key={row.id}
-                    >
-                      <div className="author-slot-card-top">
-                        <TextInput
-                          className="author-slot-title-input"
-                          value={row.title}
-                          onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
-                          placeholder="역할 또는 이름"
-                          aria-label={`작성 분담 ${index + 1}번`}
-                        />
-                      </div>
-                      <div className="author-slot-card-actions">
-                        <label className="author-done-label">
-                          <input
-                            type="checkbox"
-                            checked={row.done}
-                            onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                <div className="author-progress-body">
+                  <div className="author-slot-list">
+                    {draftAuthorRows.map((row, index) => (
+                      <div
+                        className={`author-slot-card${row.done ? " author-slot-card--done" : " author-slot-card--pending"}`}
+                        key={row.id}
+                      >
+                        <div className="author-slot-card-top">
+                          <TextInput
+                            className="author-slot-title-input"
+                            value={row.title}
+                            onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
+                            placeholder="역할 또는 이름"
+                            aria-label={`작성 분담 ${index + 1}번`}
                           />
-                          <span>{row.done ? "완료됨" : "완료"}</span>
-                        </label>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="author-row-remove"
-                          onClick={() => removeAuthorRow(row.id)}
-                          disabled={draftAuthorRows.length <= 1}
-                          aria-label="이 행 삭제"
-                        >
-                          삭제
-                        </Button>
+                        </div>
+                        <div className="author-slot-card-actions">
+                          <label className="author-done-label">
+                            <input
+                              type="checkbox"
+                              checked={row.done}
+                              onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                            />
+                            <span>{row.done ? "완료됨" : "완료"}</span>
+                          </label>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="author-row-remove"
+                            onClick={() => removeAuthorRow(row.id)}
+                            disabled={draftAuthorRows.length <= 1}
+                            aria-label="이 행 삭제"
+                          >
+                            삭제
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="author-progress-actions">
-                  <Button type="button" variant="secondary" onClick={addAuthorRow}>
-                    역할 행 추가
-                  </Button>
+                    ))}
+                  </div>
+                  <div className="author-progress-actions">
+                    <Button type="button" variant="secondary" onClick={addAuthorRow}>
+                      역할 행 추가
+                    </Button>
+                  </div>
                 </div>
               </ColorBlockSection>
             ) : null}

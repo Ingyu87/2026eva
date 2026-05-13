@@ -121,7 +121,10 @@ h3 {
 }
 
 .top-google-result {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  width: min(360px, 32vw);
+  max-width: 100%;
+  box-sizing: border-box;
   min-width: 0;
   margin-bottom: 0;
   padding: var(--space-md);
@@ -136,26 +139,56 @@ h3 {
 }
 
 .author-progress-panel {
-  flex: 0 1 380px;
-  min-width: min(100%, 260px);
-  max-width: min(100%, 960px);
+  flex: 0 0 auto;
+  width: min(400px, 34vw);
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: min(100%, 240px);
   margin-bottom: 0;
   margin-left: auto;
   padding: var(--space-md);
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-md);
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--space-sm);
 }
 
 .author-progress-leading {
   flex: 0 0 auto;
-  min-width: min(100%, 200px);
-  max-width: 280px;
+  min-width: 0;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-xxs);
+}
+
+.author-progress-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.author-slot-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--space-sm);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+}
+
+.author-progress-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .author-progress-head {
@@ -182,18 +215,6 @@ h3 {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: var(--fs-caption);
   white-space: nowrap;
-}
-
-.author-slot-list {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: var(--space-sm);
-  flex: 1 1 220px;
-  min-width: 0;
-  overflow-x: auto;
-  padding: 2px 2px 6px;
 }
 
 .author-slot-card {
@@ -284,14 +305,6 @@ h3 {
 
 .author-row-remove {
   flex-shrink: 0;
-}
-
-.author-progress-actions {
-  display: flex;
-  gap: var(--space-xs);
-  flex-wrap: wrap;
-  flex: 0 0 auto;
-  align-self: center;
 }
 
 /* 로그인 카드 안 피드백 (상단 message-block만 있으면 스크롤 밖에 있어 ‘무반응’처럼 보임) */
@@ -769,7 +782,13 @@ h3 {
     max-width: none;
   }
 
+  .top-google-result {
+    width: 100%;
+    max-width: none;
+  }
+
   .author-progress-panel {
+    width: 100%;
     max-width: none;
     flex-direction: column;
     align-items: stretch;
@@ -778,6 +797,15 @@ h3 {
 
   .author-progress-leading {
     max-width: none;
+  }
+
+  .author-progress-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .author-progress-actions {
+    align-self: stretch;
   }
 
   .author-slot-list {
