@@ -120,14 +120,72 @@ h3 {
   border-color: rgba(179, 38, 30, 0.35);
 }
 
+.top-bar-split {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0;
+}
+
+.top-bar-split-forms {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.top-bar-split-forms--stretch {
+  flex: 1 1 auto;
+}
+
+.top-bar-split-author {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.top-bar-split-author--stretch {
+  flex: 1 1 auto;
+}
+
+.top-bar-split-handle {
+  flex: 0 0 10px;
+  width: 10px;
+  align-self: stretch;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    transparent 42%,
+    var(--color-hairline) 42%,
+    var(--color-hairline) 58%,
+    transparent 58%,
+    transparent 100%
+  );
+  border-radius: var(--r-sm);
+}
+
+.top-bar-split-handle:hover,
+.top-bar-split-handle:focus-visible {
+  background: var(--color-surface-soft);
+  outline: none;
+}
+
 .top-google-result {
-  flex: 0 0 auto;
-  width: min(360px, 32vw);
-  max-width: 100%;
   box-sizing: border-box;
   min-width: 0;
   margin-bottom: 0;
   padding: var(--space-md);
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .top-google-result .google-links-inline {
@@ -136,16 +194,17 @@ h3 {
   gap: var(--space-xs);
   overflow-x: auto;
   padding-bottom: 2px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .author-progress-panel {
-  flex: 0 0 auto;
-  width: min(400px, 34vw);
-  max-width: 100%;
-  box-sizing: border-box;
-  min-width: min(100%, 240px);
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   margin-bottom: 0;
-  margin-left: auto;
+  margin-left: 0;
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
@@ -780,6 +839,21 @@ h3 {
 
   .top-feedback-main {
     max-width: none;
+  }
+
+  .top-bar-split {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .top-bar-split-handle {
+    display: none;
+  }
+
+  .top-bar-split-forms,
+  .top-bar-split-author {
+    flex: 1 1 auto !important;
+    width: 100% !important;
   }
 
   .top-google-result {

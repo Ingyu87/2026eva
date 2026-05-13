@@ -47,6 +47,13 @@ const BUILDER_SPLIT_HANDLE_PX = 10;
 const BUILDER_SPLIT_MIN = 28;
 const BUILDER_SPLIT_MAX = 72;
 
+const TOP_BAR_SPLIT_STORAGE_KEY = "school-eval-topbar-forms-pct";
+const TOP_BAR_SPLIT_HANDLE_PX = 10;
+/** Google Forms 쪽이 차지하는 비율(%) — 기본 1/3, 나머지가 작성 분담(약 2/3) */
+const TOP_BAR_FORMS_PCT_DEFAULT = 100 / 3;
+const TOP_BAR_FORMS_PCT_MIN = 18;
+const TOP_BAR_FORMS_PCT_MAX = 48;
+
 function isCustomSelectedQuestion(item: SelectedQuestion): boolean {
   return item.sourceQuestionId.startsWith("custom-");
 }
@@ -120,6 +127,11 @@ export function SchoolEvaluationApp() {
   const splitDragPointerId = useRef<number | null>(null);
   const builderSplitPctLatest = useRef(46);
 
+  const [topBarFormsPct, setTopBarFormsPct] = useState(TOP_BAR_FORMS_PCT_DEFAULT);
+  const topBarSplitRef = useRef<HTMLDivElement | null>(null);
+  const topBarSplitDragPointerId = useRef<number | null>(null);
+  const topBarFormsPctLatest = useRef(TOP_BAR_FORMS_PCT_DEFAULT);
+
   const showAuthForm = mode === "user" && !(school && draft);
 
   useEffect(() => {
@@ -131,6 +143,22 @@ export function SchoolEvaluationApp() {
           const clamped = Math.min(BUILDER_SPLIT_MAX, Math.max(BUILDER_SPLIT_MIN, n));
           setBuilderSplitPct(clamped);
           builderSplitPctLatest.current = clamped;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TOP_BAR_SPLIT_STORAGE_KEY);
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) {
+          const clamped = Math.min(TOP_BAR_FORMS_PCT_MAX, Math.max(TOP_BAR_FORMS_PCT_MIN, n));
+          setTopBarFormsPct(clamped);
+          topBarFormsPctLatest.current = clamped;
         }
       }
     } catch {
@@ -175,6 +203,10 @@ export function SchoolEvaluationApp() {
   useEffect(() => {
     builderSplitPctLatest.current = builderSplitPct;
   }, [builderSplitPct]);
+
+  useEffect(() => {
+    topBarFormsPctLatest.current = topBarFormsPct;
+  }, [topBarFormsPct]);
 
   const bankForAudience = useMemo(
     () => questionBank.filter((item) => item.audience === activeAudience),
@@ -440,6 +472,50 @@ export function SchoolEvaluationApp() {
     }
   }
 
+  function onTopBarSplitPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (!topBarSplitRef.current) {
+      return;
+    }
+    topBarSplitDragPointerId.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onTopBarSplitPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (topBarSplitDragPointerId.current !== event.pointerId) {
+      return;
+    }
+    const root = topBarSplitRef.current;
+    if (!root) {
+      return;
+    }
+    const rect = root.getBoundingClientRect();
+    const usable = Math.max(1, rect.width - TOP_BAR_SPLIT_HANDLE_PX);
+    const x = event.clientX - rect.left;
+    const pct = (x / usable) * 100;
+    const next =
+      Math.round(Math.min(TOP_BAR_FORMS_PCT_MAX, Math.max(TOP_BAR_FORMS_PCT_MIN, pct)) * 10) / 10;
+    topBarFormsPctLatest.current = next;
+    setTopBarFormsPct(next);
+  }
+
+  function onTopBarSplitPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (topBarSplitDragPointerId.current !== event.pointerId) {
+      return;
+    }
+    topBarSplitDragPointerId.current = null;
+    try {
+      localStorage.setItem(TOP_BAR_SPLIT_STORAGE_KEY, String(topBarFormsPctLatest.current));
+    } catch {
+      /* ignore */
+    }
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function updateSelectedItem(id: string, patch: Partial<SelectedQuestion>) {
     updateDraft((current) => {
       const items = current.itemsByAudience[activeAudience] ?? [];
@@ -628,6 +704,9 @@ export function SchoolEvaluationApp() {
     [draftAuthorRows]
   );
 
+  const showTopGoogleForms = Object.keys(latestGoogleForms).length > 0;
+  const showTopAuthorPanel = Boolean(school && draft);
+
   return (
     <div className="app-page">
       <TopNav
@@ -672,91 +751,208 @@ export function SchoolEvaluationApp() {
                 </div>
               ) : null}
             </div>
-            {Object.keys(latestGoogleForms).length > 0 ? (
-              <ColorBlockSection tone="mint" className="google-result top-google-result">
-                <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
-                <div className="google-links-inline">
-                  {AUDIENCES.map((audience) => {
-                    const form = latestGoogleForms[audience];
-                    if (!form) {
-                      return null;
-                    }
-                    return (
-                      <div key={audience} className="google-links-group">
-                        <strong>{AUDIENCE_LABELS[audience]}</strong>
-                        <a href={form.editUrl} target="_blank" rel="noreferrer">
-                          편집 링크
-                        </a>
-                        {form.responderUrl ? (
-                          <a href={form.responderUrl} target="_blank" rel="noreferrer">
-                            응답 링크
-                          </a>
-                        ) : null}
+            {showTopGoogleForms || showTopAuthorPanel ? (
+              showTopGoogleForms && showTopAuthorPanel ? (
+                <div ref={topBarSplitRef} className="top-bar-split">
+                  <div
+                    className="top-bar-split-forms"
+                    style={{
+                      flex: `0 0 calc((100% - ${TOP_BAR_SPLIT_HANDLE_PX}px) * ${topBarFormsPct} / 100)`
+                    }}
+                  >
+                    <ColorBlockSection tone="mint" className="google-result top-google-result">
+                      <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
+                      <div className="google-links-inline">
+                        {AUDIENCES.map((audience) => {
+                          const form = latestGoogleForms[audience];
+                          if (!form) {
+                            return null;
+                          }
+                          return (
+                            <div key={audience} className="google-links-group">
+                              <strong>{AUDIENCE_LABELS[audience]}</strong>
+                              <a href={form.editUrl} target="_blank" rel="noreferrer">
+                                편집 링크
+                              </a>
+                              {form.responderUrl ? (
+                                <a href={form.responderUrl} target="_blank" rel="noreferrer">
+                                  응답 링크
+                                </a>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              </ColorBlockSection>
-            ) : null}
-            {school && draft ? (
-              <ColorBlockSection tone="navy" className="author-progress-panel" aria-label="작성 분담">
-                <div className="author-progress-leading">
-                  <div className="author-progress-head">
-                    <strong className="typ-body-sm w-540">작성 분담 (선택)</strong>
-                    <span className="author-progress-count typ-body-sm">
-                      완료 {authorDoneCount}/{draftAuthorRows.length}
-                    </span>
+                    </ColorBlockSection>
                   </div>
-                  <p className="author-progress-hint typ-body-sm">
-                    역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
-                  </p>
-                </div>
-                <div className="author-progress-body">
-                  <div className="author-slot-list">
-                    {draftAuthorRows.map((row, index) => (
-                      <div
-                        className={`author-slot-card${row.done ? " author-slot-card--done" : " author-slot-card--pending"}`}
-                        key={row.id}
-                      >
-                        <div className="author-slot-card-top">
-                          <TextInput
-                            className="author-slot-title-input"
-                            value={row.title}
-                            onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
-                            placeholder="역할 또는 이름"
-                            aria-label={`작성 분담 ${index + 1}번`}
-                          />
+                  <div
+                    className="top-bar-split-handle"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Google Forms와 작성 분담 영역 너비 조절"
+                    aria-valuenow={Math.round(topBarFormsPct)}
+                    aria-valuemin={TOP_BAR_FORMS_PCT_MIN}
+                    aria-valuemax={TOP_BAR_FORMS_PCT_MAX}
+                    tabIndex={0}
+                    onPointerDown={onTopBarSplitPointerDown}
+                    onPointerMove={onTopBarSplitPointerMove}
+                    onPointerUp={onTopBarSplitPointerUp}
+                    onPointerCancel={onTopBarSplitPointerUp}
+                  />
+                  <div className="top-bar-split-author" style={{ flex: "1 1 0", minWidth: 0 }}>
+                    <ColorBlockSection tone="navy" className="author-progress-panel" aria-label="작성 분담">
+                      <div className="author-progress-leading">
+                        <div className="author-progress-head">
+                          <strong className="typ-body-sm w-540">작성 분담 (선택)</strong>
+                          <span className="author-progress-count typ-body-sm">
+                            완료 {authorDoneCount}/{draftAuthorRows.length}
+                          </span>
                         </div>
-                        <div className="author-slot-card-actions">
-                          <label className="author-done-label">
-                            <input
-                              type="checkbox"
-                              checked={row.done}
-                              onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
-                            />
-                            <span>{row.done ? "완료됨" : "완료"}</span>
-                          </label>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="author-row-remove"
-                            onClick={() => removeAuthorRow(row.id)}
-                            disabled={draftAuthorRows.length <= 1}
-                            aria-label="이 행 삭제"
-                          >
-                            삭제
+                        <p className="author-progress-hint typ-body-sm">
+                          역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
+                        </p>
+                      </div>
+                      <div className="author-progress-body">
+                        <div className="author-slot-list">
+                          {draftAuthorRows.map((row, index) => (
+                            <div
+                              className={`author-slot-card${row.done ? " author-slot-card--done" : " author-slot-card--pending"}`}
+                              key={row.id}
+                            >
+                              <div className="author-slot-card-top">
+                                <TextInput
+                                  className="author-slot-title-input"
+                                  value={row.title}
+                                  onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
+                                  placeholder="역할 또는 이름"
+                                  aria-label={`작성 분담 ${index + 1}번`}
+                                />
+                              </div>
+                              <div className="author-slot-card-actions">
+                                <label className="author-done-label">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.done}
+                                    onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                                  />
+                                  <span>{row.done ? "완료됨" : "완료"}</span>
+                                </label>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="author-row-remove"
+                                  onClick={() => removeAuthorRow(row.id)}
+                                  disabled={draftAuthorRows.length <= 1}
+                                  aria-label="이 행 삭제"
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="author-progress-actions">
+                          <Button type="button" variant="secondary" onClick={addAuthorRow}>
+                            역할 행 추가
                           </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="author-progress-actions">
-                    <Button type="button" variant="secondary" onClick={addAuthorRow}>
-                      역할 행 추가
-                    </Button>
+                    </ColorBlockSection>
                   </div>
                 </div>
-              </ColorBlockSection>
+              ) : showTopGoogleForms ? (
+                <div className="top-bar-split top-bar-split--single">
+                  <div className="top-bar-split-forms top-bar-split-forms--stretch">
+                    <ColorBlockSection tone="mint" className="google-result top-google-result">
+                      <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
+                      <div className="google-links-inline">
+                        {AUDIENCES.map((audience) => {
+                          const form = latestGoogleForms[audience];
+                          if (!form) {
+                            return null;
+                          }
+                          return (
+                            <div key={audience} className="google-links-group">
+                              <strong>{AUDIENCE_LABELS[audience]}</strong>
+                              <a href={form.editUrl} target="_blank" rel="noreferrer">
+                                편집 링크
+                              </a>
+                              {form.responderUrl ? (
+                                <a href={form.responderUrl} target="_blank" rel="noreferrer">
+                                  응답 링크
+                                </a>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ColorBlockSection>
+                  </div>
+                </div>
+              ) : (
+                <div className="top-bar-split top-bar-split--single">
+                  <div className="top-bar-split-author top-bar-split-author--stretch">
+                    <ColorBlockSection tone="navy" className="author-progress-panel" aria-label="작성 분담">
+                      <div className="author-progress-leading">
+                        <div className="author-progress-head">
+                          <strong className="typ-body-sm w-540">작성 분담 (선택)</strong>
+                          <span className="author-progress-count typ-body-sm">
+                            완료 {authorDoneCount}/{draftAuthorRows.length}
+                          </span>
+                        </div>
+                        <p className="author-progress-hint typ-body-sm">
+                          역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
+                        </p>
+                      </div>
+                      <div className="author-progress-body">
+                        <div className="author-slot-list">
+                          {draftAuthorRows.map((row, index) => (
+                            <div
+                              className={`author-slot-card${row.done ? " author-slot-card--done" : " author-slot-card--pending"}`}
+                              key={row.id}
+                            >
+                              <div className="author-slot-card-top">
+                                <TextInput
+                                  className="author-slot-title-input"
+                                  value={row.title}
+                                  onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
+                                  placeholder="역할 또는 이름"
+                                  aria-label={`작성 분담 ${index + 1}번`}
+                                />
+                              </div>
+                              <div className="author-slot-card-actions">
+                                <label className="author-done-label">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.done}
+                                    onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                                  />
+                                  <span>{row.done ? "완료됨" : "완료"}</span>
+                                </label>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="author-row-remove"
+                                  onClick={() => removeAuthorRow(row.id)}
+                                  disabled={draftAuthorRows.length <= 1}
+                                  aria-label="이 행 삭제"
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="author-progress-actions">
+                          <Button type="button" variant="secondary" onClick={addAuthorRow}>
+                            역할 행 추가
+                          </Button>
+                        </div>
+                      </div>
+                    </ColorBlockSection>
+                  </div>
+                </div>
+              )
             ) : null}
           </div>
         ) : null}
