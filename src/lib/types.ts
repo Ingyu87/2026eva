@@ -57,6 +57,13 @@ export type GoogleFormInfo = {
 
 export type GoogleFormsByAudience = Partial<Record<Audience, GoogleFormInfo>>;
 
+/** 설문 초안 작성·검토 분담(역할명은 학교에서 수정 가능) */
+export type SurveyDraftAuthor = {
+  id: string;
+  title: string;
+  done: boolean;
+};
+
 export type SurveyDraft = {
   id: string;
   schoolId: string;
@@ -65,6 +72,8 @@ export type SurveyDraft = {
   surveyDate: string;
   introByAudience: Record<Audience, string>;
   itemsByAudience: Record<Audience, SelectedQuestion[]>;
+  /** 비어 있으면 서버/클라이언트에서 기본 6개 역할로 채움 */
+  draftAuthors?: SurveyDraftAuthor[];
   googleForm?: GoogleFormInfo;
   googleFormsByAudience?: GoogleFormsByAudience;
   createdAt: string;

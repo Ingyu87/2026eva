@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { getFirebaseDb } from "./firebaseAdmin";
-import { AUDIENCES, type Audience, type PublicSchool, type School, type SurveyDraft } from "./types";
+import {
+  AUDIENCES,
+  type Audience,
+  type PublicSchool,
+  type School,
+  type SurveyDraft,
+  type SurveyDraftAuthor
+} from "./types";
 
 const SCHOOLS = "schools";
 const DRAFTS = "surveyDrafts";
@@ -40,6 +47,30 @@ function plain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+const DEFAULT_DRAFT_AUTHOR_TITLES = [
+  "교무부장",
+  "교육연구부장",
+  "생활인성부장",
+  "진로복지부장",
+  "문예체부장",
+  "과학정보부장"
+];
+
+function createDefaultDraftAuthors(): SurveyDraftAuthor[] {
+  return DEFAULT_DRAFT_AUTHOR_TITLES.map((title) => ({
+    id: randomUUID(),
+    title,
+    done: false
+  }));
+}
+
+function ensureDraftAuthors(draft: SurveyDraft): SurveyDraft {
+  if (Array.isArray(draft.draftAuthors) && draft.draftAuthors.length > 0) {
+    return draft;
+  }
+  return { ...draft, draftAuthors: createDefaultDraftAuthors() };
+}
+
 export function createDefaultDraft(schoolId: string, schoolName: string): SurveyDraft {
   const now = nowIso();
   const emptyByAudience = AUDIENCES.reduce(
@@ -69,6 +100,7 @@ export function createDefaultDraft(schoolId: string, schoolName: string): Survey
     surveyDate: "2026-06-30",
     introByAudience,
     itemsByAudience: emptyByAudience,
+    draftAuthors: createDefaultDraftAuthors(),
     createdAt: now,
     updatedAt: now
   };
@@ -258,11 +290,12 @@ export async function deleteSchool(id: string): Promise<void> {
 
 function hydrateDraft(id: string, data: FirebaseFirestore.DocumentData): SurveyDraft {
   const fallback = createDefaultDraft(String(data.schoolId ?? ""), String(data.schoolName ?? ""));
-  return {
+  const merged = {
     ...fallback,
     ...plain(data),
     id
   } as SurveyDraft;
+  return ensureDraftAuthors(merged);
 }
 
 export async function getOrCreateDraft(schoolId: string, schoolName: string): Promise<SurveyDraft> {
@@ -283,7 +316,7 @@ export async function getOrCreateDraft(schoolId: string, schoolName: string): Pr
     (draft) => draft.schoolId === schoolId
   );
   if (existing) {
-    return existing;
+    return ensureDraftAuthors(existing);
   }
 
   const draft = createDefaultDraft(schoolId, schoolName);

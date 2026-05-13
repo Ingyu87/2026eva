@@ -135,6 +135,83 @@ h3 {
   padding-bottom: 2px;
 }
 
+.author-progress-panel {
+  flex: 1 1 320px;
+  min-width: min(100%, 240px);
+  max-width: 520px;
+  margin-bottom: 0;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.author-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.author-progress-hint {
+  margin: var(--space-xxs) 0 0;
+  color: var(--color-ink);
+  opacity: 0.88;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body-sm);
+}
+
+.author-progress-count {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.author-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.author-slot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.author-slot-title-input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.author-done-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-body-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.author-done-label input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.author-row-remove {
+  flex-shrink: 0;
+}
+
+.author-progress-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
 /* 로그인 카드 안 피드백 (상단 message-block만 있으면 스크롤 밖에 있어 ‘무반응’처럼 보임) */
 .auth-inline-notice,
 .auth-inline-error {
@@ -607,6 +684,10 @@ h3 {
   }
 
   .top-feedback-main {
+    max-width: none;
+  }
+
+  .author-progress-panel {
     max-width: none;
   }
 

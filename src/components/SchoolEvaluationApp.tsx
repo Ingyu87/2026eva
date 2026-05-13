@@ -29,7 +29,8 @@ import {
   type QuestionBankItem,
   type ResponseType,
   type SelectedQuestion,
-  type SurveyDraft
+  type SurveyDraft,
+  type SurveyDraftAuthor
 } from "@/lib/types";
 
 type Mode = "user" | "admin";
@@ -509,6 +510,39 @@ export function SchoolEvaluationApp() {
     }));
   }
 
+  function updateAuthorRow(id: string, patch: Partial<SurveyDraftAuthor>) {
+    updateDraft((current) => {
+      const rows = current.draftAuthors ?? [];
+      return {
+        ...current,
+        draftAuthors: rows.map((row) => (row.id === id ? { ...row, ...patch } : row))
+      };
+    });
+  }
+
+  function addAuthorRow() {
+    updateDraft((current) => ({
+      ...current,
+      draftAuthors: [
+        ...(current.draftAuthors ?? []),
+        { id: crypto.randomUUID(), title: "", done: false }
+      ]
+    }));
+  }
+
+  function removeAuthorRow(id: string) {
+    updateDraft((current) => {
+      const rows = current.draftAuthors ?? [];
+      if (rows.length <= 1) {
+        return current;
+      }
+      return {
+        ...current,
+        draftAuthors: rows.filter((row) => row.id !== id)
+      };
+    });
+  }
+
   async function exportDocx() {
     if (draft && dirty) {
       await saveDraft(draft, true);
@@ -588,6 +622,12 @@ export function SchoolEvaluationApp() {
         }
       : {});
 
+  const draftAuthorRows = draft?.draftAuthors ?? [];
+  const authorDoneCount = useMemo(
+    () => draftAuthorRows.filter((row) => row.done).length,
+    [draftAuthorRows]
+  );
+
   return (
     <div className="app-page">
       <TopNav
@@ -614,7 +654,11 @@ export function SchoolEvaluationApp() {
       <MarqueeStrip text="학교평가 설문 생성 · 문항 풀 · DOCX 출력 · Google Forms 연동" />
 
       <main className="app-shell">
-        {!showAuthForm && (status || error || Object.keys(latestGoogleForms).length > 0) ? (
+        {!showAuthForm &&
+        (status ||
+          error ||
+          Object.keys(latestGoogleForms).length > 0 ||
+          (school && draft)) ? (
           <div className="top-feedback-row">
             <div className="top-feedback-main">
               {status ? (
@@ -628,6 +672,57 @@ export function SchoolEvaluationApp() {
                 </div>
               ) : null}
             </div>
+            {school && draft ? (
+              <ColorBlockSection tone="cream" className="author-progress-panel" aria-label="작성 분담">
+                <div className="author-progress-head">
+                  <div>
+                    <strong className="typ-body-sm w-540">작성 분담 (선택)</strong>
+                    <p className="author-progress-hint typ-body-sm">
+                      역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
+                    </p>
+                  </div>
+                  <span className="author-progress-count typ-body-sm">
+                    완료 {authorDoneCount}/{draftAuthorRows.length}
+                  </span>
+                </div>
+                <div className="author-slot-list">
+                  {draftAuthorRows.map((row, index) => (
+                    <div className="author-slot-row" key={row.id}>
+                      <TextInput
+                        className="author-slot-title-input"
+                        value={row.title}
+                        onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
+                        placeholder="역할 또는 이름"
+                        aria-label={`작성 분담 ${index + 1}번`}
+                      />
+                      <label className="author-done-label">
+                        <input
+                          type="checkbox"
+                          checked={row.done}
+                          onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                        />
+                        <span>완료</span>
+                      </label>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="author-row-remove"
+                        onClick={() => removeAuthorRow(row.id)}
+                        disabled={draftAuthorRows.length <= 1}
+                        aria-label="이 행 삭제"
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="author-progress-actions">
+                  <Button type="button" variant="secondary" onClick={addAuthorRow}>
+                    역할 행 추가
+                  </Button>
+                </div>
+              </ColorBlockSection>
+            ) : null}
             {Object.keys(latestGoogleForms).length > 0 ? (
               <ColorBlockSection tone="mint" className="google-result top-google-result">
                 <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
