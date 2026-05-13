@@ -739,18 +739,20 @@ export function SchoolEvaluationApp() {
           Object.keys(latestGoogleForms).length > 0 ||
           (school && draft)) ? (
           <div className="top-feedback-row">
-            <div className="top-feedback-main">
-              {status ? (
-                <div className="message-inline message-inline-success">
-                  {status}
-                </div>
-              ) : null}
-              {error ? (
-                <div className="message-inline message-inline-error">
-                  {error}
-                </div>
-              ) : null}
-            </div>
+            {status || error ? (
+              <div className="top-feedback-main">
+                {status ? (
+                  <div className="message-inline message-inline-success">
+                    {status}
+                  </div>
+                ) : null}
+                {error ? (
+                  <div className="message-inline message-inline-error">
+                    {error}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {showTopGoogleForms || showTopAuthorPanel ? (
               showTopGoogleForms && showTopAuthorPanel ? (
                 <div ref={topBarSplitRef} className="top-bar-split">
