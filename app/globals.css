@@ -187,29 +187,77 @@ h3 {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-sm);
   flex: 1 1 220px;
   min-width: 0;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 2px 2px 6px;
 }
 
-.author-slot-row {
+.author-slot-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex: 0 0 auto;
+  min-width: 152px;
+  max-width: 200px;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.author-slot-card--pending {
+  border-left: 4px solid rgba(255, 255, 255, 0.45);
+}
+
+.author-slot-card--done {
+  background: var(--color-block-mint);
+  border-color: rgba(26, 175, 110, 0.45);
+  border-left: 4px solid var(--color-semantic-success);
+  box-shadow:
+    0 0 0 1px rgba(26, 175, 110, 0.25),
+    0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.ds-color-block--navy .author-slot-card--done,
+.ds-color-block--navy .author-slot-card--done .author-done-label {
+  color: var(--color-ink);
+}
+
+.ds-color-block--navy .author-slot-card--done .author-done-label span {
+  color: var(--color-semantic-success);
+  font-variation-settings: "wght" 560;
+  font-weight: 560;
+}
+
+.author-slot-card-top {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.author-slot-card-top .author-slot-title-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.author-slot-card-actions {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-xs);
-  flex: 0 0 auto;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--r-md);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.1);
+  flex-wrap: nowrap;
 }
 
 .author-slot-title-input {
-  width: clamp(104px, 12vw, 168px);
-  min-width: 96px;
   flex: 0 1 auto;
 }
 
@@ -227,6 +275,10 @@ h3 {
   width: 18px;
   height: 18px;
   cursor: pointer;
+}
+
+.author-slot-card--done .author-done-label input {
+  accent-color: var(--color-semantic-success);
 }
 
 .author-row-remove {

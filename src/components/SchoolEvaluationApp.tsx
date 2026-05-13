@@ -687,32 +687,39 @@ export function SchoolEvaluationApp() {
                 </div>
                 <div className="author-slot-list">
                   {draftAuthorRows.map((row, index) => (
-                    <div className="author-slot-row" key={row.id}>
-                      <TextInput
-                        className="author-slot-title-input"
-                        value={row.title}
-                        onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
-                        placeholder="역할 또는 이름"
-                        aria-label={`작성 분담 ${index + 1}번`}
-                      />
-                      <label className="author-done-label">
-                        <input
-                          type="checkbox"
-                          checked={row.done}
-                          onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                    <div
+                      className={`author-slot-card${row.done ? " author-slot-card--done" : " author-slot-card--pending"}`}
+                      key={row.id}
+                    >
+                      <div className="author-slot-card-top">
+                        <TextInput
+                          className="author-slot-title-input"
+                          value={row.title}
+                          onChange={(event) => updateAuthorRow(row.id, { title: event.target.value })}
+                          placeholder="역할 또는 이름"
+                          aria-label={`작성 분담 ${index + 1}번`}
                         />
-                        <span>완료</span>
-                      </label>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="author-row-remove"
-                        onClick={() => removeAuthorRow(row.id)}
-                        disabled={draftAuthorRows.length <= 1}
-                        aria-label="이 행 삭제"
-                      >
-                        삭제
-                      </Button>
+                      </div>
+                      <div className="author-slot-card-actions">
+                        <label className="author-done-label">
+                          <input
+                            type="checkbox"
+                            checked={row.done}
+                            onChange={(event) => updateAuthorRow(row.id, { done: event.target.checked })}
+                          />
+                          <span>{row.done ? "완료됨" : "완료"}</span>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="author-row-remove"
+                          onClick={() => removeAuthorRow(row.id)}
+                          disabled={draftAuthorRows.length <= 1}
+                          aria-label="이 행 삭제"
+                        >
+                          삭제
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
