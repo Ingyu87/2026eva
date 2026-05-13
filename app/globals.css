@@ -136,29 +136,45 @@ h3 {
 }
 
 .author-progress-panel {
-  flex: 1 1 320px;
-  min-width: min(100%, 240px);
-  max-width: 520px;
+  flex: 1 1 380px;
+  min-width: min(100%, 260px);
+  max-width: min(100%, 960px);
   margin-bottom: 0;
   padding: var(--space-md);
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.author-progress-leading {
+  flex: 0 0 auto;
+  min-width: min(100%, 200px);
+  max-width: 280px;
+  display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-xxs);
 }
 
 .author-progress-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: baseline;
   gap: var(--space-sm);
 }
 
 .author-progress-hint {
-  margin: var(--space-xxs) 0 0;
-  color: var(--color-ink);
-  opacity: 0.88;
+  margin: 0;
   font-size: var(--fs-caption);
   line-height: var(--lh-body-sm);
+  opacity: 0.88;
+}
+
+.ds-color-block--navy .author-progress-hint,
+.ds-color-block--navy .author-done-label,
+.ds-color-block--navy .author-progress-count {
+  color: inherit;
 }
 
 .author-progress-count {
@@ -169,22 +185,32 @@ h3 {
 
 .author-slot-list {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  max-height: 220px;
-  overflow: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .author-slot-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+  gap: var(--space-xs);
+  flex: 0 0 auto;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--r-md);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .author-slot-title-input {
-  flex: 1 1 160px;
-  min-width: 0;
+  width: clamp(104px, 12vw, 168px);
+  min-width: 96px;
+  flex: 0 1 auto;
 }
 
 .author-done-label {
@@ -194,6 +220,7 @@ h3 {
   font-size: var(--fs-body-sm);
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
 
 .author-done-label input {
@@ -210,6 +237,8 @@ h3 {
   display: flex;
   gap: var(--space-xs);
   flex-wrap: wrap;
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 /* 로그인 카드 안 피드백 (상단 message-block만 있으면 스크롤 밖에 있어 ‘무반응’처럼 보임) */
@@ -689,6 +718,17 @@ h3 {
 
   .author-progress-panel {
     max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .author-progress-leading {
+    max-width: none;
+  }
+
+  .author-slot-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 
   .audience-tabs {

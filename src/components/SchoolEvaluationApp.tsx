@@ -673,17 +673,17 @@ export function SchoolEvaluationApp() {
               ) : null}
             </div>
             {school && draft ? (
-              <ColorBlockSection tone="cream" className="author-progress-panel" aria-label="작성 분담">
-                <div className="author-progress-head">
-                  <div>
+              <ColorBlockSection tone="navy" className="author-progress-panel" aria-label="작성 분담">
+                <div className="author-progress-leading">
+                  <div className="author-progress-head">
                     <strong className="typ-body-sm w-540">작성 분담 (선택)</strong>
-                    <p className="author-progress-hint typ-body-sm">
-                      역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
-                    </p>
+                    <span className="author-progress-count typ-body-sm">
+                      완료 {authorDoneCount}/{draftAuthorRows.length}
+                    </span>
                   </div>
-                  <span className="author-progress-count typ-body-sm">
-                    완료 {authorDoneCount}/{draftAuthorRows.length}
-                  </span>
+                  <p className="author-progress-hint typ-body-sm">
+                    역할·직책명을 바꿀 수 있습니다. 해당 부서 작성·검토를 끝낸 분은 완료에 체크하세요.
+                  </p>
                 </div>
                 <div className="author-slot-list">
                   {draftAuthorRows.map((row, index) => (
