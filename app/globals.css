@@ -136,10 +136,11 @@ h3 {
 }
 
 .author-progress-panel {
-  flex: 1 1 380px;
+  flex: 0 1 380px;
   min-width: min(100%, 260px);
   max-width: min(100%, 960px);
   margin-bottom: 0;
+  margin-left: auto;
   padding: var(--space-md);
   display: flex;
   flex-direction: row;
@@ -772,6 +773,7 @@ h3 {
     max-width: none;
     flex-direction: column;
     align-items: stretch;
+    margin-left: 0;
   }
 
   .author-progress-leading {

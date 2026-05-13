@@ -672,6 +672,32 @@ export function SchoolEvaluationApp() {
                 </div>
               ) : null}
             </div>
+            {Object.keys(latestGoogleForms).length > 0 ? (
+              <ColorBlockSection tone="mint" className="google-result top-google-result">
+                <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
+                <div className="google-links-inline">
+                  {AUDIENCES.map((audience) => {
+                    const form = latestGoogleForms[audience];
+                    if (!form) {
+                      return null;
+                    }
+                    return (
+                      <div key={audience} className="google-links-group">
+                        <strong>{AUDIENCE_LABELS[audience]}</strong>
+                        <a href={form.editUrl} target="_blank" rel="noreferrer">
+                          편집 링크
+                        </a>
+                        {form.responderUrl ? (
+                          <a href={form.responderUrl} target="_blank" rel="noreferrer">
+                            응답 링크
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ColorBlockSection>
+            ) : null}
             {school && draft ? (
               <ColorBlockSection tone="navy" className="author-progress-panel" aria-label="작성 분담">
                 <div className="author-progress-leading">
@@ -727,32 +753,6 @@ export function SchoolEvaluationApp() {
                   <Button type="button" variant="secondary" onClick={addAuthorRow}>
                     역할 행 추가
                   </Button>
-                </div>
-              </ColorBlockSection>
-            ) : null}
-            {Object.keys(latestGoogleForms).length > 0 ? (
-              <ColorBlockSection tone="mint" className="google-result top-google-result">
-                <strong className="typ-body-sm w-540">최근 생성된 Google Forms (대상별)</strong>
-                <div className="google-links-inline">
-                  {AUDIENCES.map((audience) => {
-                    const form = latestGoogleForms[audience];
-                    if (!form) {
-                      return null;
-                    }
-                    return (
-                      <div key={audience} className="google-links-group">
-                        <strong>{AUDIENCE_LABELS[audience]}</strong>
-                        <a href={form.editUrl} target="_blank" rel="noreferrer">
-                          편집 링크
-                        </a>
-                        {form.responderUrl ? (
-                          <a href={form.responderUrl} target="_blank" rel="noreferrer">
-                            응답 링크
-                          </a>
-                        ) : null}
-                      </div>
-                    );
-                  })}
                 </div>
               </ColorBlockSection>
             ) : null}
