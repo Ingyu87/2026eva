@@ -119,10 +119,23 @@ function tryParseOAuthError(text: string): string | null {
   return null;
 }
 
+/** Google Forms API는 제목·설명·선택지 등 표시 텍스트에 줄바꿈을 허용하지 않음(INVALID_ARGUMENT). */
+function formsSingleLineText(value: string, ifEmpty: string): string {
+  const collapsed = String(value ?? "")
+    .replace(/\r\n?|\n/g, " ")
+    .replace(/[\u00a0\t]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return collapsed || ifEmpty;
+}
+
 function textItem(title: string, description?: string) {
+  const safeTitle = formsSingleLineText(title, " ");
+  const safeDesc =
+    description === undefined ? undefined : formsSingleLineText(description, " ");
   return {
-    title,
-    description,
+    title: safeTitle,
+    description: safeDesc,
     textItem: {}
   };
 }
@@ -134,14 +147,14 @@ function choiceItem(
   type: "RADIO" | "CHECKBOX" = "RADIO"
 ) {
   return {
-    title,
-    description,
+    title: formsSingleLineText(title, " "),
+    description: formsSingleLineText(description, " "),
     questionItem: {
       question: {
         required: false,
         choiceQuestion: {
           type,
-          options: options.map((value) => ({ value })),
+          options: options.map((value) => ({ value: formsSingleLineText(value, value) })),
           shuffle: false
         }
       }
@@ -150,10 +163,12 @@ function choiceItem(
 }
 
 function questionItem(title: string, description: string, responseType: ResponseType) {
+  const safeTitle = formsSingleLineText(title, " ");
+  const safeDescription = formsSingleLineText(description, " ");
   if (responseType === "text") {
     return {
-      title,
-      description,
+      title: safeTitle,
+      description: safeDescription,
       questionItem: {
         question: {
           required: false,
@@ -166,15 +181,15 @@ function questionItem(title: string, description: string, responseType: Response
   }
 
   if (responseType === "likert_3") {
-    return choiceItem(title, description, LIKERT_3_OPTIONS, "RADIO");
+    return choiceItem(safeTitle, safeDescription, LIKERT_3_OPTIONS, "RADIO");
   }
   if (responseType === "yes_no") {
-    return choiceItem(title, description, YES_NO_OPTIONS, "RADIO");
+    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO");
   }
   if (responseType === "checklist") {
-    return choiceItem(title, description, YES_NO_OPTIONS, "CHECKBOX");
+    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "CHECKBOX");
   }
-  return choiceItem(title, description, LIKERT_5_OPTIONS, "RADIO");
+  return choiceItem(safeTitle, safeDescription, LIKERT_5_OPTIONS, "RADIO");
 }
 
 async function createGoogleFormForAudience(
@@ -191,7 +206,11 @@ async function createGoogleFormForAudience(
     throw new Error(`${AUDIENCE_LABELS[audience]} ??? ?? Google Form? ?? ? ????.`);
   }
 
-  const titleForAudience = `${draft.title} (${AUDIENCE_LABELS[audience]})`;
+  const titleForAudience = formsSingleLineText(
+    `${draft.title} (${AUDIENCE_LABELS[audience]})`,
+    AUDIENCE_LABELS[audience]
+  );
+  const documentTitle = formsSingleLineText(`${titleForAudience}_${draft.schoolName}`, titleForAudience);
   const createResponse = await fetch(FORMS_API_URL, {
     method: "POST",
     headers: {
@@ -201,7 +220,7 @@ async function createGoogleFormForAudience(
     body: JSON.stringify({
       info: {
         title: titleForAudience,
-        documentTitle: `${titleForAudience}_${draft.schoolName}`
+        documentTitle
       }
     })
   });
@@ -215,7 +234,7 @@ async function createGoogleFormForAudience(
   const requests: unknown[] = [
     {
       createItem: {
-        item: textItem(`${AUDIENCE_LABELS[audience]} ??`, draft.introByAudience[audience]),
+        item: textItem(`${AUDIENCE_LABELS[audience]} 안내문`, draft.introByAudience[audience]),
         location: { index: 0 }
       }
     }
