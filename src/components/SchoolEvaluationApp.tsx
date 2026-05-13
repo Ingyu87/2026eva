@@ -369,10 +369,10 @@ export function SchoolEvaluationApp() {
       sourceRow: 0,
       area: "직접입력",
       subarea: "직접입력",
-      indicator: RESPONSE_TYPE_LABELS.text,
+      indicator: RESPONSE_TYPE_LABELS.likert_5,
       originalQuestion: text,
       editedQuestion: text,
-      responseType: "text",
+      responseType: "likert_5",
       order: currentItems.length + 1,
       createdAt: timestamp,
       updatedAt: timestamp
