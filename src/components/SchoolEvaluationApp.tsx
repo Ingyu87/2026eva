@@ -21,11 +21,13 @@ import {
   LIKERT_3_OPTIONS,
   LIKERT_5_OPTIONS,
   YES_NO_OPTIONS,
+  RESPONSE_TYPE_LABELS,
   type ApiResult,
   type Audience,
   type GoogleFormInfo,
   type PublicSchool,
   type QuestionBankItem,
+  type ResponseType,
   type SelectedQuestion,
   type SurveyDraft
 } from "@/lib/types";
@@ -38,6 +40,15 @@ const emptyFilters = {
   subarea: "",
   indicator: ""
 };
+
+const BUILDER_SPLIT_STORAGE_KEY = "school-eval-builder-split-pct";
+const BUILDER_SPLIT_HANDLE_PX = 10;
+const BUILDER_SPLIT_MIN = 28;
+const BUILDER_SPLIT_MAX = 72;
+
+function isCustomSelectedQuestion(item: SelectedQuestion): boolean {
+  return item.sourceQuestionId.startsWith("custom-");
+}
 
 async function fetchJson<T>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = 25_000, ...rest } = init ?? {};
@@ -103,8 +114,28 @@ export function SchoolEvaluationApp() {
   const [schools, setSchools] = useState<PublicSchool[]>([]);
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [customQuestionText, setCustomQuestionText] = useState("");
+  const [builderSplitPct, setBuilderSplitPct] = useState(46);
+  const builderSplitRef = useRef<HTMLDivElement | null>(null);
+  const splitDragPointerId = useRef<number | null>(null);
+  const builderSplitPctLatest = useRef(46);
 
   const showAuthForm = mode === "user" && !(school && draft);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BUILDER_SPLIT_STORAGE_KEY);
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) {
+          const clamped = Math.min(BUILDER_SPLIT_MAX, Math.max(BUILDER_SPLIT_MIN, n));
+          setBuilderSplitPct(clamped);
+          builderSplitPctLatest.current = clamped;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     void loadSession();
@@ -139,6 +170,10 @@ export function SchoolEvaluationApp() {
       }
     };
   }, [dirty, draft, school]);
+
+  useEffect(() => {
+    builderSplitPctLatest.current = builderSplitPct;
+  }, [builderSplitPct]);
 
   const bankForAudience = useMemo(
     () => questionBank.filter((item) => item.audience === activeAudience),
@@ -322,7 +357,7 @@ export function SchoolEvaluationApp() {
     }
     const text = customQuestionText.trim();
     if (!text) {
-      setError("서술형 문항 내용을 입력해 주세요.");
+      setError("문항 내용을 입력해 주세요.");
       return;
     }
     const currentItems = draft.itemsByAudience[activeAudience] ?? [];
@@ -334,7 +369,7 @@ export function SchoolEvaluationApp() {
       sourceRow: 0,
       area: "직접입력",
       subarea: "직접입력",
-      indicator: "서술형",
+      indicator: RESPONSE_TYPE_LABELS.text,
       originalQuestion: text,
       editedQuestion: text,
       responseType: "text",
@@ -351,7 +386,57 @@ export function SchoolEvaluationApp() {
     }));
     setCustomQuestionText("");
     setError("");
-    setStatus("서술형 문항을 추가했습니다.");
+    setStatus("문항을 추가했습니다.");
+  }
+
+  function parseResponseType(value: string): ResponseType {
+    if (value === "text" || value === "likert_3" || value === "yes_no" || value === "checklist") {
+      return value;
+    }
+    return "likert_5";
+  }
+
+  function onBuilderSplitPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (!builderSplitRef.current) {
+      return;
+    }
+    splitDragPointerId.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onBuilderSplitPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (splitDragPointerId.current !== event.pointerId) {
+      return;
+    }
+    const root = builderSplitRef.current;
+    if (!root) {
+      return;
+    }
+    const rect = root.getBoundingClientRect();
+    const usable = Math.max(1, rect.width - BUILDER_SPLIT_HANDLE_PX);
+    const x = event.clientX - rect.left;
+    const pct = (x / usable) * 100;
+    const next = Math.round(Math.min(BUILDER_SPLIT_MAX, Math.max(BUILDER_SPLIT_MIN, pct)) * 10) / 10;
+    builderSplitPctLatest.current = next;
+    setBuilderSplitPct(next);
+  }
+
+  function onBuilderSplitPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (splitDragPointerId.current !== event.pointerId) {
+      return;
+    }
+    splitDragPointerId.current = null;
+    try {
+      localStorage.setItem(BUILDER_SPLIT_STORAGE_KEY, String(builderSplitPctLatest.current));
+    } catch {
+      /* ignore */
+    }
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
   }
 
   function updateSelectedItem(id: string, patch: Partial<SelectedQuestion>) {
@@ -626,7 +711,13 @@ export function SchoolEvaluationApp() {
                       ))}
                     </nav>
 
-                    <section className="builder-grid">
+                    <section ref={builderSplitRef} className="builder-split">
+                      <div
+                        className="builder-split-left"
+                        style={{
+                          flex: `0 0 calc((100% - ${BUILDER_SPLIT_HANDLE_PX}px) * ${builderSplitPct} / 100)`
+                        }}
+                      >
                         <div className="builder-left">
                   <section className="intro-panel">
                     <label className="field-label">
@@ -716,8 +807,27 @@ export function SchoolEvaluationApp() {
                 </div>
               </div>
                         </div>
+                      </div>
+                      <div
+                        className="builder-split-handle"
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="문항 찾기와 선택 문항 영역 너비 조절"
+                        aria-valuenow={Math.round(builderSplitPct)}
+                        aria-valuemin={BUILDER_SPLIT_MIN}
+                        aria-valuemax={BUILDER_SPLIT_MAX}
+                        tabIndex={0}
+                        onPointerDown={onBuilderSplitPointerDown}
+                        onPointerMove={onBuilderSplitPointerMove}
+                        onPointerUp={onBuilderSplitPointerUp}
+                        onPointerCancel={onBuilderSplitPointerUp}
+                      />
 
-              <ColorBlockSection tone="lime" className="selected-panel" aria-label="선택 문항 편집">
+              <ColorBlockSection
+                tone="lime"
+                className="selected-panel builder-split-right"
+                aria-label="선택 문항 편집"
+              >
                 <div className="panel-title">
                   <h3>{AUDIENCE_LABELS[activeAudience]} 선택 문항</h3>
                   <div className="actions">
@@ -749,7 +859,7 @@ export function SchoolEvaluationApp() {
                       <article className="selected-item" key={item.id}>
                         <div className="selected-meta">
                           <span>#{index + 1}</span>
-                          <span>{item.indicator}</span>
+                          <span>{RESPONSE_TYPE_LABELS[item.responseType]}</span>
                         </div>
                         <Textarea
                           value={item.editedQuestion}
@@ -761,17 +871,14 @@ export function SchoolEvaluationApp() {
                         <div className="item-actions">
                           <Select
                             value={item.responseType}
-                            onChange={(event) =>
-                              updateSelectedItem(item.id, {
-                                responseType:
-                                  event.target.value === "text" ||
-                                  event.target.value === "likert_3" ||
-                                  event.target.value === "yes_no" ||
-                                  event.target.value === "checklist"
-                                    ? event.target.value
-                                    : "likert_5"
-                              })
-                            }
+                            onChange={(event) => {
+                              const responseType = parseResponseType(event.target.value);
+                              const patch: Partial<SelectedQuestion> = { responseType };
+                              if (isCustomSelectedQuestion(item)) {
+                                patch.indicator = RESPONSE_TYPE_LABELS[responseType];
+                              }
+                              updateSelectedItem(item.id, patch);
+                            }}
                           >
                             <option value="likert_5">5점 척도</option>
                             <option value="likert_3">3점 척도</option>

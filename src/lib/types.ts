@@ -11,6 +11,14 @@ export const AUDIENCE_LABELS: Record<Audience, string> = {
 
 export type ResponseType = "likert_5" | "likert_3" | "yes_no" | "checklist" | "text";
 
+export const RESPONSE_TYPE_LABELS: Record<ResponseType, string> = {
+  likert_5: "5점 척도",
+  likert_3: "3점 척도",
+  yes_no: "예/아니오",
+  checklist: "체크리스트",
+  text: "서술형"
+};
+
 export type QuestionBankItem = {
   id: string;
   audience: Audience;
