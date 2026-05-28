@@ -10,7 +10,9 @@ import {
   TableCell,
   TableRow,
   TextRun,
-  WidthType
+  WidthType,
+  type IFontAttributesProperties,
+  type IParagraphOptions
 } from "docx";
 import {
   AUDIENCES,
@@ -22,9 +24,39 @@ import {
   type SurveyDraft
 } from "./types";
 
-function textParagraph(text: string, bold = false): Paragraph {
+/** Word에서 한글이 붙어 보이지 않도록 동아시아 폰트·언어를 명시한다. */
+const KOREAN_FONT: IFontAttributesProperties = {
+  ascii: "Malgun Gothic",
+  hAnsi: "Malgun Gothic",
+  eastAsia: "맑은 고딕",
+  cs: "Malgun Gothic"
+};
+
+const KOREAN_LANGUAGE = {
+  value: "ko-KR",
+  eastAsia: "ko-KR"
+} as const;
+
+const KOREAN_RUN_DEFAULTS = {
+  font: KOREAN_FONT,
+  language: KOREAN_LANGUAGE
+} as const;
+
+function koreanRun(text: string, bold = false): TextRun {
+  return new TextRun({ text, bold, ...KOREAN_RUN_DEFAULTS });
+}
+
+function koreanParagraph(options: IParagraphOptions): Paragraph {
   return new Paragraph({
-    children: [new TextRun({ text, bold })],
+    autoSpaceEastAsianText: true,
+    ...options,
+    run: { ...KOREAN_RUN_DEFAULTS, ...options.run }
+  });
+}
+
+function textParagraph(text: string, bold = false): Paragraph {
+  return koreanParagraph({
+    children: [koreanRun(text, bold)],
     spacing: { after: 120 }
   });
 }
@@ -98,9 +130,9 @@ function sectionForAudience(
             children: [
               cell(
                 [
-                  new Paragraph({
+                  koreanParagraph({
                     alignment: AlignmentType.CENTER,
-                    children: [new TextRun(String(index + 1))]
+                    children: [koreanRun(String(index + 1))]
                   })
                 ],
                 10
@@ -112,23 +144,30 @@ function sectionForAudience(
   ];
 
   return [
-    new Paragraph({
-      text: `${draft.title}<${audienceLabel}>`,
+    koreanParagraph({
+      children: [koreanRun(`${draft.title} (${audienceLabel})`, true)],
       heading: HeadingLevel.HEADING_1,
       alignment: AlignmentType.CENTER,
       spacing: { after: 240 }
     }),
     textParagraph(draft.introByAudience[audienceItems[0].audience] ?? ""),
-    new Paragraph({
+    koreanParagraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun(draft.surveyDate), new TextRun({ text: "\n" }), new TextRun(draft.schoolName)]
+      children: [
+        koreanRun(draft.surveyDate),
+        koreanRun("\n"),
+        koreanRun(draft.schoolName)
+      ]
     }),
-    new Paragraph({ text: "", spacing: { after: 160 } }),
+    koreanParagraph({ children: [koreanRun("")], spacing: { after: 160 } }),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: tableRows
     }),
-    new Paragraph({ text: "※ 정성껏 응답해 주셔서 고맙습니다.", spacing: { before: 240, after: 360 } })
+    koreanParagraph({
+      children: [koreanRun("※ 정성껏 응답해 주셔서 고맙습니다.")],
+      spacing: { before: 240, after: 360 }
+    })
   ];
 }
 
@@ -138,6 +177,19 @@ export async function buildSurveyDocx(draft: SurveyDraft): Promise<Buffer> {
   );
 
   const document = new Document({
+    styles: {
+      default: {
+        document: {
+          run: KOREAN_RUN_DEFAULTS
+        },
+        heading1: {
+          run: KOREAN_RUN_DEFAULTS
+        }
+      }
+    },
+    compatibility: {
+      useFELayout: true
+    },
     sections: [
       {
         properties: {},
@@ -145,8 +197,8 @@ export async function buildSurveyDocx(draft: SurveyDraft): Promise<Buffer> {
           children.length > 0
             ? children
             : [
-                new Paragraph({
-                  text: draft.title,
+                koreanParagraph({
+                  children: [koreanRun(draft.title, true)],
                   heading: HeadingLevel.HEADING_1,
                   alignment: AlignmentType.CENTER
                 }),
