@@ -116,6 +116,7 @@ export function SchoolEvaluationApp() {
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localEditVersionRef = useRef(0);
 
   const [adminPassword, setAdminPassword] = useState("");
   const [adminAuthed, setAdminAuthed] = useState(false);
@@ -255,6 +256,7 @@ export function SchoolEvaluationApp() {
         setSchool(data.school);
         setDraft(data.draft);
         setSchoolName(data.school.schoolName);
+        localEditVersionRef.current = 0;
         setDirty(false);
       }
     } catch {
@@ -276,6 +278,7 @@ export function SchoolEvaluationApp() {
       setSchool(data.school);
       setDraft(data.draft);
       setPassword("");
+      localEditVersionRef.current = 0;
       setDirty(false);
       setStatus(authMode === "register" ? "학교 계정이 등록되었습니다." : "로그인되었습니다.");
     } catch (err) {
@@ -299,6 +302,7 @@ export function SchoolEvaluationApp() {
         return current;
       }
       const next = mutator(current);
+      localEditVersionRef.current += 1;
       setDirty(true);
       return next;
     });
@@ -308,11 +312,16 @@ export function SchoolEvaluationApp() {
     if (!targetDraft) {
       return;
     }
+    const requestVersion = localEditVersionRef.current;
     try {
       const data = await fetchJson<{ draft: SurveyDraft }>("/api/draft", {
         method: "PUT",
         body: JSON.stringify({ draft: targetDraft })
       });
+      // 오래된 저장 응답이 최신 입력을 덮어쓰지 않도록 보호합니다.
+      if (requestVersion !== localEditVersionRef.current) {
+        return;
+      }
       setDraft(data.draft);
       setDirty(false);
       if (!silent) {
@@ -974,7 +983,9 @@ export function SchoolEvaluationApp() {
                 </div>
                 <div className="actions">
                   <span className={dirty ? "save-state dirty" : "save-state"}>{dirty ? "저장 중" : "저장됨"}</span>
-                  <Button onClick={() => void saveDraft()}>초안 저장</Button>
+                  <Button onClick={() => void saveDraft()} disabled={!dirty}>
+                    초안 저장
+                  </Button>
                   <Button onClick={() => void exportDocx()}>DOCX 출력</Button>
                   <Button onClick={() => void startGoogleForms()}>Google Forms 만들기</Button>
                   <Button variant="secondary" onClick={() => void logout()}>
