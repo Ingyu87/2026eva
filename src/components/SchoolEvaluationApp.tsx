@@ -577,11 +577,16 @@ export function SchoolEvaluationApp() {
     }
     const nextItems = selectedItems.slice();
     [nextItems[index], nextItems[nextIndex]] = [nextItems[nextIndex], nextItems[index]];
+    const reordered = nextItems.map((item, i) => ({
+      ...item,
+      order: i + 1,
+      updatedAt: nowIso()
+    }));
     updateDraft((current) => ({
       ...current,
       itemsByAudience: {
         ...current.itemsByAudience,
-        [activeAudience]: normalizeOrder(nextItems)
+        [activeAudience]: reordered
       }
     }));
   }
