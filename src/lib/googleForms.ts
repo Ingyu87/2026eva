@@ -8,8 +8,10 @@ import {
   type Audience,
   type GoogleFormInfo,
   type ResponseType,
+  type SelectedQuestion,
   type SurveyDraft
 } from "./types";
+import { groupByAudience } from "./draftItems";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -195,13 +197,13 @@ function questionItem(title: string, description: string, responseType: Response
 async function createGoogleFormForAudience(
   draft: SurveyDraft,
   audience: Audience,
+  items: SelectedQuestion[],
   accessToken: string
 ): Promise<{
   formId: string;
   editUrl: string;
   responderUrl?: string;
 }> {
-  const items = draft.itemsByAudience[audience] ?? [];
   if (items.length === 0) {
     throw new Error(`${AUDIENCE_LABELS[audience]} ??? ?? Google Form? ?? ? ????.`);
   }
@@ -287,15 +289,17 @@ async function createGoogleFormForAudience(
 
 export async function createGoogleFormsByAudienceFromDraft(
   draft: SurveyDraft,
+  allItems: SelectedQuestion[],
   accessToken: string
 ): Promise<Partial<Record<Audience, Omit<GoogleFormInfo, "createdAt">>>> {
   const nextForms: Partial<Record<Audience, Omit<GoogleFormInfo, "createdAt">>> = {};
+  const byAudience = groupByAudience(allItems);
   for (const audience of AUDIENCES) {
-    const items = draft.itemsByAudience[audience] ?? [];
+    const items = byAudience[audience];
     if (items.length === 0) {
       continue;
     }
-    nextForms[audience] = await createGoogleFormForAudience(draft, audience, accessToken);
+    nextForms[audience] = await createGoogleFormForAudience(draft, audience, items, accessToken);
   }
   if (Object.keys(nextForms).length === 0) {
     throw new Error("??? ??? ?? Google Forms? ??? ? ????.");

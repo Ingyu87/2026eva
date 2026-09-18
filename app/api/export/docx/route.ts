@@ -1,6 +1,6 @@
 import { jsonError, requireSchoolSession } from "@/lib/api";
 import { buildSurveyDocx, docxFileName } from "@/lib/docxExport";
-import { getOrCreateDraft } from "@/lib/store";
+import { getDraftBundle } from "@/lib/store";
 
 export async function GET() {
   const session = await requireSchoolSession();
@@ -8,8 +8,8 @@ export async function GET() {
     return session;
   }
 
-  const draft = await getOrCreateDraft(session.schoolId, session.schoolName);
-  const buffer = await buildSurveyDocx(draft);
+  const { draft, items } = await getDraftBundle(session.schoolId, session.schoolName);
+  const buffer = await buildSurveyDocx(draft, items);
   const fileName = encodeURIComponent(docxFileName(draft));
 
   if (!buffer.length) {

@@ -10,3 +10,5 @@ export { Textarea, type TextareaProps } from "./Textarea";
 export { TopNav, type TopNavProps } from "./TopNav";
 export { Footer, type FooterProps } from "./Footer";
 export { MarqueeStrip, type MarqueeStripProps } from "./MarqueeStrip";
+export { SaveStateBadge, PresenceBadge } from "./SaveStateBadge";
+export { ConflictDialog, DisplayNamePrompt } from "./ConflictDialog";
