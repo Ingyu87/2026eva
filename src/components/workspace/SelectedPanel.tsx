@@ -8,15 +8,11 @@ import {
 } from "@/lib/evaluationFramework";
 import {
   AUDIENCE_LABELS,
-  LIKERT_3_OPTIONS,
-  LIKERT_5_OPTIONS,
-  RESPONSE_TYPE_LABELS,
-  YES_NO_OPTIONS,
   type Audience,
   type Presence,
-  type ResponseType,
   type SelectedQuestion
 } from "@/lib/types";
+import { previewOptions, ResponseTypeEditor } from "./ResponseTypeEditor";
 
 /**
  * 우측 열 — 지금 대상의 선택 문항.
@@ -24,16 +20,6 @@ import {
  * 화면에 보이는 번호는 순서대로 다시 센 값이며 저장하지 않습니다.
  * 저장되는 order는 분수라서 순서를 바꿔도 자기 문서 하나만 고쳐집니다.
  */
-
-const RESPONSE_TYPES: ResponseType[] = ["likert_5", "likert_3", "yes_no", "checklist", "text"];
-
-function optionPreview(type: ResponseType): string {
-  if (type === "likert_5") return LIKERT_5_OPTIONS.join(" · ");
-  if (type === "likert_3") return LIKERT_3_OPTIONS.join(" · ");
-  if (type === "yes_no") return YES_NO_OPTIONS.join(" · ");
-  if (type === "text") return "서술형 답변";
-  return "체크리스트";
-}
 
 /** 학생·학부모·교원은 Ⅰ·Ⅱ·Ⅲ 전 영역에 문항이 있어야 합니다(가이드북 Q9). 직원은 예외입니다. */
 const REQUIRED_AREAS = ["Ⅰ", "Ⅱ", "Ⅲ"];
@@ -185,7 +171,19 @@ export function SelectedPanel({
                 {legacy ? <p className="ws-item-legacy">{legacy}</p> : null}
 
                 {editing ? (
-                  <div className="ws-item-edit">
+                  /*
+                   * 예전에는 textarea에 onBlur로 편집을 닫았습니다. 그래서 유형 드롭다운을
+                   * 누르는 순간 편집 영역이 사라져 5점 척도 말고는 고를 수가 없었습니다.
+                   * 이제는 '완료'를 누르거나 Esc를 눌러야 닫힙니다.
+                   */
+                  <div
+                    className="ws-item-edit"
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        stopEdit();
+                      }
+                    }}
+                  >
                     <textarea
                       className="ws-textarea"
                       rows={3}
@@ -194,35 +192,32 @@ export function SelectedPanel({
                       onChange={(event) =>
                         onPatch(item.id, { editedQuestion: event.target.value })
                       }
-                      onBlur={stopEdit}
                     />
-                    <div className="ws-item-edit-row">
-                      <select
-                        className="ws-select"
-                        value={item.responseType}
-                        onChange={(event) =>
-                          onPatch(item.id, { responseType: event.target.value as ResponseType })
-                        }
-                      >
-                        {RESPONSE_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {RESPONSE_TYPE_LABELS[type]}
-                          </option>
-                        ))}
-                      </select>
-                      {/* 평가지표별 담당부서 지정 — 기본계획 Ⅴ-3-나-3, 서식1 */}
-                      <input
-                        className="ws-input"
-                        value={item.department ?? ""}
-                        placeholder="담당부서"
-                        onChange={(event) => onPatch(item.id, { department: event.target.value })}
-                      />
-                    </div>
+
+                    <ResponseTypeEditor
+                      responseType={item.responseType}
+                      choices={item.choices}
+                      onChange={(patch) => onPatch(item.id, patch)}
+                    />
+
+                    {/* 평가지표별 담당부서 지정 — 기본계획 Ⅴ-3-나-3, 서식1 */}
+                    <input
+                      className="ws-input"
+                      value={item.department ?? ""}
+                      placeholder="담당부서 (선택)"
+                      onChange={(event) => onPatch(item.id, { department: event.target.value })}
+                    />
+
+                    <button type="button" className="ws-btn ws-btn--primary" onClick={stopEdit}>
+                      완료
+                    </button>
                   </div>
                 ) : (
                   <>
                     <p className="ws-item-text">{item.editedQuestion}</p>
-                    <p className="ws-item-scale">{optionPreview(item.responseType)}</p>
+                    <p className="ws-item-scale">
+                      {previewOptions(item.responseType, item.choices)}
+                    </p>
                   </>
                 )}
               </div>

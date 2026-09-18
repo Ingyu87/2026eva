@@ -24,15 +24,52 @@ export const AUDIENCE_LABELS: Record<Audience, string> = {
   staff: "교직원용"
 };
 
-export type ResponseType = "likert_5" | "likert_3" | "yes_no" | "checklist" | "text";
+export type ResponseType =
+  | "likert_5"
+  | "likert_3"
+  | "yes_no"
+  | "choice_single"
+  | "checklist"
+  | "text";
+
+export const RESPONSE_TYPES: ResponseType[] = [
+  "likert_5",
+  "likert_3",
+  "yes_no",
+  "choice_single",
+  "checklist",
+  "text"
+];
 
 export const RESPONSE_TYPE_LABELS: Record<ResponseType, string> = {
   likert_5: "5점 척도",
   likert_3: "3점 척도",
-  yes_no: "예/아니오",
-  checklist: "체크리스트",
+  yes_no: "예 / 아니오",
+  choice_single: "객관식 (하나 선택)",
+  checklist: "객관식 (여러 개 선택)",
   text: "서술형"
 };
+
+/** 보기 목록을 학교가 직접 써야 하는 유형. */
+export function needsChoices(type: ResponseType): boolean {
+  return type === "choice_single" || type === "checklist";
+}
+
+/**
+ * 영역 평균점수 계산에 들어가는 유형인지.
+ *
+ * 가이드북 p.9와 p.51은 정량평가를 **5단계 척도**로 전제합니다.
+ * 4단계 환산 공식도 5점 기준이라, 다른 유형은 평균 계산에 넣을 수 없습니다.
+ * 정성평가(서술형)와 선호도 조사(객관식)는 병행하되 집계와는 분리합니다.
+ */
+export function countsTowardAreaMean(type: ResponseType): boolean {
+  return type === "likert_5";
+}
+
+/** 유형별 기본 보기. 유형을 바꿀 때 비어 있지 않게 채워 줍니다. */
+export function defaultChoices(type: ResponseType): string[] | undefined {
+  return needsChoices(type) ? ["", ""] : undefined;
+}
 
 /**
  * 교육청 예시자료에서 읽어온 읽기 전용 문항.
@@ -123,7 +160,8 @@ export type NewSelectedQuestion = Pick<
   | "editedQuestion"
   | "responseType"
   | "order"
->;
+> &
+  Partial<Pick<SelectedQuestion, "choices" | "department">>;
 
 export type GoogleFormInfo = {
   formId: string;

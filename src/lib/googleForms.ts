@@ -164,7 +164,12 @@ function choiceItem(
   };
 }
 
-function questionItem(title: string, description: string, responseType: ResponseType) {
+function questionItem(
+  title: string,
+  description: string,
+  responseType: ResponseType,
+  choices?: string[]
+) {
   const safeTitle = formsSingleLineText(title, " ");
   const safeDescription = formsSingleLineText(description, " ");
   if (responseType === "text") {
@@ -188,9 +193,21 @@ function questionItem(title: string, description: string, responseType: Response
   if (responseType === "yes_no") {
     return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO");
   }
-  if (responseType === "checklist") {
-    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "CHECKBOX");
+
+  // 객관식은 학교가 쓴 보기를 씁니다. 비어 있으면 폼 생성이 실패하므로 막아 둡니다.
+  if (responseType === "choice_single" || responseType === "checklist") {
+    const options = (choices ?? []).map((choice) => choice.trim()).filter(Boolean);
+    if (options.length < 2) {
+      throw new Error(`객관식 문항에 보기가 부족합니다: ${title}`);
+    }
+    return choiceItem(
+      safeTitle,
+      safeDescription,
+      options,
+      responseType === "checklist" ? "CHECKBOX" : "RADIO"
+    );
   }
+
   return choiceItem(safeTitle, safeDescription, LIKERT_5_OPTIONS, "RADIO");
 }
 
@@ -248,7 +265,8 @@ async function createGoogleFormForAudience(
         item: questionItem(
           item.editedQuestion || item.originalQuestion,
           `${item.area} / ${item.subarea} / ${item.indicator}`,
-          item.responseType
+          item.responseType,
+          item.choices
         ),
         location: { index: requests.length }
       }

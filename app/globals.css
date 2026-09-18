@@ -717,6 +717,55 @@ mark {
   gap: var(--sp-2);
 }
 
+.ws-custom-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-caption);
+}
+
+/* 응답 유형 · 보기 편집 */
+.ws-type-editor {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.ws-type-preview {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-caption);
+}
+
+/* 5점 척도가 아니면 영역 평균 계산에서 빠집니다. 담기 전에 알려 줍니다. */
+.ws-type-note {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+}
+
+.ws-choices {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+}
+
+.ws-choice-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.ws-choice-mark {
+  color: var(--text-faint);
+  font-size: var(--fs-body);
+}
+
 /* ── 우: 선택 문항 ───────────────────────────── */
 
 .ws-item {

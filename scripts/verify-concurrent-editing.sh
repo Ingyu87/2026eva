@@ -5,12 +5,16 @@
 #   npm run build && npx next start -p 3100 &
 #   bash scripts/verify-concurrent-editing.sh
 #
+#   개발 서버로 돌릴 때:
+#   BASE_URL=http://127.0.0.1:3000 bash scripts/verify-concurrent-editing.sh
+#
 # 같은 학교 계정으로 두 사람(A/B)이 동시에 작업하는 상황을 재현해,
 # 어느 쪽 작업도 사라지지 않는지 확인합니다.
 # 식별자를 ASCII로 쓰는 것은 콘솔 인코딩 영향을 받지 않기 위함입니다.
 set -u
 SP="${TMPDIR:-/tmp}"
-BASE="http://127.0.0.1:3100"
+# 다른 포트로 띄웠으면  BASE_URL=http://127.0.0.1:3000 bash scripts/...
+BASE="${BASE_URL:-http://127.0.0.1:3100}"
 A="$SP/jA.txt"; B="$SP/jB.txt"
 rm -f "$A" "$B"
 SCHOOL="verify-$RANDOM"

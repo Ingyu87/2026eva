@@ -93,9 +93,15 @@ function questionParagraphs(question: SelectedQuestion): Paragraph[] {
     paragraphs.push(textParagraph(LIKERT_3_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));
   } else if (question.responseType === "yes_no") {
     paragraphs.push(textParagraph(YES_NO_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));
-  } else if (question.responseType === "checklist") {
-    paragraphs.push(textParagraph("해당되는 항목을 모두 선택하세요."));
-    paragraphs.push(textParagraph(YES_NO_OPTIONS.map((option) => `□ ${option}`).join("    ")));
+  } else if (question.responseType === "choice_single" || question.responseType === "checklist") {
+    const options = (question.choices ?? []).map((choice) => choice.trim()).filter(Boolean);
+    const multi = question.responseType === "checklist";
+    paragraphs.push(
+      textParagraph(multi ? "해당되는 항목을 모두 고르세요." : "하나만 고르세요.")
+    );
+    paragraphs.push(
+      textParagraph(options.map((option) => `${multi ? "□" : "○"} ${option}`).join("    "))
+    );
   } else {
     paragraphs.push(textParagraph("답변:"));
     paragraphs.push(textParagraph("                                                                 "));

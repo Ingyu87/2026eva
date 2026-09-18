@@ -4,10 +4,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AUDIENCES,
   AUDIENCE_LABELS,
+  needsChoices,
   type Audience,
-  type QuestionBankItem
+  type QuestionBankItem,
+  type ResponseType
 } from "@/lib/types";
 import type { TreeSelection } from "./IndicatorTree";
+import { ResponseTypeEditor } from "./ResponseTypeEditor";
 
 /**
  * 가운데 열 — 문항 찾기.
@@ -57,13 +60,16 @@ export function QuestionFinder({
   /** 예시문항 id -> 이미 담아 둔 대상들 */
   addedByAudience: Map<string, Set<Audience>>;
   onToggle: (question: QuestionBankItem, audience: Audience) => void;
-  onAddCustom: (text: string) => void;
+  onAddCustom: (text: string, responseType: ResponseType, choices?: string[]) => void;
 }) {
   const [keyword, setKeyword] = useState("");
   const [debounced, setDebounced] = useState("");
   const [cursor, setCursor] = useState(0);
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState("");
+  const [customType, setCustomType] = useState<ResponseType>("likert_5");
+  const [customChoices, setCustomChoices] = useState<string[] | undefined>(undefined);
+  const [customError, setCustomError] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -132,8 +138,17 @@ export function QuestionFinder({
     if (!text) {
       return;
     }
-    onAddCustom(text);
+    // 보기가 필요한 유형인데 비어 있으면 담아 봐야 쓸 수 없는 문항이 됩니다.
+    const filled = (customChoices ?? []).map((c) => c.trim()).filter(Boolean);
+    if (needsChoices(customType) && filled.length < 2) {
+      setCustomError("보기를 2개 이상 입력해 주세요.");
+      return;
+    }
+    onAddCustom(text, customType, needsChoices(customType) ? filled : undefined);
     setCustomText("");
+    setCustomType("likert_5");
+    setCustomChoices(undefined);
+    setCustomError("");
     setCustomOpen(false);
   };
 
@@ -252,6 +267,24 @@ export function QuestionFinder({
                 }
               }}
             />
+
+            {/* 담기 전에 유형을 정합니다. 담고 나서 찾아 들어가지 않아도 되게 합니다. */}
+            <ResponseTypeEditor
+              responseType={customType}
+              choices={customChoices}
+              onChange={(patch) => {
+                if (patch.responseType !== undefined) {
+                  setCustomType(patch.responseType);
+                }
+                if ("choices" in patch) {
+                  setCustomChoices(patch.choices);
+                }
+                setCustomError("");
+              }}
+            />
+
+            {customError ? <p className="ws-custom-error">{customError}</p> : null}
+
             <div className="ws-custom-actions">
               <button type="button" className="ws-btn ws-btn--primary" onClick={submitCustom}>
                 담기

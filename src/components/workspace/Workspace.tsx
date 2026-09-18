@@ -11,6 +11,7 @@ import {
   AUDIENCE_LABELS,
   SURVEY_MODE_LABELS,
   type Audience,
+  type ResponseType,
   type PublicSchool,
   type QuestionBankItem,
   type SelectedQuestion
@@ -135,7 +136,11 @@ export function Workspace({
     setNotice(`${AUDIENCE_LABELS[audience]}에 담았습니다.`);
   };
 
-  const addCustomQuestion = (text: string) => {
+  const addCustomQuestion = (
+    text: string,
+    responseType: ResponseType,
+    choices?: string[]
+  ) => {
     const id = `custom-${crypto.randomUUID()}`;
     workspace.addItems([
       {
@@ -148,7 +153,8 @@ export function Workspace({
         indicator: "직접 작성",
         originalQuestion: text,
         editedQuestion: text,
-        responseType: "likert_5"
+        responseType,
+        choices
       }
     ]);
     setNotice("문항을 추가했습니다.");
