@@ -23,6 +23,7 @@ import {
   type SelectedQuestion,
   type SurveyDraft
 } from "./types";
+import { groupByAudience } from "./draftItems";
 
 /** Word에서 한글이 붙어 보이지 않도록 동아시아 폰트·언어를 명시한다. */
 const KOREAN_FONT: IFontAttributesProperties = {
@@ -171,9 +172,13 @@ function sectionForAudience(
   ];
 }
 
-export async function buildSurveyDocx(draft: SurveyDraft): Promise<Buffer> {
+export async function buildSurveyDocx(
+  draft: SurveyDraft,
+  items: SelectedQuestion[]
+): Promise<Buffer> {
+  const byAudience = groupByAudience(items);
   const children = AUDIENCES.flatMap((audience) =>
-    sectionForAudience(draft, draft.itemsByAudience[audience] ?? [], AUDIENCE_LABELS[audience])
+    sectionForAudience(draft, byAudience[audience], AUDIENCE_LABELS[audience])
   );
 
   const document = new Document({

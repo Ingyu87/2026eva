@@ -4,10 +4,19 @@ import { getFirebaseDb } from "./firebaseAdmin";
 import {
   AUDIENCES,
   type Audience,
+  type DraftBundle,
+  type GoogleFormInfo,
+  type GoogleFormsByAudience,
+  type NewSelectedQuestion,
+  type Presence,
   type PublicSchool,
   type School,
+  type SelectedQuestion,
+  type SelectedQuestionPatch,
   type SurveyDraft,
-  type SurveyDraftAuthor
+  type SurveyDraftAuthor,
+  type SurveyDraftPatch,
+  type SyncResponse
 } from "./types";
 
 const SCHOOLS = "schools";
@@ -15,12 +24,10 @@ const DRAFTS = "surveyDrafts";
 
 type MemoryState = {
   schools: Map<string, School>;
-  drafts: Map<string, SurveyDraft>;
 };
 
 const memoryState: MemoryState = globalThis.__schoolEvalMemoryState ?? {
-  schools: new Map<string, School>(),
-  drafts: new Map<string, SurveyDraft>()
+  schools: new Map<string, School>()
 };
 
 globalThis.__schoolEvalMemoryState = memoryState;
@@ -73,13 +80,6 @@ function ensureDraftAuthors(draft: SurveyDraft): SurveyDraft {
 
 export function createDefaultDraft(schoolId: string, schoolName: string): SurveyDraft {
   const now = nowIso();
-  const emptyByAudience = AUDIENCES.reduce(
-    (acc, audience) => {
-      acc[audience] = [];
-      return acc;
-    },
-    {} as SurveyDraft["itemsByAudience"]
-  );
 
   const introByAudience: Record<Audience, string> = {
     teacher:
@@ -98,8 +98,8 @@ export function createDefaultDraft(schoolId: string, schoolName: string): Survey
     schoolName,
     title: "2026학년도 1학기 학교교육과정 운영 평가 설문",
     surveyDate: "2026-06-30",
+    rev: 0,
     introByAudience,
-    itemsByAudience: emptyByAudience,
     draftAuthors: createDefaultDraftAuthors(),
     createdAt: now,
     updatedAt: now
@@ -281,11 +281,61 @@ export async function deleteSchool(id: string): Promise<void> {
   }
 
   memoryState.schools.delete(id);
-  for (const [draftId, draft] of memoryState.drafts.entries()) {
-    if (draft.schoolId === id) {
-      memoryState.drafts.delete(draftId);
+  for (const [draftId, state] of memoryDrafts.entries()) {
+    if (state.draft.schoolId === id) {
+      memoryDrafts.delete(draftId);
     }
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * 설문 초안 (메타 + 문항 서브컬렉션)
+ *
+ * 메타와 문항을 별도 문서로 두는 것이 동시 작업의 핵심입니다. Firestore는 문서 단위로
+ * 원자성을 보장하므로, 서로 다른 문항을 편집하면 충돌이 구조적으로 발생하지 않습니다.
+ * ------------------------------------------------------------------ */
+
+const ITEMS = "items";
+const PRESENCE = "presence";
+
+/** presence 하트비트가 이 시간 이상 끊기면 접속이 끝난 것으로 봅니다. */
+const PRESENCE_TTL_MS = 30_000;
+
+/** 삭제 표식을 실제로 지우기까지의 보관 기간. */
+const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** 낙관적 잠금 실패. 호출한 쪽에서 409로 변환합니다. */
+export class ConflictError<T> extends Error {
+  readonly current: T | null;
+
+  constructor(current: T | null) {
+    super("다른 사람이 먼저 수정했습니다.");
+    this.name = "ConflictError";
+    this.current = current;
+  }
+}
+
+export class NotFoundError extends Error {
+  constructor(message = "대상을 찾을 수 없습니다.") {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+type MemoryDraftState = {
+  draft: SurveyDraft;
+  items: Map<string, SelectedQuestion>;
+  presence: Map<string, Presence>;
+};
+
+const memoryDrafts: Map<string, MemoryDraftState> =
+  globalThis.__schoolEvalMemoryDrafts ?? new Map<string, MemoryDraftState>();
+
+globalThis.__schoolEvalMemoryDrafts = memoryDrafts;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __schoolEvalMemoryDrafts: Map<string, MemoryDraftState> | undefined;
 }
 
 function hydrateDraft(id: string, data: FirebaseFirestore.DocumentData): SurveyDraft {
@@ -294,62 +344,527 @@ function hydrateDraft(id: string, data: FirebaseFirestore.DocumentData): SurveyD
     ...fallback,
     ...plain(data),
     id
-  } as SurveyDraft;
+  } as SurveyDraft & { itemsByAudience?: unknown };
+  // 옛 구조의 잔재가 남아 있어도 메타에는 싣지 않습니다.
+  delete merged.itemsByAudience;
+  merged.rev = typeof merged.rev === "number" ? merged.rev : 0;
   return ensureDraftAuthors(merged);
 }
 
-export async function getOrCreateDraft(schoolId: string, schoolName: string): Promise<SurveyDraft> {
-  const db = getFirebaseDb();
-  if (db) {
-    const snapshot = await db.collection(DRAFTS).where("schoolId", "==", schoolId).limit(1).get();
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
-      return hydrateDraft(doc.id, doc.data());
-    }
+function hydrateItem(id: string, data: FirebaseFirestore.DocumentData): SelectedQuestion {
+  const item = plain(data) as SelectedQuestion;
+  return {
+    ...item,
+    id,
+    rev: typeof item.rev === "number" ? item.rev : 0,
+    order: typeof item.order === "number" ? item.order : 0,
+    updatedAt: String(item.updatedAt ?? nowIso())
+  };
+}
 
-    const draft = createDefaultDraft(schoolId, schoolName);
-    await db.collection(DRAFTS).doc(draft.id).set(draft);
-    return draft;
+/**
+ * 옛 구조(`itemsByAudience` 배열)를 문항 서브컬렉션으로 옮깁니다.
+ * 읽기 시점에 한 번만 수행하므로 서비스 중단이 필요 없습니다.
+ */
+async function migrateLegacyItems(
+  db: FirebaseFirestore.Firestore,
+  draftId: string,
+  data: FirebaseFirestore.DocumentData
+): Promise<void> {
+  const legacy = data.itemsByAudience as Record<string, unknown[]> | undefined;
+  if (!legacy) {
+    return;
   }
 
-  const existing = Array.from(memoryState.drafts.values()).find(
-    (draft) => draft.schoolId === schoolId
-  );
-  if (existing) {
-    return ensureDraftAuthors(existing);
+  const draftRef = db.collection(DRAFTS).doc(draftId);
+  const existing = await draftRef.collection(ITEMS).limit(1).get();
+  if (!existing.empty) {
+    // 이미 옮겨졌는데 옛 필드만 남은 경우입니다.
+    await draftRef.update({ itemsByAudience: FieldValue.delete() });
+    return;
+  }
+
+  const now = nowIso();
+  const batch = db.batch();
+  let order = 0;
+
+  for (const audience of AUDIENCES) {
+    for (const raw of legacy[audience] ?? []) {
+      const item = raw as SelectedQuestion;
+      order += 1;
+      const id = item.id || randomUUID();
+      batch.set(draftRef.collection(ITEMS).doc(id), {
+        ...item,
+        id,
+        audience,
+        rev: 0,
+        order,
+        createdAt: item.createdAt ?? now,
+        updatedAt: now
+      });
+    }
+  }
+
+  batch.update(draftRef, { itemsByAudience: FieldValue.delete() });
+  await batch.commit();
+}
+
+async function findDraftRef(
+  db: FirebaseFirestore.Firestore,
+  schoolId: string,
+  schoolName: string
+): Promise<FirebaseFirestore.DocumentReference> {
+  const snapshot = await db.collection(DRAFTS).where("schoolId", "==", schoolId).limit(1).get();
+  if (!snapshot.empty) {
+    const doc = snapshot.docs[0];
+    await migrateLegacyItems(db, doc.id, doc.data());
+    return doc.ref;
   }
 
   const draft = createDefaultDraft(schoolId, schoolName);
-  memoryState.drafts.set(draft.id, draft);
+  const ref = db.collection(DRAFTS).doc(draft.id);
+  await ref.set(draft);
+  return ref;
+}
+
+/** 초안 메타를 가져오거나 새로 만듭니다. 문항은 포함하지 않습니다. */
+export async function getOrCreateDraft(schoolId: string, schoolName: string): Promise<SurveyDraft> {
+  const db = getFirebaseDb();
+  if (db) {
+    const ref = await findDraftRef(db, schoolId, schoolName);
+    const doc = await ref.get();
+    return hydrateDraft(doc.id, doc.data() ?? {});
+  }
+
+  const existing = Array.from(memoryDrafts.values()).find(
+    (state) => state.draft.schoolId === schoolId
+  );
+  if (existing) {
+    return ensureDraftAuthors(existing.draft);
+  }
+
+  const draft = createDefaultDraft(schoolId, schoolName);
+  memoryDrafts.set(draft.id, {
+    draft,
+    items: new Map<string, SelectedQuestion>(),
+    presence: new Map<string, Presence>()
+  });
   return draft;
 }
 
-export async function saveDraft(draft: SurveyDraft): Promise<SurveyDraft> {
-  const updatedDraft = {
-    ...draft,
-    updatedAt: nowIso()
-  };
-  const db = getFirebaseDb();
-  if (db) {
-    await db.collection(DRAFTS).doc(updatedDraft.id).set(updatedDraft, { merge: true });
-    return updatedDraft;
+function memoryStateFor(draftId: string): MemoryDraftState {
+  const state = memoryDrafts.get(draftId);
+  if (!state) {
+    throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
   }
-
-  memoryState.drafts.set(updatedDraft.id, updatedDraft);
-  return updatedDraft;
+  return state;
 }
 
-export async function attachGoogleForm(
-  schoolId: string,
-  googleForm: NonNullable<SurveyDraft["googleForm"]>
+/**
+ * 초안 전체(메타 + 살아 있는 문항)와 다음 동기화 커서를 돌려줍니다.
+ * 커서는 실제로 본 가장 늦은 `updatedAt`이므로, 아직 도착하지 않은 쓰기를 건너뛰지 않습니다.
+ */
+export async function getDraftBundle(schoolId: string, schoolName: string): Promise<DraftBundle> {
+  const draft = await getOrCreateDraft(schoolId, schoolName);
+  const db = getFirebaseDb();
+
+  const items: SelectedQuestion[] = db
+    ? (await db.collection(DRAFTS).doc(draft.id).collection(ITEMS).get()).docs
+        .map((doc) => hydrateItem(doc.id, doc.data()))
+        .filter((item) => !item.deleted)
+    : Array.from(memoryStateFor(draft.id).items.values()).filter((item) => !item.deleted);
+
+  const since = [draft.updatedAt, ...items.map((item) => item.updatedAt)].reduce(
+    (max, value) => (value > max ? value : max),
+    draft.updatedAt
+  );
+
+  return { draft, items, since };
+}
+
+/**
+ * `since` 이후에 바뀐 것만 돌려줍니다.
+ *
+ * 경계값에서 같은 밀리초에 쓰인 문서를 놓치지 않도록 `>=`로 조회합니다. 같은 문서를 다시
+ * 받아도 클라이언트가 멱등하게 반영하므로 문제가 없습니다.
+ */
+export async function syncDraft(
+  draftId: string,
+  since: string | null,
+  sessionId: string | null
+): Promise<SyncResponse> {
+  const db = getFirebaseDb();
+  const changed: SelectedQuestion[] = [];
+  const deleted: string[] = [];
+  let draft: SurveyDraft | null = null;
+  let maxSeen = since ?? "";
+
+  if (db) {
+    const draftRef = db.collection(DRAFTS).doc(draftId);
+    const [draftDoc, itemDocs] = await Promise.all([
+      draftRef.get(),
+      since
+        ? draftRef.collection(ITEMS).where("updatedAt", ">=", since).get()
+        : draftRef.collection(ITEMS).get()
+    ]);
+
+    if (draftDoc.exists) {
+      const meta = hydrateDraft(draftDoc.id, draftDoc.data() ?? {});
+      if (!since || meta.updatedAt >= since) {
+        draft = meta;
+      }
+      if (meta.updatedAt > maxSeen) {
+        maxSeen = meta.updatedAt;
+      }
+    }
+
+    for (const doc of itemDocs.docs) {
+      const item = hydrateItem(doc.id, doc.data());
+      if (item.updatedAt > maxSeen) {
+        maxSeen = item.updatedAt;
+      }
+      if (item.deleted) {
+        deleted.push(item.id);
+      } else {
+        changed.push(item);
+      }
+    }
+  } else {
+    const state = memoryStateFor(draftId);
+    if (!since || state.draft.updatedAt >= since) {
+      draft = state.draft;
+    }
+    if (state.draft.updatedAt > maxSeen) {
+      maxSeen = state.draft.updatedAt;
+    }
+    for (const item of state.items.values()) {
+      if (since && item.updatedAt < since) {
+        continue;
+      }
+      if (item.updatedAt > maxSeen) {
+        maxSeen = item.updatedAt;
+      }
+      if (item.deleted) {
+        deleted.push(item.id);
+      } else {
+        changed.push(item);
+      }
+    }
+  }
+
+  return {
+    nextSince: maxSeen || nowIso(),
+    draft,
+    changed,
+    deleted,
+    presence: await listPresence(draftId, sessionId)
+  };
+}
+
+/** 메타를 부분 수정합니다. `expectedRev`가 맞지 않으면 ConflictError를 던집니다. */
+export async function patchDraftMeta(
+  draftId: string,
+  expectedRev: number,
+  patch: SurveyDraftPatch,
+  updatedBy?: string
 ): Promise<SurveyDraft> {
-  const draft = await getOrCreateDraft(schoolId, "");
-  const updated = await saveDraft({
-    ...draft,
-    googleForm,
-    updatedAt: nowIso()
+  const db = getFirebaseDb();
+  const now = nowIso();
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId);
+    return db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
+      }
+      const current = hydrateDraft(doc.id, doc.data() ?? {});
+      if (current.rev !== expectedRev) {
+        throw new ConflictError(current);
+      }
+      const next: SurveyDraft = {
+        ...current,
+        ...patch,
+        rev: current.rev + 1,
+        updatedAt: now,
+        updatedBy
+      };
+      tx.set(ref, next, { merge: true });
+      return next;
+    });
+  }
+
+  const state = memoryStateFor(draftId);
+  if (state.draft.rev !== expectedRev) {
+    throw new ConflictError(state.draft);
+  }
+  state.draft = {
+    ...state.draft,
+    ...patch,
+    rev: state.draft.rev + 1,
+    updatedAt: now,
+    updatedBy
+  };
+  return state.draft;
+}
+
+/** 문항을 한 번에 여러 개 추가합니다. 새 문서라 충돌이 발생하지 않습니다. */
+export async function createDraftItems(
+  draftId: string,
+  items: NewSelectedQuestion[],
+  updatedBy?: string
+): Promise<SelectedQuestion[]> {
+  const now = nowIso();
+  const prepared: SelectedQuestion[] = items.map((item) => ({
+    ...item,
+    id: item.id || randomUUID(),
+    rev: 0,
+    createdAt: now,
+    updatedAt: now,
+    updatedBy
+  }));
+
+  const db = getFirebaseDb();
+  if (db) {
+    const collection = db.collection(DRAFTS).doc(draftId).collection(ITEMS);
+    const batch = db.batch();
+    for (const item of prepared) {
+      batch.set(collection.doc(item.id), item);
+    }
+    await batch.commit();
+    return prepared;
+  }
+
+  const state = memoryStateFor(draftId);
+  for (const item of prepared) {
+    state.items.set(item.id, item);
+  }
+  return prepared;
+}
+
+/** 문항 하나를 부분 수정합니다. `expectedRev`가 맞지 않으면 ConflictError를 던집니다. */
+export async function patchDraftItem(
+  draftId: string,
+  itemId: string,
+  expectedRev: number,
+  patch: SelectedQuestionPatch,
+  updatedBy?: string
+): Promise<SelectedQuestion> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId).collection(ITEMS).doc(itemId);
+    return db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        throw new NotFoundError("문항을 찾을 수 없습니다.");
+      }
+      const current = hydrateItem(doc.id, doc.data() ?? {});
+      if (current.deleted) {
+        throw new NotFoundError("이미 삭제된 문항입니다.");
+      }
+      if (current.rev !== expectedRev) {
+        throw new ConflictError(current);
+      }
+      const next: SelectedQuestion = {
+        ...current,
+        ...patch,
+        rev: current.rev + 1,
+        updatedAt: now,
+        updatedBy
+      };
+      tx.set(ref, next, { merge: true });
+      return next;
+    });
+  }
+
+  const state = memoryStateFor(draftId);
+  const current = state.items.get(itemId);
+  if (!current || current.deleted) {
+    throw new NotFoundError("문항을 찾을 수 없습니다.");
+  }
+  if (current.rev !== expectedRev) {
+    throw new ConflictError(current);
+  }
+  const next: SelectedQuestion = {
+    ...current,
+    ...patch,
+    rev: current.rev + 1,
+    updatedAt: now,
+    updatedBy
+  };
+  state.items.set(itemId, next);
+  return next;
+}
+
+/**
+ * 문항을 삭제합니다. 문서를 지우면 동기화가 삭제 사실을 전달할 수 없으므로
+ * `deleted` 표식을 남깁니다.
+ */
+export async function deleteDraftItem(
+  draftId: string,
+  itemId: string,
+  expectedRev: number,
+  updatedBy?: string
+): Promise<void> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId).collection(ITEMS).doc(itemId);
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        return;
+      }
+      const current = hydrateItem(doc.id, doc.data() ?? {});
+      if (current.deleted) {
+        return;
+      }
+      if (current.rev !== expectedRev) {
+        throw new ConflictError(current);
+      }
+      tx.set(ref, { ...current, deleted: true, rev: current.rev + 1, updatedAt: now, updatedBy });
+    });
+    return;
+  }
+
+  const state = memoryStateFor(draftId);
+  const current = state.items.get(itemId);
+  if (!current || current.deleted) {
+    return;
+  }
+  if (current.rev !== expectedRev) {
+    throw new ConflictError(current);
+  }
+  state.items.set(itemId, {
+    ...current,
+    deleted: true,
+    rev: current.rev + 1,
+    updatedAt: now,
+    updatedBy
   });
-  return updated;
+}
+
+/** 보관 기간이 지난 삭제 표식을 정리합니다. */
+export async function purgeTombstones(draftId: string): Promise<number> {
+  const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString();
+  const db = getFirebaseDb();
+
+  if (db) {
+    const snapshot = await db
+      .collection(DRAFTS)
+      .doc(draftId)
+      .collection(ITEMS)
+      .where("deleted", "==", true)
+      .where("updatedAt", "<", cutoff)
+      .get();
+    if (snapshot.empty) {
+      return 0;
+    }
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    return snapshot.size;
+  }
+
+  const state = memoryStateFor(draftId);
+  let removed = 0;
+  for (const [id, item] of state.items.entries()) {
+    if (item.deleted && item.updatedAt < cutoff) {
+      state.items.delete(id);
+      removed += 1;
+    }
+  }
+  return removed;
+}
+
+/** 접속 상태를 갱신하고 현재 접속자 목록을 돌려줍니다. */
+export async function upsertPresence(
+  draftId: string,
+  presence: Omit<Presence, "updatedAt">
+): Promise<Presence[]> {
+  const now = nowIso();
+  const record: Presence = { ...presence, updatedAt: now };
+  const db = getFirebaseDb();
+
+  if (db) {
+    await db
+      .collection(DRAFTS)
+      .doc(draftId)
+      .collection(PRESENCE)
+      .doc(presence.sessionId)
+      .set(record);
+  } else {
+    memoryStateFor(draftId).presence.set(presence.sessionId, record);
+  }
+
+  return listPresence(draftId, presence.sessionId);
+}
+
+/** 살아 있는 접속자 목록. 자기 자신(`excludeSessionId`)은 제외합니다. */
+export async function listPresence(
+  draftId: string,
+  excludeSessionId: string | null
+): Promise<Presence[]> {
+  const cutoff = new Date(Date.now() - PRESENCE_TTL_MS).toISOString();
+  const db = getFirebaseDb();
+
+  const all: Presence[] = db
+    ? (await db.collection(DRAFTS).doc(draftId).collection(PRESENCE).get()).docs.map(
+        (doc) => doc.data() as Presence
+      )
+    : Array.from(memoryDrafts.get(draftId)?.presence.values() ?? []);
+
+  return all.filter(
+    (entry) => entry.updatedAt >= cutoff && entry.sessionId !== excludeSessionId
+  );
+}
+
+/**
+ * 생성된 Google Forms 정보를 메타에 기록합니다.
+ *
+ * 사용자 편집과 경쟁하지 않는 서버 주도 갱신이라 `expectedRev`를 받지 않고,
+ * 대신 트랜잭션 안에서 현재 rev를 읽어 올립니다.
+ */
+export async function attachGoogleForms(
+  draftId: string,
+  googleFormsByAudience: GoogleFormsByAudience,
+  googleForm?: GoogleFormInfo
+): Promise<SurveyDraft> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId);
+    return db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
+      }
+      const current = hydrateDraft(doc.id, doc.data() ?? {});
+      const next: SurveyDraft = {
+        ...current,
+        googleFormsByAudience,
+        googleForm: googleForm ?? current.googleForm,
+        rev: current.rev + 1,
+        updatedAt: now
+      };
+      tx.set(ref, next, { merge: true });
+      return next;
+    });
+  }
+
+  const state = memoryStateFor(draftId);
+  state.draft = {
+    ...state.draft,
+    googleFormsByAudience,
+    googleForm: googleForm ?? state.draft.googleForm,
+    rev: state.draft.rev + 1,
+    updatedAt: now
+  };
+  return state.draft;
 }
 
 export async function logAdminAction(action: string, targetSchoolId?: string): Promise<void> {

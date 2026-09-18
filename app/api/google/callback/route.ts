@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createGoogleFormsByAudienceFromDraft, decodeGoogleState, exchangeGoogleCode } from "@/lib/googleForms";
 import { AUDIENCES, type GoogleFormsByAudience } from "@/lib/types";
-import { getOrCreateDraft, saveDraft } from "@/lib/store";
+import { attachGoogleForms, getDraftBundle } from "@/lib/store";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -15,8 +15,8 @@ export async function GET(request: Request) {
 
   try {
     const token = await exchangeGoogleCode(code, origin);
-    const draft = await getOrCreateDraft(state.schoolId, state.schoolName);
-    const formsByAudience = await createGoogleFormsByAudienceFromDraft(draft, token.access_token);
+    const { draft, items } = await getDraftBundle(state.schoolId, state.schoolName);
+    const formsByAudience = await createGoogleFormsByAudienceFromDraft(draft, items, token.access_token);
     const createdAt = new Date().toISOString();
     const normalizedFormsByAudience: GoogleFormsByAudience = {};
     for (const audience of AUDIENCES) {
@@ -31,11 +31,7 @@ export async function GET(request: Request) {
     }
     const firstAudience = AUDIENCES.find((audience) => normalizedFormsByAudience[audience]);
     const firstForm = firstAudience ? normalizedFormsByAudience[firstAudience] : undefined;
-    await saveDraft({
-      ...draft,
-      googleFormsByAudience: normalizedFormsByAudience,
-      googleForm: firstForm
-    });
+    await attachGoogleForms(draft.id, normalizedFormsByAudience, firstForm);
     return NextResponse.redirect(`${origin}/?google=success`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Forms 생성에 실패했습니다.";
