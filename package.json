@@ -11,7 +11,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify:concurrent": "bash scripts/verify-concurrent-editing.sh",
-    "verify:design": "node scripts/verify-design-rules.mjs"
+    "verify:design": "node scripts/verify-design-rules.mjs",
+    "verify:bank": "node scripts/verify-question-bank.mjs",
+    "verify": "npm run typecheck && npm run verify:bank && npm run verify:design"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.0",

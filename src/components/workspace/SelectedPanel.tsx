@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import {
+  isCurrentSubarea,
+  requiresAllAreas,
+  SUBAREA_CHANGES_2025_TO_2026
+} from "@/lib/evaluationFramework";
+import {
   AUDIENCE_LABELS,
   LIKERT_3_OPTIONS,
   LIKERT_5_OPTIONS,
@@ -32,6 +37,25 @@ function optionPreview(type: ResponseType): string {
 
 /** 학생·학부모·교원은 Ⅰ·Ⅱ·Ⅲ 전 영역에 문항이 있어야 합니다(가이드북 Q9). 직원은 예외입니다. */
 const REQUIRED_AREAS = ["Ⅰ", "Ⅱ", "Ⅲ"];
+
+/**
+ * 2025 자료로 담아 둔 문항을 찾아 안내 문구를 만듭니다.
+ *
+ * 자동으로 옮기지 않습니다. Ⅲ-2와 Ⅲ-3이 하나로 합쳐졌기 때문에 기계가 고르면
+ * 엉뚱한 세부영역에 들어갑니다. 사람이 다시 고르게 하는 것이 안전합니다.
+ */
+function legacyNoticeFor(subarea: string): string | null {
+  if (isCurrentSubarea(subarea) || subarea === "직접입력") {
+    return null;
+  }
+  const change = SUBAREA_CHANGES_2025_TO_2026.find((entry) => entry.from === subarea);
+  if (!change) {
+    return "2026 세부영역 체계에 없는 값입니다. 문항을 다시 담아 주세요.";
+  }
+  return change.note
+    ? `2025 분류입니다. ${change.to}로 바뀌었습니다. ${change.note}`
+    : `2025 분류입니다. ${change.to}로 다시 담아 주세요.`;
+}
 
 function coverage(items: SelectedQuestion[]): Record<string, boolean> {
   return REQUIRED_AREAS.reduce<Record<string, boolean>>((acc, roman) => {
@@ -73,7 +97,8 @@ export function SelectedPanel({
 
   const covered = coverage(items);
   const missing = REQUIRED_AREAS.filter((roman) => !covered[roman]);
-  const showWarning = audience !== "staff" && missing.length > 0;
+  const showWarning = requiresAllAreas(audience) && missing.length > 0;
+  const legacyCount = items.filter((item) => legacyNoticeFor(item.subarea)).length;
 
   /** 다른 사람이 지금 보고 있는 문항을 표시합니다. */
   const editorOf = (itemId: string): string | null => {
@@ -108,8 +133,16 @@ export function SelectedPanel({
           items.map((item, index) => {
             const editor = editorOf(item.id);
             const editing = editingId === item.id;
+            const legacy = legacyNoticeFor(item.subarea);
             return (
-              <div key={item.id} className={editing ? "ws-item is-editing" : "ws-item"}>
+              <div
+                key={item.id}
+                className={
+                  [editing ? "is-editing" : "", legacy ? "is-legacy" : ""]
+                    .filter(Boolean)
+                    .reduce((acc, cls) => `${acc} ${cls}`, "ws-item")
+                }
+              >
                 <div className="ws-item-head">
                   <span className="ws-item-no">{index + 1}</span>
                   <span className="ws-item-meta">{item.indicator}</span>
@@ -149,6 +182,8 @@ export function SelectedPanel({
                   </div>
                 </div>
 
+                {legacy ? <p className="ws-item-legacy">{legacy}</p> : null}
+
                 {editing ? (
                   <div className="ws-item-edit">
                     <textarea
@@ -161,19 +196,28 @@ export function SelectedPanel({
                       }
                       onBlur={stopEdit}
                     />
-                    <select
-                      className="ws-select"
-                      value={item.responseType}
-                      onChange={(event) =>
-                        onPatch(item.id, { responseType: event.target.value as ResponseType })
-                      }
-                    >
-                      {RESPONSE_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {RESPONSE_TYPE_LABELS[type]}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="ws-item-edit-row">
+                      <select
+                        className="ws-select"
+                        value={item.responseType}
+                        onChange={(event) =>
+                          onPatch(item.id, { responseType: event.target.value as ResponseType })
+                        }
+                      >
+                        {RESPONSE_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {RESPONSE_TYPE_LABELS[type]}
+                          </option>
+                        ))}
+                      </select>
+                      {/* 평가지표별 담당부서 지정 — 기본계획 Ⅴ-3-나-3, 서식1 */}
+                      <input
+                        className="ws-input"
+                        value={item.department ?? ""}
+                        placeholder="담당부서"
+                        onChange={(event) => onPatch(item.id, { department: event.target.value })}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -203,6 +247,11 @@ export function SelectedPanel({
           {showWarning ? (
             <p className="ws-coverage-warn">
               {missing.join("·")}영역 문항이 없습니다. 학생·학부모·교원은 전 영역을 평가해야 합니다.
+            </p>
+          ) : null}
+          {legacyCount > 0 ? (
+            <p className="ws-coverage-warn">
+              2025 분류 문항 {legacyCount}개가 있습니다. 2026 체계로 다시 담아 주세요.
             </p>
           ) : null}
         </div>

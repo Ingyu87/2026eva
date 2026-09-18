@@ -358,6 +358,9 @@ function hydrateItem(id: string, data: FirebaseFirestore.DocumentData): Selected
     id,
     rev: typeof item.rev === "number" ? item.rev : 0,
     order: typeof item.order === "number" ? item.order : 0,
+    // 옛 문서에는 groupId가 없습니다. 원본 문항 id로 되살려 두어야
+    // 서식3-2의 평가주체 열을 만들 때 대상별 문항이 한 줄로 모입니다.
+    groupId: item.groupId || item.sourceQuestionId || id,
     updatedAt: String(item.updatedAt ?? nowIso())
   };
 }
@@ -397,6 +400,7 @@ async function migrateLegacyItems(
         ...item,
         id,
         audience,
+        groupId: item.groupId || item.sourceQuestionId || id,
         rev: 0,
         order,
         createdAt: item.createdAt ?? now,
@@ -618,6 +622,7 @@ export async function createDraftItems(
   const prepared: SelectedQuestion[] = items.map((item) => ({
     ...item,
     id: item.id || randomUUID(),
+    groupId: item.groupId || item.sourceQuestionId,
     rev: 0,
     createdAt: now,
     updatedAt: now,

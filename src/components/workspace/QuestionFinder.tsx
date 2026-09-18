@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { QuestionBankItem } from "@/lib/types";
+import {
+  AUDIENCES,
+  AUDIENCE_LABELS,
+  type Audience,
+  type QuestionBankItem
+} from "@/lib/types";
 import type { TreeSelection } from "./IndicatorTree";
 
 /**
@@ -41,14 +46,17 @@ function highlight(text: string, terms: string[]): ReactNode {
 export function QuestionFinder({
   bank,
   selection,
-  addedSourceIds,
-  onAdd,
+  activeAudience,
+  addedByAudience,
+  onToggle,
   onAddCustom
 }: {
   bank: QuestionBankItem[];
   selection: TreeSelection;
-  addedSourceIds: Set<string>;
-  onAdd: (question: QuestionBankItem) => void;
+  activeAudience: Audience;
+  /** 예시문항 id -> 이미 담아 둔 대상들 */
+  addedByAudience: Map<string, Set<Audience>>;
+  onToggle: (question: QuestionBankItem, audience: Audience) => void;
   onAddCustom: (text: string) => void;
 }) {
   const [keyword, setKeyword] = useState("");
@@ -104,8 +112,8 @@ export function QuestionFinder({
     if (event.key === "Enter") {
       event.preventDefault();
       const target = results[cursor];
-      if (target && !addedSourceIds.has(target.id)) {
-        onAdd(target);
+      if (target) {
+        onToggle(target, activeAudience);
       }
       return;
     }
@@ -170,33 +178,55 @@ export function QuestionFinder({
           </div>
         ) : (
           results.map((question, index) => {
-            const added = addedSourceIds.has(question.id);
+            const takenBy = addedByAudience.get(question.id) ?? new Set<Audience>();
+            const inActive = takenBy.has(activeAudience);
             return (
               <div
                 key={question.id}
                 data-cursor={index === cursor}
                 className={
-                  added
-                    ? "ws-card ws-card--added"
-                    : index === cursor
-                      ? "ws-card ws-card--cursor"
+                  index === cursor
+                    ? "ws-card ws-card--cursor"
+                    : inActive
+                      ? "ws-card ws-card--added"
                       : "ws-card"
                 }
               >
                 <div className="ws-card-meta">{highlight(question.indicator, terms)}</div>
-                <p className="ws-card-text">{highlight(question.question, terms)}</p>
-                {added ? (
-                  <span className="ws-added-mark">담김</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="ws-card-add"
-                    onClick={() => onAdd(question)}
-                    aria-label="이 문항 담기"
-                  >
-                    ＋ 담기
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="ws-card-body"
+                  onClick={() => onToggle(question, activeAudience)}
+                  aria-label={inActive ? "지금 대상에서 빼기" : "지금 대상에 담기"}
+                >
+                  {highlight(question.question, terms)}
+                </button>
+
+                {/*
+                  가이드북 40쪽의 "평가 주체별 평가지표 구성" 표를 카드 안으로 가져온 것입니다.
+                  대상마다 문서를 따로 만들므로 순서와 문장을 각각 다듬을 수 있습니다.
+                */}
+                <div className="ws-aud-chips" role="group" aria-label="평가 주체">
+                  {AUDIENCES.map((audience) => (
+                    <button
+                      key={audience}
+                      type="button"
+                      className={
+                        takenBy.has(audience)
+                          ? audience === activeAudience
+                            ? "ws-aud-chip is-on is-current"
+                            : "ws-aud-chip is-on"
+                          : audience === activeAudience
+                            ? "ws-aud-chip is-current"
+                            : "ws-aud-chip"
+                      }
+                      aria-pressed={takenBy.has(audience)}
+                      onClick={() => onToggle(question, audience)}
+                    >
+                      {AUDIENCE_LABELS[audience].replace("용", "")}
+                    </button>
+                  ))}
+                </div>
               </div>
             );
           })

@@ -8,7 +8,6 @@ import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
   AUDIENCE_LABELS,
-  RESPONSE_TYPE_LABELS,
   type Audience,
   type PublicSchool,
   type QuestionBankItem,
@@ -81,11 +80,6 @@ export function Workspace({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const bankForAudience = useMemo(
-    () => questionBank.filter((item) => item.audience === activeAudience),
-    [activeAudience]
-  );
-
   const selectedItems = useMemo(
     () => itemsForAudience(workspace.items, activeAudience),
     [activeAudience, workspace.items]
@@ -93,16 +87,40 @@ export function Workspace({
 
   const counts = useMemo(() => countByAudience(workspace.items), [workspace.items]);
 
-  const addedSourceIds = useMemo(
-    () => new Set(selectedItems.map((item) => item.sourceQuestionId)),
-    [selectedItems]
-  );
+  /** 예시문항 하나가 어느 대상에 담겨 있는지. 카드의 주체 칩이 이 값을 씁니다. */
+  const addedByAudience = useMemo(() => {
+    const map = new Map<string, Set<Audience>>();
+    for (const item of workspace.items) {
+      const set = map.get(item.sourceQuestionId) ?? new Set<Audience>();
+      set.add(item.audience);
+      map.set(item.sourceQuestionId, set);
+    }
+    return map;
+  }, [workspace.items]);
 
-  const addQuestion = (question: QuestionBankItem) => {
+  /**
+   * 대상 칩을 누르면 그 대상에 담거나 뺍니다.
+   *
+   * 여러 대상에 담으면 **문서가 대상별로 복제**됩니다. 가이드북 41쪽이 같은 지표라도
+   * 대상에 맞는 용어로 다르게 서술하라고 하므로, 하나로 묶으면 문장을 따로 다듬을 수 없습니다.
+   * 대신 `groupId`로 묶어 두어 서식3-2의 평가주체 열을 만들 때 모읍니다.
+   */
+  const toggleQuestion = (question: QuestionBankItem, audience: Audience) => {
+    const existing = workspace.items.find(
+      (item) => item.sourceQuestionId === question.id && item.audience === audience
+    );
+
+    if (existing) {
+      workspace.removeItem(existing.id);
+      setNotice(`${AUDIENCE_LABELS[audience]}에서 뺐습니다.`);
+      return;
+    }
+
     workspace.addItems([
       {
         sourceQuestionId: question.id,
-        audience: question.audience,
+        groupId: question.id,
+        audience,
         sourceRow: question.sourceRow,
         area: question.area,
         subarea: question.subarea,
@@ -112,18 +130,20 @@ export function Workspace({
         responseType: "likert_5"
       }
     ]);
-    setNotice("문항을 담았습니다.");
+    setNotice(`${AUDIENCE_LABELS[audience]}에 담았습니다.`);
   };
 
   const addCustomQuestion = (text: string) => {
+    const id = `custom-${crypto.randomUUID()}`;
     workspace.addItems([
       {
-        sourceQuestionId: `custom-${new Date().toISOString()}`,
+        sourceQuestionId: id,
+        groupId: id,
         audience: activeAudience,
         sourceRow: 0,
         area: "직접입력",
         subarea: "직접입력",
-        indicator: RESPONSE_TYPE_LABELS.likert_5,
+        indicator: "직접 작성",
         originalQuestion: text,
         editedQuestion: text,
         responseType: "likert_5"
@@ -259,12 +279,13 @@ export function Workspace({
       </nav>
 
       <main className="ws-grid">
-        <IndicatorTree bank={bankForAudience} selection={selection} onSelect={setSelection} />
+        <IndicatorTree bank={questionBank} selection={selection} onSelect={setSelection} />
         <QuestionFinder
-          bank={bankForAudience}
+          bank={questionBank}
           selection={selection}
-          addedSourceIds={addedSourceIds}
-          onAdd={addQuestion}
+          activeAudience={activeAudience}
+          addedByAudience={addedByAudience}
+          onToggle={toggleQuestion}
           onAddCustom={addCustomQuestion}
         />
         <SelectedPanel

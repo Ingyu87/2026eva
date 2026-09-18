@@ -19,11 +19,17 @@ export const RESPONSE_TYPE_LABELS: Record<ResponseType, string> = {
   text: "서술형"
 };
 
+/**
+ * 교육청 예시자료에서 읽어온 읽기 전용 문항.
+ *
+ * 2026 예시자료에는 **평가주체 구분이 없습니다**(영역·세부영역·평가지표·예시문항 4열).
+ * 2025처럼 대상별 시트로 나뉘어 있지 않으므로 풀은 하나이고,
+ * 주체는 학교가 담을 때 지정합니다.
+ */
 export type QuestionBankItem = {
   id: string;
-  audience: Audience;
-  audienceLabel: string;
-  sourceSheet: string;
+  year: number;
+  schoolLevel: "elementary" | "middle" | "high" | "special";
   sourceRow: number;
   area: string;
   subarea: string;
@@ -40,6 +46,14 @@ export type SelectedQuestion = {
   /** 충돌 감지 전용. 저장할 때마다 1 증가하며 동기화 커서로 쓰지 않습니다. */
   rev: number;
   sourceQuestionId: string;
+  /**
+   * 같은 예시문항을 여러 대상에 담았을 때 그 문항들을 묶는 값.
+   *
+   * 대상별로 문서를 따로 두는 이유는 두 가지입니다. 순서가 대상마다 달라야 하고,
+   * 가이드북 41쪽이 **같은 지표라도 대상에 맞는 용어로 다르게 서술하라**고 하기 때문입니다.
+   * 서식3-2의 '평가주체' 열과 지표별 주체 매트릭스는 이 값으로 모아서 만듭니다.
+   */
+  groupId: string;
   audience: Audience;
   sourceRow: number;
   area: string;
@@ -48,6 +62,10 @@ export type SelectedQuestion = {
   originalQuestion: string;
   editedQuestion: string;
   responseType: ResponseType;
+  /** 선택형일 때의 보기 목록. */
+  choices?: string[];
+  /** 평가지표 담당부서. (기본계획 Ⅴ-3-나-3, 서식1) */
+  department?: string;
   /** 분수 인덱스. 이동·삽입 시 자기 문서 하나만 쓰기 위해 실수를 사용합니다. */
   order: number;
   /** 삭제 표식. 문서를 지우면 동기화가 삭제를 전달할 수 없어 tombstone으로 남깁니다. */
@@ -70,6 +88,8 @@ export type SelectedQuestionPatch = Partial<
     | "subarea"
     | "indicator"
     | "audience"
+    | "choices"
+    | "department"
   >
 >;
 
@@ -78,6 +98,7 @@ export type NewSelectedQuestion = Pick<
   SelectedQuestion,
   | "id"
   | "sourceQuestionId"
+  | "groupId"
   | "audience"
   | "sourceRow"
   | "area"
