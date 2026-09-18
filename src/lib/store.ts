@@ -96,6 +96,8 @@ export function createDefaultDraft(schoolId: string, schoolName: string): Survey
     id: randomUUID(),
     schoolId,
     schoolName,
+    // 기본값은 중간평가입니다. 제출 서류는 학년말로 바꿔야 열립니다(가이드북 Q12).
+    mode: "interim",
     title: "2026학년도 1학기 학교교육과정 운영 평가 설문",
     surveyDate: "2026-06-30",
     rev: 0,
@@ -348,6 +350,8 @@ function hydrateDraft(id: string, data: FirebaseFirestore.DocumentData): SurveyD
   // 옛 구조의 잔재가 남아 있어도 메타에는 싣지 않습니다.
   delete merged.itemsByAudience;
   merged.rev = typeof merged.rev === "number" ? merged.rev : 0;
+  // mode가 없던 시절의 초안은 중간평가로 봅니다. 제출 서류를 실수로 열지 않기 위함입니다.
+  merged.mode = merged.mode === "annual" ? "annual" : "interim";
   return ensureDraftAuthors(merged);
 }
 

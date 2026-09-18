@@ -106,6 +106,16 @@ C=$(code PUT /api/draft "$A" '{"draft":{}}')
 { [ "$C" = "405" ] || [ "$C" = "404" ]; } && ok "PUT /api/draft 는 더 이상 받지 않는다($C)" || ng "PUT이 아직 살아 있다($C)"
 
 echo
+echo "== 10. 평가 시기에 따른 제출 서류 잠금 (가이드북 Q12) =="
+MODE=$(j GET /api/draft "$A" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).data.draft.mode))")
+[ "$MODE" = "interim" ] && ok "새 초안의 기본값이 중간평가다" || ng "기본값이 중간평가가 아니다($MODE)"
+
+REV2=$(field "$A" "draft.rev")
+j PATCH /api/draft/meta "$A" "{\"expectedRev\":$REV2,\"patch\":{\"mode\":\"annual\"}}" > /dev/null
+MODE=$(j GET /api/draft "$A" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).data.draft.mode))")
+[ "$MODE" = "annual" ] && ok "학년말 학교평가로 바꿀 수 있다" || ng "모드를 바꾸지 못했다($MODE)"
+
+echo
 echo "========================================"
 echo "  통과 $PASS / 실패 $FAIL"
 echo "========================================"

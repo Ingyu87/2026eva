@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from "@/components/ui";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
+import { canExport } from "@/lib/exportGate";
 import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
   AUDIENCE_LABELS,
+  SURVEY_MODE_LABELS,
   type Audience,
   type PublicSchool,
   type QuestionBankItem,
@@ -194,6 +196,12 @@ export function Workspace({
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
+          <span
+            className={draft.mode === "annual" ? "ws-mode is-annual" : "ws-mode"}
+            title="설정에서 바꿀 수 있습니다."
+          >
+            {SURVEY_MODE_LABELS[draft.mode]}
+          </span>
         </div>
 
         <div className="ws-topbar-center">
@@ -217,7 +225,10 @@ export function Workspace({
               role="tab"
               aria-selected={false}
               disabled
-              title="제출 서류 생성은 다음 단계에서 열립니다."
+              title={
+                canExport("report-docx", draft).reason ??
+                "제출 서류 생성은 다음 단계에서 열립니다."
+              }
             >
               내보내기
             </button>

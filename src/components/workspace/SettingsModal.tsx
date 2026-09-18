@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import {
   AUDIENCES,
   AUDIENCE_LABELS,
+  SURVEY_MODES,
+  SURVEY_MODE_LABELS,
   type Audience,
   type GoogleFormsByAudience,
   type SurveyDraft,
-  type SurveyDraftAuthor
+  type SurveyDraftAuthor,
+  type SurveyMode
 } from "@/lib/types";
 
 /**
@@ -92,6 +95,35 @@ export function SettingsModal({
         <div className="ws-modal-body">
           {tab === "survey" ? (
             <div className="ws-form">
+              {/*
+                평가 시기에 따라 만들 수 있는 산출물이 달라집니다.
+                가이드북 Q12: 학교평가서에는 학년말 최종 설문 결과를 반영합니다.
+              */}
+              <div className="ws-field">
+                <span>평가 시기</span>
+                <div className="ws-radio-row">
+                  {SURVEY_MODES.map((mode) => (
+                    <label
+                      key={mode}
+                      className={draft.mode === mode ? "ws-radio is-on" : "ws-radio"}
+                    >
+                      <input
+                        type="radio"
+                        name="survey-mode"
+                        checked={draft.mode === mode}
+                        onChange={() => onMeta({ mode: mode as SurveyMode })}
+                      />
+                      {SURVEY_MODE_LABELS[mode]}
+                    </label>
+                  ))}
+                </div>
+                <p className="ws-hint">
+                  {draft.mode === "annual"
+                    ? "제출 서류(평가지표 및 현황, 학교평가서)를 만들 수 있습니다."
+                    : "중간 점검용입니다. 제출 서류는 학년말 학교평가에서만 만듭니다. (가이드북 Q12)"}
+                </p>
+              </div>
+
               <label className="ws-field">
                 <span>설문 제목</span>
                 <input
@@ -117,6 +149,39 @@ export function SettingsModal({
                   onChange={(event) => onMeta({ surveyDate: event.target.value })}
                 />
               </label>
+
+              {/* 학년별 결과 분해를 하려면 설문에 학년 문항이 들어가야 합니다. */}
+              <div className="ws-field">
+                <span>학생 설문 학년</span>
+                <div className="ws-grade-row">
+                  {[1, 2, 3, 4, 5, 6].map((grade) => {
+                    const on = (draft.studentGrades ?? []).includes(grade);
+                    return (
+                      <label key={grade} className={on ? "ws-grade is-on" : "ws-grade"}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(event) => {
+                            const current = new Set(draft.studentGrades ?? []);
+                            if (event.target.checked) {
+                              current.add(grade);
+                            } else {
+                              current.delete(grade);
+                            }
+                            onMeta({
+                              studentGrades: Array.from(current).sort((a, b) => a - b)
+                            });
+                          }}
+                        />
+                        {grade}학년
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="ws-hint">
+                  고른 학년이 학생용 설문의 첫 문항으로 들어가고, 결과를 학년별로 나눠 봅니다.
+                </p>
+              </div>
 
               {formEntries.length > 0 ? (
                 <div className="ws-form-block">

@@ -1,6 +1,18 @@
-# 학교평가 설문 생성기
+# 2026학년도 학교평가 웹앱
 
-학교평가 평가문항을 대상별로 선택하고 수정한 뒤 DOCX 설문지와 Google Forms를 생성하는 Next.js 웹앱입니다.
+교육청 예시자료에서 평가문항을 골라 설문을 만들고, 설문 결과를 분석해
+제출 서류를 생성하는 Next.js 웹앱입니다.
+
+## 문서
+
+작업 전에 [docs/README.md](docs/README.md)를 먼저 보세요. 문서 4종의 역할을 설명합니다.
+
+| 문서 | 내용 |
+|---|---|
+| [docs/prd.md](docs/prd.md) | 왜 만드는가, 무엇이 되어야 하는가 |
+| [docs/spec.md](docs/spec.md) | 화면·데이터·API·계산식 |
+| [docs/design.md](docs/design.md) | 색·글꼴·간격·부품 규격 |
+| [docs/implementation.md](docs/implementation.md) | 단계별 작업 계획과 진행 상황 |
 
 ## 실행
 
@@ -9,62 +21,84 @@ npm install
 npm run dev
 ```
 
-로컬 실행 후 `http://localhost:3000`으로 접속합니다. 현재 작업 환경에서는 3000번 포트가 사용 중이라 `http://localhost:3001`로 dev 서버를 실행했습니다.
+Firebase 환경변수가 없으면 메모리 저장소로 동작합니다. 서버를 다시 켜면
+등록한 학교와 초안이 사라지므로 로컬 확인용으로만 쓰세요.
+
+## 검증
+
+```bash
+npm run verify            # 아래 셋을 한 번에
+npm run typecheck
+npm run verify:bank       # 문항 풀이 2026 평가체제를 지키는가
+npm run verify:design     # 색·간격·높이 고정 규칙을 지키는가
+
+# 서버를 띄운 뒤 실행합니다
+npm run build && npx next start -p 3100 &
+npm run verify:concurrent # 두 사람이 동시에 작업해도 유실이 없는가
+```
+
+`verify:concurrent`는 같은 학교 계정으로 두 세션을 만들어, 서로 다른 대상과
+같은 문항을 동시에 편집하는 상황을 재현합니다. 이 프로젝트에서 가장 중요한
+검증이라 손으로 하지 않고 스크립트로 남겼습니다.
+
+## 문항 풀 갱신
+
+교육청이 새 예시자료를 배포하면 두 단계로 적재합니다.
+
+```bash
+python scripts/extract_question_bank.py "1_(초)2026 학교평가 평가문항 예시 자료.pdf" \
+    --level elementary --out .parsed/question-bank-2026-raw.json
+node scripts/build-question-bank.mjs .parsed/question-bank-2026-raw.json
+npm run verify:bank
+```
+
+정리 단계에서 허용된 세부영역 10개와 대조해 통과한 것만 채택하고, 나머지는
+`.parsed/question-bank-2026-rejected.json`에 모아 보고합니다. 영역·세부영역은
+학교가 고칠 수 없는 값이므로(기본계획 Ⅴ-3-가-2, 가이드북 Q6) 여기서 걸러야 합니다.
 
 ## 주요 기능
 
-- 학교 사용자 등록/로그인
-- 관리자 로그인 및 학교 계정 관리
-- `교원용`, `학부모용`, `학생용`, `교직원용` 문항 탭
-- 영역, 세부영역, 평가지표 필터링
-- 문항 담기, 수정, 삭제, 순서 변경
-- DOCX 설문지 출력
-- Google OAuth를 통한 Google Forms 생성
+- 학교 계정 등록·로그인, 관리자 계정 관리
+- 2026 평가체제 기반 문항 풀 탐색 (지표 트리 + 검색)
+- 문항을 평가 주체별로 담고 수정·정렬
+- **여러 명이 동시에 작업해도 서로의 작업이 사라지지 않음**
+- DOCX 설문지 출력, Google Forms 생성
 
 ## 환경변수
 
 `.env.example`을 참고해 Vercel 환경변수에 등록합니다.
 
 ```bash
-ADMIN_PASSWORD=your-secure-admin-password
-SESSION_SECRET=replace-with-a-long-random-string
+ADMIN_PASSWORD=
+SESSION_SECRET=
 
-FIREBASE_SERVICE_ACCOUNT_JSON={"project_id":"...","client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"}
+FIREBASE_SERVICE_ACCOUNT_JSON={"project_id":"...","client_email":"...","private_key":"..."}
 
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-# 배포 시에만 설정 권장. 로컬에서는 비워 두고 접속 주소에 맞는 콜백이 자동 적용됩니다.
+# 배포 시에만 설정합니다. 로컬에서는 비워 두면 접속 주소에 맞는 콜백이 적용됩니다.
 GOOGLE_REDIRECT_URI=https://your-vercel-domain.vercel.app/api/google/callback
 ```
 
-Firebase 서비스 계정은 JSON 한 줄 방식 또는 개별 `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` 방식 중 하나를 사용합니다.
+`.env`는 `.gitignore`에 있습니다. 실제 값은 호스트 환경변수로만 설정하세요.
 
-**보안:** `.env`는 `.gitignore`에 포함되어 있으며 GitHub에 올리지 않습니다. 실제 비밀번호·Firebase JSON·Google 클라이언트 보안 비밀은 Vercel(또는 호스트) 환경 변수로만 설정하세요.
+## 저장소에 올리지 않는 것
+
+**이 저장소는 공개입니다.** 학교 실제 데이터는 `.gitignore`로 막아 두었습니다.
+
+- 설문 결과 HTML — 학생·학부모 서술형 응답 원문이 들어 있습니다
+- 학교평가서 PDF, 평가지표 및 현황 XLSX — 학교별 평가 결과
 
 ## Google Cloud 설정
 
-1. Google Cloud Console에서 **Google Forms API**를 사용 설정합니다.
-2. **OAuth 동의 화면**에서 테스트 사용자(또는 프로덕션 승인)를 구성합니다.
-3. **OAuth 클라이언트 ID**(웹)를 만들고, **승인된 리디렉션 URI**에 아래를 **모두** 등록하는 것을 권장합니다.
+1. **Google Forms API** 사용 설정
+2. **OAuth 동의 화면**에 테스트 사용자 또는 프로덕션 승인 구성
+3. **OAuth 클라이언트 ID**(웹)의 승인된 리디렉션 URI에 모두 등록
    - `http://localhost:3000/api/google/callback`
-   - `http://127.0.0.1:3000/api/google/callback` (브라우저 주소를 127.0.0.1로 열 때 필요)
-   - 배포: `https://your-vercel-domain.vercel.app/api/google/callback`
-4. 로컬에서 `.env`의 `GOOGLE_REDIRECT_URI`는 **비워 두면** 접속한 호스트에 맞춰 콜백 URL이 맞춰집니다. `localhost`로만 등록해 두고 `127.0.0.1`로 접속하면 OAuth `redirect_uri_mismatch`가 날 수 있습니다.
-5. 이 앱은 scope `https://www.googleapis.com/auth/forms.body` 를 사용합니다.
-
-## 검증 명령
-
-```bash
-npm run typecheck
-npm run build
-```
-
-## 참고
-
-Firebase 환경변수가 없으면 로컬 개발용 메모리 저장소로 동작합니다. 이 경우 서버를 재시작하면 등록 학교와 초안이 사라집니다. Vercel 배포에서는 반드시 Firebase 환경변수를 설정해야 합니다.
-
-## OAuth 검증 준비
+   - `http://127.0.0.1:3000/api/google/callback`
+   - `https://your-vercel-domain.vercel.app/api/google/callback`
+4. 사용 scope: `https://www.googleapis.com/auth/forms.body`
 
 - 개인정보처리방침: `https://2026eva.vercel.app/privacy`
 - 이용약관: `https://2026eva.vercel.app/terms`
-- 검증 체크리스트: `docs/google-oauth-verification-checklist.md`
+- 검증 체크리스트: [docs/google-oauth-verification-checklist.md](docs/google-oauth-verification-checklist.md)

@@ -1,5 +1,20 @@
 export const AUDIENCES = ["teacher", "parent", "student", "staff"] as const;
 
+/**
+ * 평가 시기. 기본계획 p.11과 가이드북 p.10·56의 일정을 따릅니다.
+ *
+ *   interim  1학기 중간평가 (7월)      — 교육 활동을 고쳐 나가기 위한 점검
+ *   annual   학년말 학교평가 (11~12월) — 제출 서류의 근거가 되는 최종 평가
+ */
+export const SURVEY_MODES = ["interim", "annual"] as const;
+
+export type SurveyMode = (typeof SURVEY_MODES)[number];
+
+export const SURVEY_MODE_LABELS: Record<SurveyMode, string> = {
+  interim: "1학기 중간평가",
+  annual: "학년말 학교평가"
+};
+
 export type Audience = (typeof AUDIENCES)[number];
 
 export const AUDIENCE_LABELS: Record<Audience, string> = {
@@ -137,9 +152,18 @@ export type SurveyDraft = {
   schoolName: string;
   /** 충돌 감지 전용. 문항의 rev와는 별개로 돕니다. */
   rev: number;
+  /**
+   * 평가 시기.
+   *
+   * 가이드북 Q12: 1학기 중간평가 결과는 학교평가서 평균점수에 반영하지 않고,
+   * **학년말 최종 설문 결과만** 반영합니다. 제출 서류는 `annual`에서만 만듭니다.
+   */
+  mode: SurveyMode;
   title: string;
   surveyDate: string;
   introByAudience: Record<Audience, string>;
+  /** 학생 설문을 받을 학년. 결과 보고서의 학년별 분해에 쓰입니다. */
+  studentGrades?: number[];
   /** 비어 있으면 서버/클라이언트에서 기본 6개 역할로 채움 */
   draftAuthors?: SurveyDraftAuthor[];
   googleForm?: GoogleFormInfo;
@@ -154,7 +178,13 @@ export type SurveyDraft = {
 export type SurveyDraftPatch = Partial<
   Pick<
     SurveyDraft,
-    "title" | "surveyDate" | "schoolName" | "introByAudience" | "draftAuthors"
+    | "title"
+    | "surveyDate"
+    | "schoolName"
+    | "introByAudience"
+    | "draftAuthors"
+    | "mode"
+    | "studentGrades"
   >
 >;
 

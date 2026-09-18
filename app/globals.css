@@ -288,6 +288,50 @@ mark {
   font-weight: 700;
 }
 
+/* 평가 시기 표시 — 어떤 산출물을 만들 수 있는지가 여기서 갈립니다. */
+.ws-mode {
+  padding: 3px var(--sp-3);
+  border-radius: var(--r-full);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.ws-mode.is-annual {
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+
+.ws-radio-row,
+.ws-grade-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.ws-radio,
+.ws-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 6px var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.ws-radio.is-on,
+.ws-grade.is-on {
+  border-color: var(--brand-600);
+  background: var(--brand-050);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+
 .ws-topbar-center {
   display: flex;
   justify-content: center;
