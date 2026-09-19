@@ -72,7 +72,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
         </nav>
       <ResultSection step="upload" title="1. 결과 파일 올리기">
 
-        <p className="ws-hint">구글폼 응답을 다운로드한 엑셀 파일을 대상별로 올리세요.</p>
+        <p className="ws-hint">구글폼 응답 CSV 또는 엑셀(XLSX) 파일을 대상별로 올리세요. 구글폼에서 내려받은 ZIP은 압축을 풀고 안의 CSV를 선택하세요.</p>
         <p className="ws-hint">올리기 전에 이름·연락처·이메일 열을 삭제하세요. 결과는 30일간 조회할 수 있으며, 기간이 지난 자료는 다음 결과 조회 때 정리됩니다. 필요한 보고서는 먼저 내려받아 학교의 보관 기준에 따라 관리하세요.</p>
         <div className="ra-upload-grid">
           {AUDIENCES.map((audience) => (
@@ -297,7 +297,7 @@ function UploadSlot({
       ) : state.status === "uploading" ? (
         <span className="ws-hint">올리는 중…</span>
       ) : (
-        <span className="ws-hint">{state.status === "error" ? state.error : "엑셀 파일"}</span>
+        <span className="ws-hint">{state.status === "error" ? state.error : "CSV · 엑셀(XLSX) 파일"}</span>
       )}
       {state.error ? <p className="ra-warn" role="alert">{state.error}{state.status === "uploaded" ? " 기존 파일을 유지했습니다." : ""}</p> : null}
       <input

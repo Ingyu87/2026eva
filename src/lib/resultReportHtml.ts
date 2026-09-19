@@ -171,6 +171,13 @@ function collectRawAnswers(items: SelectedQuestion[], uploads: ResultUpload[], r
   return Array.from(byItem.values());
 }
 
+export function splitChecklistAnswer(raw: string, choices: string[] = []): string[] {
+  // Google Forms 직접 다운로드는 세미콜론, Sheets CSV는 쉼표로 복수 응답을 구분합니다.
+  // 쉼표를 포함한 보기 하나를 선택한 경우에는 원문을 그대로 유지합니다.
+  if (choices.some(choice => choice.trim() === raw.trim())) return [raw.trim()];
+  return raw.split(raw.includes(";") ? ";" : ",").map(value => value.trim()).filter(Boolean);
+}
+
 function choiceTab(items: SelectedQuestion[], uploads: ResultUpload[]): string {
   const entries = collectRawAnswers(items, uploads, (item) => needsChoices(item.responseType));
 
@@ -180,7 +187,7 @@ function choiceTab(items: SelectedQuestion[], uploads: ResultUpload[]): string {
       for (const [audience, answers] of answersByAudience) {
         const tally = new Map<string, number>();
         for (const raw of answers) {
-          const options = item.responseType === "checklist" ? raw.split(",").map((v) => v.trim()).filter(Boolean) : [raw];
+          const options = item.responseType === "checklist" ? splitChecklistAnswer(raw, item.choices) : [raw];
           for (const option of options) {
             tally.set(option, (tally.get(option) ?? 0) + 1);
           }

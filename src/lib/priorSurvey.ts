@@ -96,8 +96,16 @@ export function normalizePriorSurveyItems(rawItems: RawItem[], audienceHint?: Au
     const audience = audienceHint ?? parseAudience(raw.audience);
     let responseType = RESPONSE_TYPES.includes(raw.responseType as ResponseType) ? raw.responseType as ResponseType : null;
     const choices = Array.isArray(raw.choices) ? raw.choices.filter((c): c is string => typeof c === "string").map(c => c.trim()).filter(Boolean) : [];
+    const scaleLabel = (label: string) => label.replace(/^\s*[①-⑳]\s*/, "").replace(/\s/g, "").replace(/[.]$/, "");
+    const sameLabels = (labels: readonly string[]) => labels.length === choices.length && labels.every((label, index) => scaleLabel(label) === scaleLabel(choices[index]));
+    // 표에서 줄바꿈·띄어쓰기가 사라져도 같은 척도입니다. 문구가 다른 척도는 바꾸지 않습니다.
+    if (responseType === "choice_single" || responseType === null) {
+      if (sameLabels(LIKERT_5_OPTIONS)) responseType = "likert_5";
+      else if (sameLabels(LIKERT_3_OPTIONS)) responseType = "likert_3";
+      else if (sameLabels(YES_NO_OPTIONS)) responseType = "yes_no";
+    }
     const fixed = responseType === "likert_5" ? LIKERT_5_OPTIONS : responseType === "likert_3" ? LIKERT_3_OPTIONS : responseType === "yes_no" ? YES_NO_OPTIONS : undefined;
-    if (fixed && choices.length && JSON.stringify(fixed) !== JSON.stringify(choices)) responseType = "choice_single";
+    if (fixed && choices.length && !sameLabels(fixed)) responseType = "choice_single";
     if (fixed && !choices.length) responseType = null;
     items.push({
       audience: audience ?? "teacher",

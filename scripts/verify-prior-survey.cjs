@@ -20,3 +20,8 @@ assert.equal(rows[2].responseType,'likert_5');
 assert.equal(rows[3].responseType,'choice_single');
 assert.equal(rows[4].responseType,null);
 console.log('PASS: 대상 별칭, 대상 지정, 서술형·복수선택·보기 보존, 불명확한 유형 확인');
+const spaced = normalizePriorSurveyItems([{question:'가상 문항',responseType:'choice_single',choices:LIKERT_5_OPTIONS.map(s=>s.replace(/\s/g,''))}]);
+assert.equal(spaced[0].responseType,'likert_5');
+console.log('PASS: PDF 표의 띄어쓰기 차이는 5점 척도로 인식');
+assert.equal(normalizePriorSurveyItems([{question:'가상 문항',responseType:'choice_single',choices:LIKERT_5_OPTIONS.map((s,i)=>String.fromCharCode(0x2460+i)+' '+s+'.')}])[0].responseType,'likert_5');
+console.log('PASS: 보기 번호와 문장 끝 마침표는 척도 의미에 영향 없음');
