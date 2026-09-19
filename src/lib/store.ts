@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { isCurrentSubarea, placementFromSubarea } from "./evaluationFramework";
 import { getFirebaseDb } from "./firebaseAdmin";
@@ -345,16 +345,26 @@ export class ForbiddenError extends Error {
   }
 }
 
-/** 대상이 정해진 부장 링크는 그 대상의 문항만 고치거나 지울 수 있습니다. */
-function assertAudienceAllowed(
+/** 부장 링크로 쓰는 쓰기의 제한. 자기가 담은 문항만, 지정된 대상 안에서만 고칠 수 있습니다. */
+export type WriteGuard = { ownerId: string; audience?: Audience };
+
+/** 링크 토큰은 비밀이라 문항에 싣지 않고, 되돌릴 수 없는 짧은 식별자만 싣습니다. */
+export function inviteOwnerId(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 12);
+}
+
+function assertWriteAllowed(
   current: SelectedQuestion,
-  onlyAudience: Audience | undefined,
+  guard: WriteGuard | undefined,
   patch?: SelectedQuestionPatch
 ): void {
-  if (!onlyAudience) {
+  if (!guard) {
     return;
   }
-  if (current.audience !== onlyAudience || (patch?.audience && patch.audience !== onlyAudience)) {
+  if (current.ownerId !== guard.ownerId) {
+    throw new ForbiddenError("다른 사람이 담은 문항은 고칠 수 없습니다.");
+  }
+  if (guard.audience && (current.audience !== guard.audience || (patch?.audience && patch.audience !== guard.audience))) {
     throw new ForbiddenError("이 링크로는 지정된 대상의 문항만 고칠 수 있습니다.");
   }
 }
@@ -672,7 +682,19 @@ function withLegalPlacement<T extends { area: string; subarea: string }>(item: T
 }
 
 /** 세부영역을 바꿀 때만 법정 목록을 강제합니다. 옛 '직접입력' 문항은 문장만 고쳐도 저장됩니다. */
-function applyItemPatch(current: SelectedQuestion, patch: SelectedQuestionPatch): SelectedQuestion {
+function applyItemPatch(current: SelectedQuestion, rawPatch: SelectedQuestionPatch): SelectedQuestion {
+  // 서버가 관리하는 값은 요청으로 바꿀 수 없습니다.
+  const {
+    id: _id,
+    rev: _rev,
+    deleted: _deleted,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    updatedBy: _updatedBy,
+    ownerId: _ownerId,
+    ownerLabel: _ownerLabel,
+    ...patch
+  } = rawPatch as SelectedQuestionPatch & Record<string, unknown>;
   const merged = { ...current, ...patch };
   if (patch.subarea !== undefined) {
     return withLegalPlacement(merged);
@@ -689,13 +711,20 @@ function applyItemPatch(current: SelectedQuestion, patch: SelectedQuestionPatch)
 export async function createDraftItems(
   draftId: string,
   items: NewSelectedQuestion[],
-  updatedBy?: string
+  updatedBy?: string,
+  owner?: { id: string; label: string }
 ): Promise<SelectedQuestion[]> {
   const now = nowIso();
   const prepared: SelectedQuestion[] = items.map((item) => {
-    const legal = withLegalPlacement(item);
+    // 담은 사람 표시는 서버만 정합니다. 요청에 실려 온 값은 버립니다.
+    const { ownerId: _ownerId, ownerLabel: _ownerLabel, ...clean } = item as NewSelectedQuestion & {
+      ownerId?: string;
+      ownerLabel?: string;
+    };
+    const legal = withLegalPlacement(clean);
     return {
       ...legal,
+      ...(owner ? { ownerId: owner.id, ownerLabel: owner.label } : {}),
       id: legal.id || randomUUID(),
       groupId: legal.groupId || legal.sourceQuestionId,
       rev: 0,
@@ -730,7 +759,7 @@ export async function patchDraftItem(
   expectedRev: number,
   patch: SelectedQuestionPatch,
   updatedBy?: string,
-  onlyAudience?: Audience
+  guard?: WriteGuard
 ): Promise<SelectedQuestion> {
   const db = getFirebaseDb();
   const now = nowIso();
@@ -746,7 +775,7 @@ export async function patchDraftItem(
       if (current.deleted) {
         throw new NotFoundError("이미 삭제된 문항입니다.");
       }
-      assertAudienceAllowed(current, onlyAudience, patch);
+      assertWriteAllowed(current, guard, patch);
       if (current.rev !== expectedRev) {
         throw new ConflictError(current);
       }
@@ -766,7 +795,7 @@ export async function patchDraftItem(
   if (!current || current.deleted) {
     throw new NotFoundError("문항을 찾을 수 없습니다.");
   }
-  assertAudienceAllowed(current, onlyAudience, patch);
+  assertWriteAllowed(current, guard, patch);
   if (current.rev !== expectedRev) {
     throw new ConflictError(current);
   }
@@ -789,7 +818,7 @@ export async function deleteDraftItem(
   itemId: string,
   expectedRev: number,
   updatedBy?: string,
-  onlyAudience?: Audience
+  guard?: WriteGuard
 ): Promise<void> {
   const db = getFirebaseDb();
   const now = nowIso();
@@ -805,7 +834,7 @@ export async function deleteDraftItem(
       if (current.deleted) {
         return;
       }
-      assertAudienceAllowed(current, onlyAudience);
+      assertWriteAllowed(current, guard);
       if (current.rev !== expectedRev) {
         throw new ConflictError(current);
       }
@@ -819,7 +848,7 @@ export async function deleteDraftItem(
   if (!current || current.deleted) {
     return;
   }
-  assertAudienceAllowed(current, onlyAudience);
+  assertWriteAllowed(current, guard);
   if (current.rev !== expectedRev) {
     throw new ConflictError(current);
   }
@@ -1172,7 +1201,7 @@ export async function createBuilderInvite(input: {
     schoolName: input.schoolName,
     draftId: input.draftId,
     label: input.label.trim(),
-    audience: input.audience,
+    ...(input.audience ? { audience: input.audience } : {}),
     revoked: false,
     createdAt: nowIso()
   };
@@ -1207,6 +1236,54 @@ export async function getBuilderInvite(token: string): Promise<BuilderInvite | n
     return doc.exists ? (plain(doc.data()) as BuilderInvite) : null;
   }
   return memoryInvites.get(token) ?? null;
+}
+
+async function saveInvite(invite: BuilderInvite): Promise<void> {
+  const db = getFirebaseDb();
+  if (db) {
+    await db.collection(INVITES).doc(invite.token).set(invite);
+    return;
+  }
+  memoryInvites.set(invite.token, invite);
+}
+
+/** 부장이 제출을 누릅니다. */
+export async function submitBuilderInvite(token: string): Promise<BuilderInvite> {
+  const current = await getBuilderInvite(token);
+  if (!current || current.revoked) {
+    throw new NotFoundError("링크를 찾을 수 없습니다.");
+  }
+  const next = { ...current, submittedAt: nowIso() };
+  await saveInvite(next);
+  return next;
+}
+
+/** 제출한 부장이 문항을 다시 고치면 '작성 중'으로 돌아갑니다. */
+export async function markInviteEdited(token: string): Promise<void> {
+  const current = await getBuilderInvite(token);
+  if (!current || !current.submittedAt) {
+    return;
+  }
+  const { submittedAt: _submittedAt, ...rest } = current;
+  await saveInvite(rest);
+}
+
+/** 부장 링크별로 담은 문항 수를 셉니다. 삭제된 문항은 뺍니다. */
+export async function countOwnedItems(draftId: string): Promise<Record<string, number>> {
+  const db = getFirebaseDb();
+  const items: SelectedQuestion[] = db
+    ? (await db.collection(DRAFTS).doc(draftId).collection(ITEMS).get()).docs.map((doc) =>
+        hydrateItem(doc.id, doc.data())
+      )
+    : Array.from(memoryStateFor(draftId).items.values());
+  const counts: Record<string, number> = {};
+  for (const item of items) {
+    if (item.deleted || !item.ownerId) {
+      continue;
+    }
+    counts[item.ownerId] = (counts[item.ownerId] ?? 0) + 1;
+  }
+  return counts;
 }
 
 export async function revokeBuilderInvite(schoolId: string, token: string): Promise<void> {

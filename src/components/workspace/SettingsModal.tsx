@@ -9,7 +9,6 @@ import {
   type Audience,
   type GoogleFormsByAudience,
   type SurveyDraft,
-  type SurveyDraftAuthor,
   type SurveyMode
 } from "@/lib/types";
 import { InviteLinks } from "./InviteLinks";
@@ -24,7 +23,8 @@ import { PriorSurveyImport, type PriorSurveyCommit } from "./PriorSurveyImport";
  * 각 항목은 따로 저장되므로 두 사람이 서로 다른 항목을 동시에 고쳐도 부딪히지 않습니다.
  */
 
-type Tab = "survey" | "intro" | "authors" | "invites" | "account";
+export type SettingsTab = "survey" | "intro" | "invites" | "account";
+type Tab = SettingsTab;
 
 export function SettingsModal({
   draft,
@@ -36,7 +36,8 @@ export function SettingsModal({
   onSwitchedToAnnual,
   itemCount,
   onResetItems,
-  onImportPrior
+  onImportPrior,
+  initialTab = "survey"
 }: {
   draft: SurveyDraft;
   displayName: string;
@@ -48,8 +49,9 @@ export function SettingsModal({
   itemCount: number;
   onResetItems: () => void;
   onImportPrior: (items: PriorSurveyCommit[]) => void;
+  initialTab?: SettingsTab;
 }) {
-  const [tab, setTab] = useState<Tab>("survey");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [introFor, setIntroFor] = useState<Audience>("teacher");
   const [nameDraft, setNameDraft] = useState(displayName);
 
@@ -64,8 +66,6 @@ export function SettingsModal({
   }, [onClose]);
 
   const authors = draft.draftAuthors ?? [];
-
-  const patchAuthors = (rows: SurveyDraftAuthor[]) => onMeta({ draftAuthors: rows });
 
   const formEntries = AUDIENCES.map((audience) => ({
     audience,
@@ -87,8 +87,7 @@ export function SettingsModal({
             [
               ["survey", "설문 정보"],
               ["intro", "안내문"],
-              ["authors", "작성 분담"],
-              ["invites", "부장 링크"],
+              ["invites", "부장 작업"],
               ["account", "내 표시 이름"]
             ] as Array<[Tab, string]>
           ).map(([key, label]) => (
@@ -270,69 +269,6 @@ export function SettingsModal({
                   })
                 }
               />
-            </div>
-          ) : null}
-
-          {tab === "authors" ? (
-            <div className="ws-form">
-              <p className="ws-hint">
-                담당을 나누면 접속자 표시에도 쓰입니다. 완료한 역할에 체크하세요.
-              </p>
-              <div className="ws-author-list">
-                {authors.map((row) => (
-                  <div key={row.id} className="ws-author-row">
-                    <input
-                      className="ws-input"
-                      value={row.title}
-                      placeholder="역할 이름"
-                      onChange={(event) =>
-                        patchAuthors(
-                          authors.map((entry) =>
-                            entry.id === row.id ? { ...entry, title: event.target.value } : entry
-                          )
-                        )
-                      }
-                    />
-                    <label className="ws-check">
-                      <input
-                        type="checkbox"
-                        checked={row.done}
-                        onChange={(event) =>
-                          patchAuthors(
-                            authors.map((entry) =>
-                              entry.id === row.id
-                                ? { ...entry, done: event.target.checked }
-                                : entry
-                            )
-                          )
-                        }
-                      />
-                      완료
-                    </label>
-                    <button
-                      type="button"
-                      className="ws-icon-btn"
-                      aria-label="행 삭제"
-                      disabled={authors.length <= 1}
-                      onClick={() => patchAuthors(authors.filter((entry) => entry.id !== row.id))}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="ws-btn ws-btn--soft"
-                onClick={() =>
-                  patchAuthors([
-                    ...authors,
-                    { id: crypto.randomUUID(), title: "", done: false }
-                  ])
-                }
-              >
-                ＋ 역할 추가
-              </button>
             </div>
           ) : null}
 

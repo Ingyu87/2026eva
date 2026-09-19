@@ -15,17 +15,18 @@ import {
   type ResponseType,
   type PublicSchool,
   type QuestionBankItem,
+  type BuilderInviteSummary,
   type SelectedQuestion,
   type WorkspaceRole
 } from "@/lib/types";
-import { BuilderIntro } from "./BuilderIntro";
+import { BuilderIntro, LeadIntro } from "./BuilderIntro";
 import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorTree";
 import { QuestionFinder } from "./QuestionFinder";
 import { SelectedPanel } from "./SelectedPanel";
 import { AnnualStart } from "./AnnualStart";
 import type { PriorSurveyCommit } from "./PriorSurveyImport";
 import { GuideModal } from "./GuideModal";
-import { SettingsModal } from "./SettingsModal";
+import { SettingsModal, type SettingsTab } from "./SettingsModal";
 
 /**
  * 문항 구성 작업 화면.
@@ -37,12 +38,14 @@ export function Workspace({
   school,
   role = "lead",
   builderLabel,
+  builderOwnerId,
   builderAudience,
   onLogout
 }: {
   school: PublicSchool;
   role?: WorkspaceRole;
   builderLabel?: string;
+  builderOwnerId?: string;
   builderAudience?: Audience;
   onLogout: () => void;
 }) {
@@ -57,6 +60,10 @@ export function Workspace({
   const [guideOpen, setGuideOpen] = useState(false);
   const [namePromptDone, setNamePromptDone] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
+  const [leadIntroOpen, setLeadIntroOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("survey");
+  const [invites, setInvites] = useState<BuilderInviteSummary[]>([]);
+  const [submission, setSubmission] = useState<{ submittedAt: string | null; itemCount: number } | null>(null);
   const [notice, setNotice] = useState("");
 
   const syncAudience = workspace.setActiveAudience;
@@ -100,6 +107,88 @@ export function Workspace({
       localStorage.setItem(introKey, "1");
     } catch {
       // 저장에 실패하면 다음에 한 번 더 보일 뿐입니다.
+    }
+  };
+
+  const leadIntroKey = draft ? `lead-intro:${draft.id}` : "";
+  const needsName = Boolean(draft) && !workspace.displayName && !namePromptDone;
+  useEffect(() => {
+    if (isBuilder || !leadIntroKey || needsName) {
+      return;
+    }
+    try {
+      setLeadIntroOpen(!localStorage.getItem(leadIntroKey));
+    } catch {
+      setLeadIntroOpen(false);
+    }
+  }, [isBuilder, leadIntroKey, needsName]);
+
+  const closeLeadIntro = () => {
+    setLeadIntroOpen(false);
+    try {
+      localStorage.setItem(leadIntroKey, "1");
+    } catch {
+      // 저장에 실패하면 다음에 한 번 더 보일 뿐입니다.
+    }
+  };
+
+  /** 연구부장은 부장들의 제출 현황을, 부장은 자기 제출 상태를 주기적으로 받아 옵니다. */
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        if (isBuilder) {
+          const response = await fetch("/api/invite/submit");
+          const payload = await response.json();
+          if (alive && payload.ok) {
+            setSubmission(payload.data);
+          }
+        } else {
+          const response = await fetch("/api/invite");
+          const payload = await response.json();
+          if (alive && payload.ok) {
+            setInvites(payload.data.invites);
+          }
+        }
+      } catch {
+        // 현황을 못 받아도 작업에는 지장이 없습니다.
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 15000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [isBuilder]);
+
+  const openSettings = (tab: SettingsTab = "survey") => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  };
+
+  const myItemCount = workspace.items.filter((item) => item.ownerId === builderOwnerId).length;
+
+  const submitWork = async () => {
+    if (myItemCount === 0) {
+      setNotice("아직 담은 문항이 없습니다. 문항을 담은 뒤 제출하세요.");
+      return;
+    }
+    if (workspace.saveState.kind !== "idle") {
+      setNotice("저장이 끝난 뒤에 제출하세요.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/invite/submit", { method: "POST" });
+      const payload = await response.json();
+      if (payload.ok) {
+        setSubmission({ itemCount: myItemCount, submittedAt: payload.data.submittedAt });
+        setNotice("제출했습니다. 연구부장 화면에 표시됩니다. 고치면 다시 작성 중이 됩니다.");
+      } else {
+        setNotice(payload.error ?? "제출하지 못했습니다.");
+      }
+    } catch {
+      setNotice("제출하지 못했습니다. 연결을 확인하세요.");
     }
   };
 
@@ -199,6 +288,10 @@ export function Workspace({
     );
 
     if (existing) {
+      if (isBuilder && existing.ownerId !== builderOwnerId) {
+        setNotice("다른 사람이 담은 문항이라 뺄 수 없습니다. 연구부장에게 요청하세요.");
+        return;
+      }
       workspace.removeItem(existing.id);
       setNotice(`${AUDIENCE_SHORT_LABELS[audience]}에서 뺐습니다.`);
       return;
@@ -355,7 +448,7 @@ export function Workspace({
                   openAnnualStart();
                   return;
                 }
-                setSettingsOpen(true);
+                openSettings("survey");
               }}
             >
               {SURVEY_MODE_LABELS[draft.mode]}
@@ -393,8 +486,27 @@ export function Workspace({
         <div className="ws-topbar-right">
           <SaveStateBadge state={workspace.saveState} onRetry={workspace.retryNow} />
           <PresenceBadge presence={workspace.presence} />
-          {isBuilder ? null : (
+          {isBuilder ? (
+            <button
+              type="button"
+              className={submission?.submittedAt ? "ws-btn ws-btn--soft" : "ws-btn ws-btn--primary"}
+              onClick={() => void submitWork()}
+              title="다 담았으면 눌러 연구부장에게 알립니다. 이후에 고치면 다시 작성 중이 됩니다."
+            >
+              {submission?.submittedAt ? `제출함 (${myItemCount}문항)` : "제출"}
+            </button>
+          ) : (
             <>
+              <button
+                type="button"
+                className="ws-btn ws-btn--soft"
+                onClick={() => openSettings("invites")}
+                title="부장에게 보낼 링크를 만들고, 제출 현황을 봅니다."
+              >
+                {invites.length > 0
+                  ? `부장 작업 ${invites.filter((invite) => invite.submittedAt).length}/${invites.length}`
+                  : "부장 링크"}
+              </button>
               <button
                 type="button"
                 className="ws-btn ws-btn--ghost"
@@ -431,7 +543,7 @@ export function Workspace({
               type="button"
               className="ws-icon-btn"
               aria-label="설문 설정"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => openSettings("survey")}
             >
               ⚙
             </button>
@@ -482,8 +594,10 @@ export function Workspace({
             onPatch={(id, patch) => workspace.patchItem(id, patch as Partial<SelectedQuestion>)}
             onRemove={workspace.removeItem}
             onMove={workspace.moveItem}
-            onReset={resetAudience}
+            onReset={isBuilder ? undefined : resetAudience}
             onEditingChange={workspace.setEditingItemId}
+            canModify={isBuilder ? (item) => item.ownerId === builderOwnerId : undefined}
+            ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
           />
         </main>
       ) : activeScreen === "annual-start" ? (
@@ -507,6 +621,7 @@ export function Workspace({
 
       {settingsOpen && !isBuilder ? (
         <SettingsModal
+          initialTab={settingsTab}
           draft={draft}
           displayName={workspace.displayName}
           googleForms={draft.googleFormsByAudience ?? {}}
@@ -528,6 +643,16 @@ export function Workspace({
           onStart={closeIntro}
           onGuide={() => {
             closeIntro();
+            setGuideOpen(true);
+          }}
+        />
+      ) : null}
+
+      {!isBuilder && leadIntroOpen ? (
+        <LeadIntro
+          onStart={closeLeadIntro}
+          onGuide={() => {
+            closeLeadIntro();
             setGuideOpen(true);
           }}
         />

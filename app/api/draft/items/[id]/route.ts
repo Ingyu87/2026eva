@@ -1,6 +1,12 @@
 import { jsonError, jsonOk } from "@/lib/api";
-import { draftWriteError, readJson, requireRev, resolveDraftContext } from "@/lib/draftApi";
-import { deleteDraftItem, patchDraftItem } from "@/lib/store";
+import {
+  draftWriteError,
+  readJson,
+  requireRev,
+  resolveDraftContext,
+  writeGuardOf
+} from "@/lib/draftApi";
+import { deleteDraftItem, markInviteEdited, patchDraftItem } from "@/lib/store";
 import type { SelectedQuestionPatch } from "@/lib/types";
 
 type PatchBody = {
@@ -42,8 +48,11 @@ export async function PATCH(request: Request, { params }: Params) {
       expectedRev,
       body.patch,
       body.updatedBy,
-      context.audience
+      writeGuardOf(context)
     );
+    if (context.builder) {
+      await markInviteEdited(context.builder.token);
+    }
     return jsonOk({ item });
   } catch (error) {
     return draftWriteError(error);
@@ -65,7 +74,10 @@ export async function DELETE(request: Request, { params }: Params) {
   }
 
   try {
-    await deleteDraftItem(context.draftId, id, expectedRev, body?.updatedBy, context.audience);
+    await deleteDraftItem(context.draftId, id, expectedRev, body?.updatedBy, writeGuardOf(context));
+    if (context.builder) {
+      await markInviteEdited(context.builder.token);
+    }
     return jsonOk({ id });
   } catch (error) {
     return draftWriteError(error);

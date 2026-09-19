@@ -70,6 +70,7 @@ export function SchoolEvaluationApp() {
   const [school, setSchool] = useState<PublicSchool | null>(null);
   const [workspaceRole, setWorkspaceRole] = useState<WorkspaceRole>("lead");
   const [builderLabel, setBuilderLabel] = useState("");
+  const [builderOwnerId, setBuilderOwnerId] = useState("");
   const [builderAudience, setBuilderAudience] = useState<Audience | undefined>(undefined);
   const [schoolName, setSchoolName] = useState("");
   const [password, setPassword] = useState("");
@@ -99,6 +100,7 @@ export function SchoolEvaluationApp() {
           school: PublicSchool | null;
           role: WorkspaceRole | null;
           builderLabel?: string;
+          builderOwnerId?: string;
           builderAudience?: Audience | null;
         }>("/api/auth/me");
 
@@ -118,6 +120,7 @@ export function SchoolEvaluationApp() {
           setSchoolName(data.school.schoolName);
           setWorkspaceRole(data.role === "builder" ? "builder" : "lead");
           setBuilderLabel(data.builderLabel ?? "");
+          setBuilderOwnerId(data.builderOwnerId ?? "");
           setBuilderAudience(data.builderAudience ?? undefined);
           rememberBuilder(data.role === "builder");
         } else if (readBuilderHint()) {
@@ -230,6 +233,7 @@ export function SchoolEvaluationApp() {
         school={school}
         role={workspaceRole}
         builderLabel={builderLabel}
+        builderOwnerId={builderOwnerId}
         builderAudience={builderAudience}
         onLogout={() => void logout()}
       />

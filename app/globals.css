@@ -1783,13 +1783,107 @@ mark {
   background: #f5f6fa;
 }
 
-.ws-invite-row > div:first-child {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
 .ws-invite-actions {
   display: flex;
   gap: 6px;
+}
+
+.ws-invite-summary {
+  margin: 0;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.ws-invite-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.ws-invite-state {
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-full);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
+.ws-invite-state.is-done {
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.ws-item-owner {
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-full);
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+/* 공용 Button(src/components/ui/Button.tsx)의 모양. 대화상자의 버튼이 글자로만 보이던 문제를 막습니다. */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--motion), border-color var(--motion);
+}
+
+.ds-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ds-btn--primary {
+  background: var(--brand-600);
+  color: var(--text-onbrand);
+}
+
+.ds-btn--primary:hover:not(:disabled) {
+  background: var(--brand-700);
+}
+
+.ds-btn--secondary,
+.ds-btn--tertiary {
+  border-color: var(--line-strong);
+  background: var(--bg-card);
+  color: var(--text-body);
+}
+
+.ds-btn--secondary:hover:not(:disabled),
+.ds-btn--tertiary:hover:not(:disabled) {
+  background: var(--bg-subtle);
+}
+
+.ds-btn--danger {
+  border-color: var(--danger);
+  background: var(--bg-card);
+  color: var(--danger);
+}
+
+.ds-btn--danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+
+.ds-btn--magenta {
+  background: var(--brand-600);
+  color: var(--text-onbrand);
+}
+
+.ds-focusable:focus-visible {
+  outline: 2px solid var(--brand-600);
+  outline-offset: 2px;
 }

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getDraftAccess, jsonError, requireSchoolSession } from "./api";
-import { ConflictError, ForbiddenError, getOrCreateDraft, NotFoundError } from "./store";
+import {
+  ConflictError,
+  ForbiddenError,
+  getOrCreateDraft,
+  inviteOwnerId,
+  NotFoundError,
+  type WriteGuard
+} from "./store";
 import type { ApiResult, Audience, WorkspaceRole } from "./types";
 
 /**
@@ -8,7 +15,15 @@ import type { ApiResult, Audience, WorkspaceRole } from "./types";
  * 실패하면 그대로 돌려줄 응답을 반환합니다.
  */
 export async function resolveDraftContext(options?: { leadOnly?: boolean }): Promise<
-  | { draftId: string; schoolId: string; schoolName: string; role: WorkspaceRole; audience?: Audience }
+  | {
+      draftId: string;
+      schoolId: string;
+      schoolName: string;
+      role: WorkspaceRole;
+      audience?: Audience;
+      /** 부장 링크로 들어왔을 때만 채워집니다. */
+      builder?: { token: string; label: string; ownerId: string };
+    }
   | NextResponse<ApiResult<never>>
 > {
   if (options?.leadOnly) {
@@ -30,7 +45,15 @@ export async function resolveDraftContext(options?: { leadOnly?: boolean }): Pro
     schoolId: access.schoolId,
     schoolName: access.schoolName,
     role: access.role,
-    audience: access.audience
+    audience: access.audience,
+    builder:
+      access.role === "builder" && access.inviteToken
+        ? {
+            token: access.inviteToken,
+            label: access.label ?? "부장",
+            ownerId: inviteOwnerId(access.inviteToken)
+          }
+        : undefined
   };
 }
 
@@ -73,4 +96,12 @@ export async function readJson<T>(request: Request): Promise<T | null> {
 /** `expectedRev`가 숫자인지 확인합니다. 없으면 덮어쓰기 사고로 이어지므로 필수입니다. */
 export function requireRev(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/** 부장 링크로 들어온 요청이면 쓰기 제한을, 아니면 undefined를 돌려줍니다. */
+export function writeGuardOf(context: {
+  audience?: Audience;
+  builder?: { ownerId: string };
+}): WriteGuard | undefined {
+  return context.builder ? { ownerId: context.builder.ownerId, audience: context.audience } : undefined;
 }

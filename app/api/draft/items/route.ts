@@ -1,6 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { draftWriteError, readJson, resolveDraftContext } from "@/lib/draftApi";
-import { createDraftItems } from "@/lib/store";
+import { createDraftItems, markInviteEdited } from "@/lib/store";
 import type { NewSelectedQuestion } from "@/lib/types";
 
 type Body = {
@@ -28,7 +28,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const items = await createDraftItems(context.draftId, body.items, body.updatedBy);
+    const items = await createDraftItems(
+      context.draftId,
+      body.items,
+      body.updatedBy,
+      context.builder ? { id: context.builder.ownerId, label: context.builder.label } : undefined
+    );
+    if (context.builder) {
+      await markInviteEdited(context.builder.token);
+    }
     return jsonOk({ items });
   } catch (error) {
     return draftWriteError(error);

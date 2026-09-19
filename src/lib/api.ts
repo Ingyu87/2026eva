@@ -47,6 +47,8 @@ export type DraftAccess = {
   role: "lead" | "builder";
   label?: string;
   audience?: Audience;
+  /** 부장 링크 토큰. 서버 안에서만 쓰고 응답에는 싣지 않습니다. */
+  inviteToken?: string;
 };
 
 export async function getDraftAccess(): Promise<DraftAccess | null> {
@@ -65,8 +67,9 @@ export async function getDraftAccess(): Promise<DraftAccess | null> {
       schoolId: builder.schoolId,
       schoolName: builder.schoolName,
       role: "builder",
-      label: builder.label,
-      audience: builder.audience as Audience | undefined
+      label: invite.label,
+      audience: invite.audience,
+      inviteToken: invite.token
     };
   }
   return null;

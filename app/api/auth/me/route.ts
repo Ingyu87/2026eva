@@ -1,5 +1,5 @@
 import { getBuilderSession, getSchoolSession, jsonOk } from "@/lib/api";
-import { getBuilderInvite, getOrCreateDraft, getSchoolById } from "@/lib/store";
+import { getBuilderInvite, getOrCreateDraft, getSchoolById, inviteOwnerId } from "@/lib/store";
 import type { WorkspaceRole } from "@/lib/types";
 
 export async function GET() {
@@ -31,6 +31,7 @@ export async function GET() {
       draft,
       role: "builder" as WorkspaceRole,
       builderLabel: invite.label,
+      builderOwnerId: inviteOwnerId(invite.token),
       builderAudience: invite.audience ?? null
     });
   }

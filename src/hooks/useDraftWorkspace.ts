@@ -286,6 +286,12 @@ export function useDraftWorkspace(enabled: boolean) {
             });
             return;
           }
+          if ((typed as { status?: number }).status === 403) {
+            // 권한이 없는 편집은 다시 보내도 같은 결과입니다. 큐를 막지 않도록 버립니다.
+            queue = acknowledge(draftId, op.opId);
+            setPendingCount(queue.length);
+            continue;
+          }
           throw typed;
         }
       }

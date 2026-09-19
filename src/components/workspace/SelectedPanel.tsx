@@ -53,7 +53,9 @@ export function SelectedPanel({
   onRemove,
   onMove,
   onReset,
-  onEditingChange
+  onEditingChange,
+  canModify,
+  ownerTag
 }: {
   audience: Audience;
   items: SelectedQuestion[];
@@ -61,8 +63,13 @@ export function SelectedPanel({
   onPatch: (id: string, patch: Partial<SelectedQuestion>) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
-  onReset: () => void;
+  /** 없으면 '모두 비우기'를 보이지 않습니다. 부장 링크로 들어온 사람에게는 주지 않습니다. */
+  onReset?: () => void;
   onEditingChange: (id: string | undefined) => void;
+  /** 이 문항을 고치거나 지울 수 있는지. 남이 담은 문항을 막을 때 씁니다. */
+  canModify?: (item: SelectedQuestion) => boolean;
+  /** 카드에 붙일 '담은 사람' 표시. */
+  ownerTag?: (item: SelectedQuestion) => string | null;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -97,7 +104,7 @@ export function SelectedPanel({
           {AUDIENCE_LABELS[audience]}
           <span className="ws-count">{items.length}</span>
         </h2>
-        {items.length > 0 ? (
+        {items.length > 0 && onReset ? (
           <button type="button" className="ws-link ws-link--danger" onClick={onReset}>
             모두 비우기
           </button>
@@ -115,6 +122,8 @@ export function SelectedPanel({
             const editor = editorOf(item.id);
             const editing = editingId === item.id;
             const legacy = legacyNoticeFor(item.subarea);
+            const mine = canModify ? canModify(item) : true;
+            const tag = ownerTag ? ownerTag(item) : null;
             return (
               <div
                 key={item.id}
@@ -127,12 +136,13 @@ export function SelectedPanel({
                 <div className="ws-item-head">
                   <span className="ws-item-no">{index + 1}</span>
                   <span className="ws-item-meta">{item.indicator}</span>
+                  {tag ? <span className="ws-item-owner">{tag}</span> : null}
                   {editor ? <span className="ws-item-editor">{editor} 편집 중</span> : null}
                   <div className="ws-item-actions">
                     <button
                       type="button"
                       aria-label="위로"
-                      disabled={index === 0}
+                      disabled={index === 0 || !mine}
                       onClick={() => onMove(item.id, -1)}
                     >
                       ↑
@@ -140,7 +150,7 @@ export function SelectedPanel({
                     <button
                       type="button"
                       aria-label="아래로"
-                      disabled={index === items.length - 1}
+                      disabled={index === items.length - 1 || !mine}
                       onClick={() => onMove(item.id, 1)}
                     >
                       ↓
@@ -148,6 +158,8 @@ export function SelectedPanel({
                     <button
                       type="button"
                       aria-label={editing ? "편집 끝내기" : "수정"}
+                      disabled={!mine}
+                      title={mine ? undefined : "다른 사람이 담은 문항은 고칠 수 없습니다."}
                       onClick={() => (editing ? stopEdit() : startEdit(item.id))}
                     >
                       ✎
@@ -156,6 +168,8 @@ export function SelectedPanel({
                       type="button"
                       aria-label="삭제"
                       className="ws-item-delete"
+                      disabled={!mine}
+                      title={mine ? undefined : "다른 사람이 담은 문항은 지울 수 없습니다."}
                       onClick={() => onRemove(item.id)}
                     >
                       ✕

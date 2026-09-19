@@ -142,6 +142,10 @@ export type SelectedQuestion = {
   updatedAt: string;
   /** 마지막 수정자 표시 이름. 인증이 아니라 안내용 라벨입니다. */
   updatedBy?: string;
+  /** 부장 링크로 담은 문항이면 그 링크의 표시용 식별자(토큰의 해시 일부). 토큰 자체는 싣지 않습니다. */
+  ownerId?: string;
+  /** 담은 부장의 역할 이름. 카드에 표시합니다. */
+  ownerLabel?: string;
 };
 
 /** 문항에 넣을 수 있는 수정 항목. id·rev·createdAt 등은 서버가 관리합니다. */
@@ -436,7 +440,12 @@ export type BuilderInvite = {
   audience?: Audience;
   revoked: boolean;
   createdAt: string;
+  /** 부장이 제출을 눌러 둔 시각. 이후에 문항을 고치면 지워집니다. */
+  submittedAt?: string;
 };
+
+/** 연구부장 화면에 보이는 부장 링크 한 줄. */
+export type BuilderInviteSummary = BuilderInvite & { itemCount: number };
 
 export type ApiResult<T> =
   | {

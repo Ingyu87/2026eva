@@ -1,12 +1,14 @@
 import { jsonError, jsonOk, requireSchoolSession } from "@/lib/api";
 import { readJson } from "@/lib/draftApi";
 import {
+  countOwnedItems,
   createBuilderInvite,
   getOrCreateDraft,
+  inviteOwnerId,
   listBuilderInvites,
   revokeBuilderInvite
 } from "@/lib/store";
-import { AUDIENCES, type Audience } from "@/lib/types";
+import { AUDIENCES, type Audience, type BuilderInviteSummary } from "@/lib/types";
 
 function isAudience(value: unknown): value is Audience {
   return typeof value === "string" && (AUDIENCES as readonly string[]).includes(value);
@@ -17,8 +19,16 @@ export async function GET() {
   if ("status" in session) {
     return session;
   }
-  const invites = await listBuilderInvites(session.schoolId);
-  return jsonOk({ invites });
+  const [invites, draft] = await Promise.all([
+    listBuilderInvites(session.schoolId),
+    getOrCreateDraft(session.schoolId, session.schoolName)
+  ]);
+  const counts = await countOwnedItems(draft.id);
+  const summaries: BuilderInviteSummary[] = invites.map((invite) => ({
+    ...invite,
+    itemCount: counts[inviteOwnerId(invite.token)] ?? 0
+  }));
+  return jsonOk({ invites: summaries });
 }
 
 export async function POST(request: Request) {
