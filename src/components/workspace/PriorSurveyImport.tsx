@@ -88,6 +88,7 @@ export function PriorSurveyImport({ onCommit }: { onCommit: (items: PriorSurveyC
           </div>))}
         </div>
       </fieldset>
+      <p className="ws-hint">학년군별 표는 행마다 문항을 나누고 대안 입력 칸은 서술형으로 추가합니다. 원본의 모든 행과 보기, 선택 개수 안내가 있는지 대조하세요. 선택 개수 제한과 조건부 분기는 자동 설정되지 않습니다.</p>
       <p className="ws-hint">올해 세부영역과 원본 대조를 모두 확인하면 담을 수 있습니다. 기존 문항은 유지하고 선택한 {selected.length}개를 추가합니다.</p>
       <button type="button" className="ws-btn ws-btn--primary" disabled={!ready || Boolean(reading)} onClick={() => { if (busy.current || !ready) return; busy.current = true; onCommit(selected.map(item => ({ ...placementFromSubarea(item.subarea)!, audience: item.audience, indicator: item.indicator.trim() || "학교 자체 문항", question: item.question.trim(), responseType: item.responseType!, choices: item.responseType && needsChoices(item.responseType) ? item.choices?.map(c => c.trim()) : undefined }))); setSources([]); busy.current = false; }}>확인한 문항으로 올해 설문 시작하기</button>
     </>}

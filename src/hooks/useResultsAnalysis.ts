@@ -24,8 +24,8 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /** 파일 내려받기 GET 요청. 서버가 에러를 JSON으로 돌려주면 메시지를 그대로 던집니다. */
-async function downloadFile(url: string): Promise<void> {
-  const response = await fetch(url);
+async function downloadFile(url: string, options?: RequestInit): Promise<void> {
+  const response = await fetch(url, options);
   const contentType = response.headers.get("Content-Type") ?? "";
   if (contentType.includes("application/json")) {
     const payload = (await response.json()) as ApiEnvelope<unknown>;
@@ -285,11 +285,13 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     }
   }
 
-  async function downloadIndicatorXlsx() {
+  async function downloadIndicatorXlsx(template?: File) {
     if (!result) return;
     setError("");
     try {
-      await downloadFile(`/api/export/indicator-xlsx?resultId=${result.id}`);
+      const form = new FormData();
+      if (template) form.set("file", template);
+      await downloadFile(`/api/export/indicator-xlsx?resultId=${result.id}`, template ? { method: "POST", body: form } : undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : "평가지표 및 현황을 만들지 못했습니다.");
     }

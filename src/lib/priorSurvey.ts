@@ -19,6 +19,16 @@ type RawItem = {
   question?: string;
   responseType?: string;
   choices?: string[];
+  rows?: Array<{ label?: string; responseType?: string; choices?: string[]; textPrompt?: string }>;
+};
+
+const TABLE_INSTRUCTION = "학년군·증감 등 행마다 각각 응답하는 표는 하나의 items 항목 안에 rows로 추출하세요. rows의 label은 학년과 교육분야 등 행 제목 전체, responseType과 choices는 그 행의 선택 방식과 보기입니다. 대안·의견 직접 입력 칸은 textPrompt에 원문 칸 제목과 조건을 적으세요. 입력 칸이 없으면 생략하세요. 공유 보기는 각 행에 반복하세요. 선택 개수·조건은 question에 보존하세요. 표 행을 선택 보기 하나로 합치지 마세요. 단순 보기 배치용 표는 rows로 나누지 마세요.";
+
+const TABLE_ROW_PROPERTIES = {
+  label: { type: "STRING", description: "행 제목 전체(학년군, 교육분야 등)" },
+  responseType: { type: "STRING", description: "choice_single, checklist, text 등 해당 행의 응답 유형" },
+  choices: { type: "ARRAY", items: { type: "STRING" }, description: "이 행에 응답할 보기 전체" },
+  textPrompt: { type: "STRING", description: "별도 직접 입력 칸의 제목과 조건. 없는 경우 생략" }
 };
 
 const GEMINI_SCHEMA = {
@@ -34,7 +44,8 @@ const GEMINI_SCHEMA = {
           indicator: { type: "STRING", description: "평가지표 이름" },
           question: { type: "STRING", description: "문항 원문" },
           responseType: { type: "STRING", description: "likert_5, likert_3, yes_no, choice_single, checklist, text. 불명확하면 unknown" },
-          choices: { type: "ARRAY", items: { type: "STRING" }, description: "원문 보기 전체, 순서 유지" }
+          choices: { type: "ARRAY", items: { type: "STRING" }, description: "원문 보기 전체, 순서 유지" },
+          rows: { type: "ARRAY", items: { type: "OBJECT", properties: TABLE_ROW_PROPERTIES, required: ["label", "responseType"] }, description: TABLE_INSTRUCTION }
         },
         required: ["question"]
       }
@@ -56,7 +67,11 @@ const UPSTAGE_SCHEMA = {
           indicator: { type: "string", description: "평가지표" },
           question: { type: "string", description: "문항 원문" },
           responseType: { type: "string", description: "likert_5, likert_3, yes_no, choice_single, checklist, text. 불명확하면 unknown" },
-          choices: { type: "array", items: { type: "string" } }
+          choices: { type: "array", items: { type: "string" } },
+          rows: { type: "array", description: TABLE_INSTRUCTION, items: { type: "object", properties: {
+            label: { type: "string" }, responseType: { type: "string" },
+            choices: { type: "array", items: { type: "string" } }, textPrompt: { type: "string" }
+          }, required: ["label", "responseType"] } }
         }
       }
     }
@@ -87,6 +102,17 @@ function suggestedSubarea(raw?: string): string {
 export function normalizePriorSurveyItems(rawItems: RawItem[], audienceHint?: Audience): PriorSurveyItem[] {
   const items: PriorSurveyItem[] = [];
   for (const raw of rawItems) {
+    if (Array.isArray(raw.rows) && raw.rows.length) {
+      const expanded: RawItem[] = [];
+      for (const row of raw.rows) {
+        if (!row.label?.trim()) throw new Error("표의 행 제목을 읽지 못했습니다. 원본 PDF를 확인한 뒤 다시 시도하세요.");
+        const question = `${raw.question ?? ""} [${row.label.trim()}]`;
+        expanded.push({ ...raw, rows: undefined, question, responseType: row.responseType ?? raw.responseType, choices: row.choices ?? raw.choices });
+        if (row.textPrompt?.trim()) expanded.push({ ...raw, rows: undefined, question: `${question} — ${row.textPrompt.trim()}`, responseType: "text", choices: undefined });
+      }
+      items.push(...normalizePriorSurveyItems(expanded, audienceHint));
+      continue;
+    }
     const question = (raw.question ?? "").replace(/\s+/g, " ").trim();
     if (!question) {
       continue;
@@ -138,6 +164,7 @@ async function extractWithUpstage(base64: string): Promise<RawItem[]> {
         {
           role: "user",
           content: [
+            { type: "text", text: TABLE_INSTRUCTION },
             {
               type: "image_url",
               image_url: { url: `data:application/pdf;base64,${base64}` }
@@ -175,6 +202,7 @@ async function extractWithGemini(base64: string): Promise<RawItem[]> {
     [
       "이 파일은 전년도 학교평가 설문 문항지입니다.",
       "모든 문항을 빠짐없이 items로 추출하세요.",
+      TABLE_INSTRUCTION,
       `subarea는 올해 허용 목록에서 문항 내용에 맞는 값을 제안하세요. 확실하지 않으면 빈 문자열로 두세요: ${AREAS.flatMap(area => area.subareas).join(" / ")}`,
       "안내문은 빼고 문항 원문과 보기 전체를 순서대로 보존하세요. 복수 선택은 checklist, 자유 응답은 text입니다.",
       "likert_5는 매우 그렇다/그렇다/보통이다/그렇지 않다/전혀 그렇지 않다, likert_3는 그렇다/보통이다/그렇지 않다, yes_no는 예/아니오인 경우만 사용하세요. 다른 보기는 choice_single 또는 checklist로 보존하세요. 유형 불명확 시 unknown.",

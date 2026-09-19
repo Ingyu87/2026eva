@@ -26,6 +26,7 @@ import {
 export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: SelectedQuestion[] }) {
   const analysis = useResultsAnalysis(items);
   const [schoolContext, setSchoolContext] = useState("");
+  const [indicatorTemplate, setIndicatorTemplate] = useState<File>();
   const [draftAnalysis, setDraftAnalysis] = useState<AiAnalysis | null>(null);
   const [dirty, setDirty] = useState(false);
   const [reviewDirty, setReviewDirty] = useState(false);
@@ -211,6 +212,12 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
           <details className="ra-ai-options"><summary>한글·Word에서 이어 작성하는 방법</summary>
             <ol><li>작성용 DOCX를 내려받아 원본을 보관하세요.</li><li>한글·Word에서 열어 다른 이름으로 저장한 뒤 빈칸을 작성하세요.</li><li>학교명·학년도와 반복 머리글, 쪽 경계의 표, 마지막 문항까지 확인하세요.</li><li>문서에서 수정한 내용은 앱에 자동 반영되지 않습니다. 앱에서 다시 내려받으면 문서에서 수정한 부분이 포함되지 않으므로, 최종 파일은 학교에서 별도로 관리하세요.</li></ol>
           </details>
+          <details className="ra-ai-options">
+            <summary>교육청 양식 직접 선택 (XLSX)</summary>
+            <p className="ws-hint">공통 양식이 없거나 학교가 별도로 받은 양식이 있으면 2026 평가지표 및 현황 파일을 선택하세요. 이 파일에 집계 결과를 채워 내려받으며, 다른 학교의 양식은 바뀌지 않습니다. 전년도 양식과 평가문항 예시 자료는 사용할 수 없습니다.</p>
+            <label className="ws-field"><span>2026 평가지표 및 현황 양식 (600KB 이하)</span><input type="file" accept=".xlsx" disabled={analysis.busy} onChange={event => setIndicatorTemplate(event.target.files?.[0])} /></label>
+            <p className="ws-hint">{indicatorTemplate ? `선택한 양식: ${indicatorTemplate.name}. 아래 ‘평가지표 및 현황 (XLSX)’을 누르세요.` : "파일을 선택하지 않으면 관리자가 등록한 공통 양식을 사용합니다."}</p>
+          </details>
           <div className="ra-actions">
             <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || dirty || !canExport('report-docx', draft, analysis.result).allowed} onClick={() => void analysis.downloadReportDocx('draft')}>한글·Word에서 이어 쓸 작성용 (DOCX)</button>
             <button type="button" className="ws-btn ws-btn--soft" disabled={analysis.busy || dirty} onClick={() => void analysis.downloadResultHtml()}>
@@ -223,7 +230,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
               title={canExport("indicator-xlsx", draft, analysis.result).reason ??
                 (dataIssues.length > 0 ? dataIssues.join('\n') :
                   analysis.busy ? "진행 중인 작업이 끝난 뒤 내려받으세요." : dirty ? "평가 의견을 먼저 저장하세요." : undefined)}
-              onClick={() => void analysis.downloadIndicatorXlsx()}
+              onClick={() => void analysis.downloadIndicatorXlsx(indicatorTemplate)}
             >
               평가지표 및 현황 (XLSX)
             </button>

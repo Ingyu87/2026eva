@@ -14,7 +14,12 @@ function indicatorXlsxFileName(schoolName: string): string {
  * 평가지표 및 현황 XLSX 내려받기 (spec.md 7.1, 8-1).
  * 학년말 모드 + 집계 완료가 조건입니다(exportGate.ts, 가이드북 Q12).
  */
-export async function GET(request: Request) {
+export async function GET(request: Request) { return exportXlsx(request); }
+
+/** 학교가 받은 양식을 이번 출력에만 사용합니다. 공통 양식을 덮어쓰지 않습니다. */
+export async function POST(request: Request) { return exportXlsx(request); }
+
+async function exportXlsx(request: Request) {
   const session = await requireSchoolSession();
   if ("status" in session) {
     return session;
@@ -36,18 +41,26 @@ export async function GET(request: Request) {
     return jsonError("집계 결과를 찾을 수 없습니다.", 404);
   }
 
-  const template = await getIndicatorTemplate();
   const resultGate = canExport("indicator-xlsx", draft, result);
   if (!resultGate.allowed) return jsonError(resultGate.reason!, 403);
   const issues = resultDataIssues(result);
   if (issues.length) return jsonError(`제출 전 확인: ${issues.join(' ')}`);
-  if (!template) {
-    return jsonError("관리자가 아직 평가지표 및 현황 템플릿을 등록하지 않았습니다.", 404);
-  }
 
   try {
+  let templateBuffer: Buffer;
+  if (request.method === "POST") {
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".xlsx") || file.size === 0 || file.size > 600_000) {
+      return jsonError("교육청에서 받은 600KB 이하의 2026 평가지표 및 현황 XLSX 양식을 선택하세요.");
+    }
+    templateBuffer = Buffer.from(await file.arrayBuffer());
+  } else {
+    const template = await getIndicatorTemplate();
+    if (!template) return jsonError("공통 양식이 아직 등록되지 않았습니다. ‘교육청 양식 직접 선택’에서 학교가 받은 2026 평가지표 및 현황 XLSX 파일을 선택한 뒤 다시 내려받으세요.", 404);
+    templateBuffer = Buffer.from(template.base64, "base64");
+  }
   const workbook = new ExcelJS.Workbook();
-  const templateBuffer = Buffer.from(template.base64, "base64");
   await workbook.xlsx.load(templateBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
 
   const map = scanIndicatorTemplate(workbook);
