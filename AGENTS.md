@@ -16,7 +16,7 @@ npm run verify      # typecheck + 문항 풀 + 디자인 규칙
 npm run dev         # http://localhost:3000
 ```
 
-**현재 5단계(구글폼 확장) 코드 구현 완료, 실제 Google 계정 확인 대기. 그다음은 6단계(계산 엔진).**
+**현재 5단계(구글폼 확장) 완료(실사용 확인 대기), 6단계(계산 엔진) API 완료. S4 화면 UI가 다음.**
 진행 상황은 [docs/implementation.md](docs/implementation.md)의 표에서 확인하세요.
 
 ---
