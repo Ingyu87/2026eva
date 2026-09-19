@@ -204,6 +204,7 @@ export function QuestionFinder({
         <span className="ws-search-count">{results.length}</span>
       </div>
 
+      <p className="ws-hint ws-bank-source">2026 교육청 예시 · {AUDIENCE_SHORT_LABELS[activeAudience]}용 {bank.length}문항</p>
       <div className="ws-col-body" ref={listRef} aria-live="polite">
         {results.length === 0 ? (
           <div className="ws-empty">
@@ -243,7 +244,7 @@ export function QuestionFinder({
                   대상마다 문서를 따로 만들므로 순서와 문장을 각각 다듬을 수 있습니다.
                 */}
                 <div className="ws-aud-chips" role="group" aria-label="평가 주체">
-                  {AUDIENCES.map((audience) => (
+                  {[activeAudience].map((audience) => (
                     <button
                       key={audience}
                       type="button"
@@ -259,7 +260,7 @@ export function QuestionFinder({
                       aria-pressed={takenBy.has(audience)}
                       onClick={() => onToggle(question, audience)}
                     >
-                      {AUDIENCE_SHORT_LABELS[audience]}
+                      {takenBy.has(audience) ? "✓ 담김 · 빼기" : `${AUDIENCE_SHORT_LABELS[audience]} 문항 담기`}
                     </button>
                   ))}
                 </div>

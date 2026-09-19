@@ -252,7 +252,7 @@ export function SelectedPanel({
                 {roman}
               </span>
             ))}
-            <span className="ws-coverage-label">영역 커버리지</span>
+            <span className="ws-coverage-label">영역별 문항 확인</span>
           </div>
           {showWarning ? (
             <p className="ws-coverage-warn">

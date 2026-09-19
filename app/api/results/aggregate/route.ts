@@ -34,11 +34,19 @@ export async function POST(request: Request) {
     return jsonError("업로드한 결과 파일 일부를 찾을 수 없습니다.", 404);
   }
 
-  const { items } = await getDraftBundle(context.schoolId, context.schoolName);
+  if (new Set(body.uploadIds).size !== body.uploadIds.length || new Set(uploads.map(u => u!.audience)).size !== uploads.length) {
+    return jsonError("대상별 결과 파일은 하나씩만 집계할 수 있습니다.");
+  }
+  const { draft, items } = await getDraftBundle(context.schoolId, context.schoolName);
+  if (uploads.some(u => u!.mode !== draft.mode)) return jsonError('현재 평가 시기와 다른 응답 파일입니다. 해당 시기의 결과 파일을 다시 올려 주세요.');
   const aggregate = aggregateResultUploads(uploads as NonNullable<(typeof uploads)[number]>[], items);
 
   const result = await saveSurveyResult(context.draftId, {
     uploadedAt: new Date().toISOString(),
+    mode: draft.mode,
+    uploadIds: body.uploadIds,
+    itemsSnapshot: items,
+    uploadMappings: Object.fromEntries(uploads.map(u => [u!.id, u!.mapping])),
     ...aggregate
   });
 

@@ -4,60 +4,18 @@
  *   node scripts/verify-scoring.mjs
  *
  * `src/lib/scoring.ts`는 앱에서 그대로 쓰는 TypeScript 모듈이라 이 스크립트는
- * 테스트 러너 없이 같은 공식을 순수 JS로 다시 적어 고정합니다(verify-question-bank.mjs와 같은 방식).
- * 공식을 바꾸면 두 파일을 같이 고치세요.
+ * TypeScript를 변환하여 실제 구현을 실행합니다.
+ * 기대값은 가이드북 예시와 경계값으로 독립 검증합니다.
  *
  * 가이드북 p.51: "점수 계산은 AI가 아니라 프로그램이 합니다." 여기서 흔히 틀리는 지점은
  * (1) 라벨이 아니라 인덱스로 점수를 매기는 것, (2) 영역 평균을 문항 평균들의 단순평균으로 구하는 것,
  * (3) 4단계 판정을 반올림한 값으로 매겨 경계에서 한 단계 높게 나오는 것입니다.
  */
 
-const LIKERT_5_OPTIONS = ["매우 그렇다", "그렇다", "보통이다", "그렇지 않다", "전혀 그렇지 않다"];
-const LABEL_TO_SCORE = Object.fromEntries(
-  LIKERT_5_OPTIONS.map((label, index) => [label, LIKERT_5_OPTIONS.length - index])
-);
-
-function scoreForLabel(label) {
-  const score = LABEL_TO_SCORE[label.trim()];
-  return typeof score === "number" ? score : null;
-}
-
-function buildDistribution(labels) {
-  const distribution = [0, 0, 0, 0, 0];
-  for (const raw of labels) {
-    const score = scoreForLabel(raw);
-    if (score === null) continue;
-    distribution[5 - score] += 1;
-  }
-  return distribution;
-}
-
-function distributionCount(distribution) {
-  return distribution.reduce((sum, n) => sum + n, 0);
-}
-
-function weightedMean(distribution) {
-  const total = distributionCount(distribution);
-  if (total === 0) return 0;
-  const sum = distribution[0] * 5 + distribution[1] * 4 + distribution[2] * 3 + distribution[3] * 2 + distribution[4] * 1;
-  return sum / total;
-}
-
-function roundToOneDecimal(mean) {
-  return Math.round(mean * 10) / 10;
-}
-
-const GRADE_BANDS = [
-  { min: 4.0, label: "매우 우수" },
-  { min: 3.0, label: "우수" },
-  { min: 2.0, label: "보통" },
-  { min: 0, label: "미흡" }
-];
-
-function gradeForMean(mean) {
-  const stable = Math.round(mean * 1e6) / 1e6;
-  return (GRADE_BANDS.find((band) => stable >= band.min) ?? GRADE_BANDS[3]).label;
-}
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+require('./load-ts.cjs');
+const { scoreForLabel, buildDistribution, distributionCount, weightedMean, roundToOneDecimal, gradeForMean } = require('../src/lib/scoring.ts');
 
 let pass = 0;
 let fail = 0;
@@ -89,6 +47,7 @@ console.log("\n== 2. 가이드북 51쪽 예시 ==");
 
 console.log("\n== 3. 4단계 경계값 (반올림 전 원값으로 판정) ==");
 check("3.999 → 우수", gradeForMean(3.999), "우수");
+check("3.9999999 → 우수", gradeForMean(3.9999999), "우수");
 check("4.0 → 매우 우수", gradeForMean(4.0), "매우 우수");
 check("2.999 → 보통", gradeForMean(2.999), "보통");
 check("3.0 → 우수", gradeForMean(3.0), "우수");

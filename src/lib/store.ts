@@ -291,15 +291,17 @@ export async function setSchoolStatus(id: string, status: School["status"]): Pro
 export async function deleteSchool(id: string): Promise<void> {
   const db = getFirebaseDb();
   if (db) {
-    const batch = db.batch();
-    batch.delete(db.collection(SCHOOLS).doc(id));
+    await db.collection(SCHOOLS).doc(id).update({ status: 'inactive' });
     const drafts = await db.collection(DRAFTS).where("schoolId", "==", id).get();
-    drafts.docs.forEach((doc) => batch.delete(doc.ref));
-    await batch.commit();
+    for (const doc of drafts.docs) await db.recursiveDelete(doc.ref);
+    const invites = await db.collection(INVITES).where('schoolId', '==', id).get();
+    for (const doc of invites.docs) await doc.ref.delete();
+    await db.collection(SCHOOLS).doc(id).delete();
     return;
   }
 
   memoryState.schools.delete(id);
+  for (const [token, invite] of memoryInvites) if (invite.schoolId === id) memoryInvites.delete(token);
   for (const [draftId, state] of memoryDrafts.entries()) {
     if (state.draft.schoolId === id) {
       memoryDrafts.delete(draftId);
@@ -318,6 +320,16 @@ const ITEMS = "items";
 const PRESENCE = "presence";
 const RESULTS = "results";
 const RESULT_UPLOADS = "resultUploads";
+const RESULT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const resultExpired = (value: { createdAt: string }) => Date.now() - Date.parse(value.createdAt) >= RESULT_RETENTION_MS;
+function readUpload(value: unknown): ResultUpload {
+  const data = plain(value) as ResultUpload & { rowsJson?: string };
+  return { ...data, rows: data.rowsJson ? JSON.parse(data.rowsJson) : data.rows };
+}
+function uploadDocument(upload: ResultUpload) {
+  const { rows, ...meta } = upload;
+  return plain({ ...meta, rowsJson: JSON.stringify(rows) });
+}
 const ADMIN_SETTINGS = "adminSettings";
 const INDICATOR_TEMPLATE_DOC = "indicatorTemplate";
 
@@ -1007,7 +1019,7 @@ export async function saveResultUpload(
     if (!draftDoc.exists) {
       throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
     }
-    await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(upload.id).set(upload);
+    await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(upload.id).set(uploadDocument(upload));
     return upload;
   }
 
@@ -1019,20 +1031,29 @@ export async function getResultUpload(draftId: string, uploadId: string): Promis
   const db = getFirebaseDb();
   if (db) {
     const doc = await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(uploadId).get();
-    return doc.exists ? (plain(doc.data()) as ResultUpload) : null;
+    if (!doc.exists) return null;
+    const upload = readUpload(doc.data());
+    if (resultExpired(upload)) { await doc.ref.delete(); return null; }
+    return upload;
   }
-  return memoryStateFor(draftId).resultUploads.get(uploadId) ?? null;
+  const upload = memoryStateFor(draftId).resultUploads.get(uploadId);
+  if (upload && resultExpired(upload)) { memoryStateFor(draftId).resultUploads.delete(uploadId); return null; }
+  return upload ?? null;
 }
 
 export async function listResultUploads(draftId: string): Promise<ResultUpload[]> {
   const db = getFirebaseDb();
   const uploads = db
     ? (await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).get()).docs.map(
-        (doc) => plain(doc.data()) as ResultUpload
+        (doc) => readUpload(doc.data())
       )
     : Array.from(memoryStateFor(draftId).resultUploads.values());
 
-  return uploads.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  for (const u of uploads.filter(resultExpired)) {
+    if (db) await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(u.id).delete();
+    else memoryStateFor(draftId).resultUploads.delete(u.id);
+  }
+  return uploads.filter(u => !resultExpired(u)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 /** S4 수동 연결 화면에서 사람이 고친 연결표로 덮어씁니다(spec.md `/api/results/map`). */
@@ -1050,8 +1071,8 @@ export async function updateResultUploadMapping(
     if (!doc.exists) {
       throw new NotFoundError("업로드한 결과 파일을 찾을 수 없습니다.");
     }
-    const updated = { ...(plain(doc.data()) as ResultUpload), mapping, updatedAt: now };
-    await ref.set(updated);
+    const updated = { ...readUpload(doc.data()), mapping, updatedAt: now };
+    await ref.set(uploadDocument(updated));
     return updated;
   }
 
@@ -1085,7 +1106,7 @@ export async function saveSurveyResult(
     if (!draftDoc.exists) {
       throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
     }
-    await ref.set(result);
+    await ref.set(plain(result));
     return result;
   }
 
@@ -1097,44 +1118,46 @@ export async function getSurveyResult(draftId: string, resultId: string): Promis
   const db = getFirebaseDb();
   if (db) {
     const doc = await db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(resultId).get();
-    return doc.exists ? (plain(doc.data()) as SurveyResult) : null;
+    if (!doc.exists) return null;
+    const result = plain(doc.data()) as SurveyResult;
+    if (resultExpired(result)) { await doc.ref.delete(); return null; }
+    return result;
   }
-  return memoryStateFor(draftId).results.get(resultId) ?? null;
+  const result = memoryStateFor(draftId).results.get(resultId);
+  if (result && resultExpired(result)) { memoryStateFor(draftId).results.delete(resultId); return null; }
+  return result ?? null;
 }
 
 /** 7단계 Gemini 해석 결과를 기존 집계 결과에 붙입니다(spec.md `/api/results/analyze`·`/analysis`). */
 export async function updateSurveyResultAnalysis(
   draftId: string,
   resultId: string,
-  aiAnalysis: SurveyResult["aiAnalysis"]
+  aiAnalysis: SurveyResult["aiAnalysis"],
+  expectedUpdatedAt: string
 ): Promise<SurveyResult> {
   const db = getFirebaseDb();
-  const now = nowIso();
-
+  const update = (existing: SurveyResult): SurveyResult => {
+    if (resultExpired(existing)) throw new NotFoundError("보관 기간이 지난 결과입니다.");
+    if (existing.updatedAt !== expectedUpdatedAt) throw new ConflictError(existing);
+    const now = new Date(Math.max(Date.now(), Date.parse(existing.updatedAt) + 1)).toISOString();
+    return { ...existing, aiAnalysis, updatedAt: now };
+  };
   if (db) {
     const ref = db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(resultId);
-    const doc = await ref.get();
-    if (!doc.exists) {
-      throw new NotFoundError("집계 결과를 찾을 수 없습니다.");
-    }
-    const updated: SurveyResult = {
-      ...(plain(doc.data()) as SurveyResult),
-      aiAnalysis,
-      aiGeneratedAt: now,
-      updatedAt: now
-    };
-    await ref.set(updated);
-    return updated;
+    return db.runTransaction(async tx => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new NotFoundError("집계 결과를 찾을 수 없습니다.");
+      const next = update(plain(doc.data()) as SurveyResult);
+      tx.set(ref, plain(next));
+      return next;
+    });
   }
-
   const state = memoryStateFor(draftId);
   const existing = state.results.get(resultId);
-  if (!existing) {
-    throw new NotFoundError("집계 결과를 찾을 수 없습니다.");
-  }
-  const updated: SurveyResult = { ...existing, aiAnalysis, aiGeneratedAt: now, updatedAt: now };
-  state.results.set(resultId, updated);
-  return updated;
+  if (!existing) throw new NotFoundError("집계 결과를 찾을 수 없습니다.");
+  const next = update(existing);
+  state.results.set(resultId, next);
+  return next;
 }
 
 /** 최근 업로드 순으로 돌려줍니다. 결과 화면은 가장 최근 것을 기본으로 보여줍니다. */
@@ -1146,7 +1169,25 @@ export async function listSurveyResults(draftId: string): Promise<SurveyResult[]
       )
     : Array.from(memoryStateFor(draftId).results.values());
 
-  return results.slice().sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
+  for (const r of results.filter(resultExpired)) {
+    if (db) await db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(r.id).delete();
+    else memoryStateFor(draftId).results.delete(r.id);
+  }
+  return results.filter(r => !resultExpired(r)).sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
+}
+
+/** 담당자가 보고서 보관 후 실행합니다. 선택 문항과 설문 설정은 유지합니다. */
+export async function deleteResultData(draftId: string): Promise<void> {
+  const db = getFirebaseDb();
+  if (db) {
+    for (const collection of [RESULT_UPLOADS, RESULTS]) {
+      const docs = await db.collection(DRAFTS).doc(draftId).collection(collection).get();
+      for (const doc of docs.docs) await doc.ref.delete();
+    }
+  } else {
+    memoryStateFor(draftId).resultUploads.clear();
+    memoryStateFor(draftId).results.clear();
+  }
 }
 
 /** 관리자가 올린 평가지표 및 현황 템플릿을 저장합니다(8-1). 새로 올리면 이전 것을 덮어씁니다. */

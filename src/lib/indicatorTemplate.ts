@@ -10,6 +10,7 @@
  */
 
 import type ExcelJS from "exceljs";
+import { AREAS, areaOfSubarea } from "./evaluationFramework";
 import { AUDIENCES, AUDIENCE_SHORT_LABELS, type Audience, type AreaStat, type Grade4, type SelectedQuestion } from "./types";
 
 export type TemplateRow = {
@@ -169,6 +170,16 @@ export function scanIndicatorTemplate(workbook: ExcelJS.Workbook): TemplateMap {
     });
   }
 
+  if (!rows.length) throw new Error("입력 가능한 지표 행이 없습니다.");
+  for (const row of rows) {
+    const expected = areaOfSubarea(row.subarea);
+    if (!expected || expected.name.replace(/\s/g, "") !== row.area.replace(/\s/g, "")) {
+      throw new Error(`${row.row}행의 영역·세부영역이 2026 평가체제와 다릅니다. 교육청의 2026 양식을 등록하세요: ${row.subarea}`);
+    }
+    row.area = expected.name;
+  }
+  const missing = AREAS.flatMap(area => area.subareas).filter(subarea => !rows.some(row => row.subarea === subarea));
+  if (missing.length) throw new Error(`양식에 2026 세부영역이 빠져 있습니다: ${missing.join(", ")}`);
   return { sheetName: sheet.name, headerRow, areaCol, subareaCol, indicatorCol, countCols, resultCols, schoolNameCell, rows };
 }
 
@@ -215,6 +226,9 @@ export function fillIndicatorTemplate(
     if (item.deleted) continue;
     const known = knownIndicatorsBySubarea.get(item.subarea);
     const isKnown = known?.has(item.indicator) ?? false;
+    if (!isKnown && !map.rows.some(row => row.subarea === item.subarea && isEtcIndicator(row.indicator))) {
+      throw new Error(`${item.subarea}의 '${item.indicator}'를 넣을 지표 행 또는 기타 행이 없습니다. 관리자에게 양식 확인을 요청하세요.`);
+    }
     bump(item.subarea, isKnown ? item.indicator : "__etc__", item.audience);
   }
 

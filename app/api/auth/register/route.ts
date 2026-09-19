@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     if (!schoolName || !password) {
       return jsonError("학교 이름과 비밀번호를 입력해 주세요.");
     }
-    if (password.length < 2) {
-      return jsonError("비밀번호는 2자 이상 입력해 주세요.");
+    if (password.length < 8) {
+      return jsonError("비밀번호는 8자 이상 입력해 주세요.");
     }
 
     const passwordHash = await hashPassword(password);

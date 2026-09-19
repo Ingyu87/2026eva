@@ -29,3 +29,5 @@ templates/*.xlsm
 
 # 임시 파일
 Untitled
+tmp/
+.verify-*

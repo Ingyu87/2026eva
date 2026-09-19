@@ -10,7 +10,7 @@ import {
   type BuilderSession,
   type SchoolSession
 } from "./session";
-import { getBuilderInvite } from "./store";
+import { getBuilderInvite, getSchoolById } from "./store";
 import type { Audience } from "./types";
 import type { ApiResult } from "./types";
 
@@ -24,7 +24,10 @@ export function jsonError(error: string, status = 400): NextResponse<ApiResult<n
 
 export async function getSchoolSession(): Promise<SchoolSession | null> {
   const cookieStore = await cookies();
-  return decodeSignedToken<SchoolSession>(cookieStore.get(SCHOOL_SESSION_COOKIE)?.value);
+  const session = decodeSignedToken<SchoolSession>(cookieStore.get(SCHOOL_SESSION_COOKIE)?.value);
+  if (!session || session.role !== 'school') return null;
+  const school = await getSchoolById(session.schoolId);
+  return school?.status === 'active' ? session : null;
 }
 
 export async function requireSchoolSession(): Promise<SchoolSession | NextResponse<ApiResult<never>>> {
@@ -60,7 +63,8 @@ export async function getDraftAccess(): Promise<DraftAccess | null> {
   if (builder?.role === "builder") {
     // 연구부장이 링크를 끊으면 이미 들어온 사람도 바로 막습니다.
     const invite = await getBuilderInvite(builder.token);
-    if (!invite || invite.revoked) {
+    const school = invite ? await getSchoolById(invite.schoolId) : null;
+    if (!invite || invite.revoked || school?.status !== 'active') {
       return null;
     }
     return {

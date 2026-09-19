@@ -27,6 +27,9 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return jsonError("템플릿 파일을 첨부하세요.");
   }
+  if (!file.name.toLowerCase().endsWith(".xlsx") || file.size > 600_000) {
+    return jsonError("600KB 이하의 XLSX 양식을 첨부하세요.");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const workbook = new ExcelJS.Workbook();

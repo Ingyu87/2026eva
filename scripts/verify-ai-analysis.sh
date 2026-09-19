@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # AI 해석(7단계) 검증 — docs/implementation.md 7단계
 #
+# 합성 자료의 학교명·문항·집계 수치를 외부 Gemini에 보내는 선택 검사입니다.
 # 사용법:
 #   npm run build && npx next start -p 3100 &
 #   bash scripts/verify-ai-analysis.sh
@@ -73,7 +74,7 @@ cat > "$PARENT_CSV" <<'CSV'
 CSV
 
 echo "== 준비: 학교 등록, 교원/학부모 문항(같은 지표) + 학부모 서술형 문항 등록 =="
-j POST /api/auth/register "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw12345\"}" > /dev/null
+j POST /api/auth/register "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw123456\"}" > /dev/null
 cp "$ITEMS" "$BODY"
 ADD=$(jf POST /api/draft/items)
 echo "$ADD" | grep -q '"ok":true' && ok "문항 3개 등록" || ng "문항 등록 실패: $ADD"
@@ -99,7 +100,7 @@ PARENT_MEAN=$(echo "$AGG" | get "result.areaStats.find(s=>s.audience==='parent')
 
 echo
 echo "== 3. Gemini 해석 실행 (실제 API 호출, 수십 초 걸릴 수 있음) =="
-printf '{"resultId":"%s","uploadIds":["%s","%s"],"schoolContext":"소통과 신뢰를 바탕으로 한 학교자치 문화 조성을 교육목표로 삼고 있습니다."}' "$RID" "$TID" "$PID" > "$BODY"
+printf '{"resultId":"%s","uploadIds":["%s","%s"],"transmissionConfirmed":true,"schoolContext":"소통과 신뢰를 바탕으로 한 학교자치 문화 조성을 교육목표로 삼고 있습니다."}' "$RID" "$TID" "$PID" > "$BODY"
 ANALYZE=$(curl -s -m 90 -X POST "$BASE/api/results/analyze" -b "$JAR" -c "$JAR" -H "Content-Type: application/json" --data-binary "@$BODY")
 echo "$ANALYZE" | grep -q '"ok":true' && ok "AI 해석 API 호출 성공" || { ng "AI 해석 실패: $ANALYZE"; }
 

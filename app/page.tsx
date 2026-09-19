@@ -30,5 +30,6 @@ export async function generateMetadata({
 }
 
 export default function Page() {
-  return <SchoolEvaluationApp />;
+  const temporaryStorage = !process.env.FIREBASE_SERVICE_ACCOUNT_JSON && !process.env.FIREBASE_PROJECT_ID;
+  return <SchoolEvaluationApp temporaryStorage={temporaryStorage} />;
 }

@@ -88,14 +88,12 @@ console.log("\n== 4. 영역과 세부영역이 서로 맞는가 ==");
     : ng(`영역과 세부영역이 어긋난 문항 ${bad.length}건`, bad.slice(0, 5).map((i) => `${i.id} ${i.area} / ${i.subarea}`));
 }
 
-console.log("\n== 5. 평가주체 구분이 들어 있지 않은가 ==");
-{
-  // 2026 예시자료에는 주체 구분이 없습니다. 주체는 학교가 담을 때 지정합니다.
-  const bad = items.filter((i) => "audience" in i);
-  bad.length === 0
-    ? ok("문항 풀에 audience 필드 없음 (주체는 담을 때 지정)")
-    : ng(`audience 필드가 남아 있는 문항 ${bad.length}건`);
+console.log("\n== 5. 대상별 원본 문항이 모두 반영되었는가 ==");
+for (const [audience, expected] of Object.entries({teacher:272, student:217, parent:246, staff:228})) {
+  const count = items.filter(i => i.audience === audience).length;
+  count === expected ? ok(`${audience} ${count}개`) : ng(`${audience}: ${count}/${expected}`);
 }
+items.every(i => i.sourceSheet && i.sourceRow >= 3) ? ok("원본 시트·행 출처 보존") : ng("출처 누락");
 
 console.log("\n== 6. 필수 항목이 비어 있지 않은가 ==");
 {

@@ -1,5 +1,7 @@
 "use client";
 
+import { IndicatorTemplateAdmin } from "./IndicatorTemplateAdmin";
+
 import { useEffect, useState } from "react";
 import { Workspace } from "@/components/workspace/Workspace";
 import type { ApiResult, Audience, PublicSchool, WorkspaceRole } from "@/lib/types";
@@ -64,7 +66,7 @@ function readBuilderHint(): boolean {
   }
 }
 
-export function SchoolEvaluationApp() {
+export function SchoolEvaluationApp({ temporaryStorage = false }: { temporaryStorage?: boolean }) {
   const [mode, setMode] = useState<Mode>("user");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [school, setSchool] = useState<PublicSchool | null>(null);
@@ -230,6 +232,7 @@ export function SchoolEvaluationApp() {
   if (mode === "user" && school) {
     return (
       <Workspace
+        temporaryStorage={temporaryStorage}
         school={school}
         role={workspaceRole}
         builderLabel={builderLabel}
@@ -263,6 +266,7 @@ export function SchoolEvaluationApp() {
       </header>
 
       <main className="gate-main">
+        {temporaryStorage ? <div className="gate-msg">체험 환경입니다. 서버를 다시 시작하면 자료가 사라질 수 있습니다. 실제 학교 자료는 운영 환경에서 입력하세요.</div> : null}
         {status ? <div className="gate-msg gate-msg--ok">{status}</div> : null}
         {error ? <div className="gate-msg gate-msg--error">{error}</div> : null}
 
@@ -321,7 +325,7 @@ export function SchoolEvaluationApp() {
           <section className="gate-card">
             <h1>{authMode === "login" ? "학교 로그인" : "학교 등록"}</h1>
             <p className="gate-lead">
-              문항을 골라 설문을 만들고 DOCX와 Google Forms로 내보냅니다.
+              대상별 문항 선택부터 설문 결과 집계, 학교평가서 작성까지 이어서 작업합니다.
             </p>
 
             <label className="ws-field">
@@ -406,6 +410,7 @@ export function SchoolEvaluationApp() {
               </button>
             </div>
 
+            <IndicatorTemplateAdmin />
             <table className="gate-table">
               <thead>
                 <tr>

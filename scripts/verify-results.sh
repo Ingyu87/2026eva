@@ -35,7 +35,7 @@ BODY="./.verify-results-body.json"
 jf(){ curl -s -X "$1" "$BASE$2" -b "$JAR" -c "$JAR" -H "Content-Type: application/json" --data-binary "@$BODY"; }
 
 echo "== 준비: 학교 로그인, 학생용 5점 척도 문항 1개 등록 =="
-j POST /api/auth/register "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw12345\"}" > /dev/null
+j POST /api/auth/register "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw123456\"}" > /dev/null
 ITEM_ID="verify-item-1"
 printf '{"items":[{"id":"%s","sourceQuestionId":"src","groupId":"g1","audience":"student","sourceRow":1,"area":"Ⅰ. 협력적 학교자치문화","subarea":"Ⅰ-1. 소통과 협력의 학교자치","indicator":"지표1","originalQuestion":"질문1","editedQuestion":"질문1","responseType":"likert_5","order":1}]}' "$ITEM_ID" > "$BODY"
 ADD=$(jf POST /api/draft/items)

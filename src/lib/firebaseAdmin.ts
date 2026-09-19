@@ -42,6 +42,9 @@ function getServiceAccount():
 export function getFirebaseAdminApp(): App | null {
   const serviceAccount = getServiceAccount();
   if (!serviceAccount) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("학교 자료를 저장할 데이터베이스가 설정되지 않았습니다. 운영자가 Firebase 설정을 완료해야 합니다.");
+    }
     return null;
   }
 
@@ -70,12 +73,9 @@ export function getFirebaseDb(): Firestore | null {
   }
   try {
     cachedDb = initializeFirestore(app, { preferRest: true });
+    cachedDb.settings({ ignoreUndefinedProperties: true });
   } catch {
-    try {
-      cachedDb = getFirestore(app);
-    } catch {
-      cachedDb = null;
-    }
+    cachedDb = getFirestore(app);
   }
   return cachedDb;
 }

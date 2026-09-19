@@ -3,6 +3,7 @@ import { jsonError, requireSchoolSession } from "@/lib/api";
 import { canExport } from "@/lib/exportGate";
 import { fillIndicatorTemplate, scanIndicatorTemplate } from "@/lib/indicatorTemplate";
 import { getDraftBundle, getIndicatorTemplate, getSurveyResult } from "@/lib/store";
+import { resultDataIssues } from "@/lib/reportReadiness";
 
 function indicatorXlsxFileName(schoolName: string): string {
   const safe = schoolName.replace(/[<>:"/\\|?*\s]+/g, "_");
@@ -36,10 +37,15 @@ export async function GET(request: Request) {
   }
 
   const template = await getIndicatorTemplate();
+  const resultGate = canExport("indicator-xlsx", draft, result);
+  if (!resultGate.allowed) return jsonError(resultGate.reason!, 403);
+  const issues = resultDataIssues(result);
+  if (issues.length) return jsonError(`제출 전 확인: ${issues.join(' ')}`);
   if (!template) {
     return jsonError("관리자가 아직 평가지표 및 현황 템플릿을 등록하지 않았습니다.", 404);
   }
 
+  try {
   const workbook = new ExcelJS.Workbook();
   const templateBuffer = Buffer.from(template.base64, "base64");
   await workbook.xlsx.load(templateBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
@@ -49,7 +55,7 @@ export async function GET(request: Request) {
   // (spec.md 9장: 자동 연결 실패 시 사람이 확인, 조용히 숫자를 지어내지 않음).
   fillIndicatorTemplate(workbook, map, {
     schoolName: draft.schoolName,
-    items,
+    items: result.itemsSnapshot ?? items,
     areaStats: result.areaStats
   });
 
@@ -62,4 +68,7 @@ export async function GET(request: Request) {
       "Content-Disposition": `attachment; filename*=UTF-8''${fileName}`
     }
   });
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : "양식을 확인하지 못했습니다. 관리자에게 문의하세요.", 400);
+  }
 }

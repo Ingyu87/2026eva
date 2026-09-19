@@ -89,11 +89,11 @@ export function defaultChoices(type: ResponseType): string[] | undefined {
 /**
  * 교육청 예시자료에서 읽어온 읽기 전용 문항.
  *
- * 2026 예시자료에는 **평가주체 구분이 없습니다**(영역·세부영역·평가지표·예시문항 4열).
- * 2025처럼 대상별 시트로 나뉘어 있지 않으므로 풀은 하나이고,
- * 주체는 학교가 담을 때 지정합니다.
+ * 원본 XLSX의 대상별 시트와 행 번호를 보존합니다.
  */
 export type QuestionBankItem = {
+  audience: Audience;
+  sourceSheet?: string;
   id: string;
   year: number;
   schoolLevel: "elementary" | "middle" | "high" | "special";
@@ -349,6 +349,7 @@ export type ResultColumnMapping = {
  * `POST /api/results/aggregate`에서 한 번에 계산합니다(spec.md 6.2).
  */
 export type ResultUpload = {
+  mode?: SurveyMode;
   id: string;
   audience: Audience;
   filename: string;
@@ -403,6 +404,10 @@ export type AiAnalysis = {
 
 /** `surveyDrafts/{draftId}/results/{resultId}` — 결과 파일 업로드 1회의 집계 결과. */
 export type SurveyResult = {
+  uploadMappings?: Record<string, ResultColumnMapping[]>;
+  mode?: SurveyMode;
+  uploadIds?: string[];
+  itemsSnapshot?: SelectedQuestion[];
   id: string;
   uploadedAt: string;
   responsesByAudience: Partial<Record<Audience, number>>;

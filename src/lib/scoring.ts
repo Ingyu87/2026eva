@@ -94,8 +94,7 @@ export function roundToOneDecimal(mean: number): number {
  * 부동소수점 나눗셈 오차만 6자리에서 정리하고, 그 외에는 반올림하지 않습니다.
  */
 export function gradeForMean(mean: number): GradeLabel {
-  const stable = Math.round(mean * 1e6) / 1e6;
-  return toGrade(stable);
+  return toGrade(mean);
 }
 
 export function computeQuestionStat(
@@ -138,7 +137,7 @@ export function computeAreaStats(items: AreaMeanItem[], questionStats: QuestionS
       continue;
     }
     const stat = statByQuestionId.get(item.questionId);
-    if (!stat || stat.audience !== item.audience) {
+    if (!stat || stat.audience !== item.audience || stat.responseCount === 0) {
       continue;
     }
     const key = `${item.area}__${item.audience}`;

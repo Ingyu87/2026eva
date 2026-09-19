@@ -120,7 +120,7 @@ export function missingRequiredAreas(
 }
 
 /**
- * 문항이 하나라도 있는 대상만 검사합니다. 폼을 안 만드는 빈 대상은 빼 둡니다.
+ * 학생·학부모·교원은 문항이 없는 대상도 빠짐없이 검사합니다.
  */
 export function coverageGaps(
   items: Array<{ audience: Audience; area: string; deleted?: boolean }>
@@ -128,9 +128,6 @@ export function coverageGaps(
   const live = items.filter((item) => !item.deleted);
   return AUDIENCES.flatMap((audience) => {
     const subset = live.filter((item) => item.audience === audience);
-    if (subset.length === 0) {
-      return [];
-    }
     const missing = missingRequiredAreas(subset, audience);
     return missing.length > 0 ? [{ audience, missing }] : [];
   });

@@ -29,7 +29,7 @@ export function BuilderIntro({
         </p>
         <p className="conflict-meta">1. 왼쪽에서 영역·지표를 고르고, 문항 카드의 대상 칩을 눌러 담습니다.</p>
         <p className="conflict-meta">2. 오른쪽 목록에서 문장을 고칠 수 있습니다. 저장은 자동입니다.</p>
-        <p className="conflict-meta">3. 다 했으면 연구부장에게 알려 주세요.</p>
+        <p className="conflict-meta">3. 다 했으면 오른쪽 위 ‘제출’을 누르세요.</p>
         <p className="conflict-meta">
           {audienceLabel
             ? `이 링크로는 ${audienceLabel}용 문항만 다룰 수 있습니다. `
@@ -61,7 +61,7 @@ export function LeadIntro({ onStart, onGuide }: { onStart: () => void; onGuide: 
           모입니다.
         </p>
         <p className="conflict-meta">
-          3. 연구부장도 같은 화면에서 문항을 담습니다. 오른쪽 아래 영역 커버리지에서 Ⅰ·Ⅱ·Ⅲ 영역이 모두
+          3. 연구부장도 같은 화면에서 문항을 담습니다. 오른쪽 아래 영역별 문항 확인에서 Ⅰ·Ⅱ·Ⅲ 영역이 모두
           채워졌는지 확인하세요.
         </p>
         <p className="conflict-meta">

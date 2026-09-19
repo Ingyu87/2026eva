@@ -22,18 +22,18 @@ PASS=0; FAIL=0
 ok(){ echo "  [PASS] $1"; PASS=$((PASS+1)); }
 ng(){ echo "  [FAIL] $1"; FAIL=$((FAIL+1)); }
 
-j(){ curl -s -X "$1" "$BASE$2" -b "$3" -c "$3" -H "Content-Type: application/json" ${4:+-d "$4"}; }
+j(){ if [ -n "${4:-}" ]; then printf '%s' "$4" | curl -s -X "$1" "$BASE$2" -b "$3" -c "$3" -H "Content-Type: application/json" --data-binary @-; else curl -s -X "$1" "$BASE$2" -b "$3" -c "$3"; fi; }
 code(){ curl -s -o /dev/null -w "%{http_code}" -X "$1" "$BASE$2" -b "$3" -c "$3" -H "Content-Type: application/json" ${4:+-d "$4"}; }
 
 ids(){ j GET /api/draft "$1" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const b=JSON.parse(d).data;console.log(b.items.map(i=>i.id).sort().join(','))})"; }
 field(){ j GET /api/draft "$1" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const b=JSON.parse(d).data;console.log(eval('b.'+process.argv[1]))})" "$2"; }
 has(){ case ",$1," in *",$2,"*) return 0;; *) return 1;; esac }
 
-mk(){ printf '{"items":[{"id":"%s","sourceQuestionId":"src","audience":"%s","sourceRow":1,"area":"A1","subarea":"S1","indicator":"I1","originalQuestion":"q","editedQuestion":"q","responseType":"likert_5","order":%s}]}' "$1" "$2" "$3"; }
+mk(){ printf '{"items":[{"id":"%s","sourceQuestionId":"src","audience":"%s","sourceRow":1,"area":"Ⅰ. 협력적 학교자치문화","subarea":"Ⅰ-1. 소통과 협력의 학교자치","indicator":"I1","originalQuestion":"q","editedQuestion":"q","responseType":"likert_5","order":%s}]}' "$1" "$2" "$3"; }
 
 echo "== 준비: 같은 학교 계정으로 두 브라우저(A/B) 로그인 =="
-j POST /api/auth/register "$A" "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw12345\"}" > /dev/null
-j POST /api/auth/login    "$B" "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw12345\"}" > /dev/null
+j POST /api/auth/register "$A" "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw123456\"}" > /dev/null
+j POST /api/auth/login    "$B" "{\"schoolName\":\"$SCHOOL\",\"password\":\"pw123456\"}" > /dev/null
 echo "  완료 ($SCHOOL)"
 
 echo

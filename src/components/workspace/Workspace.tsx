@@ -35,6 +35,7 @@ import { SettingsModal, type SettingsTab } from "./SettingsModal";
  * 안쪽 세 열만 각각 스크롤합니다. 높이를 픽셀로 고정하지 않는 것이 핵심입니다.
  */
 export function Workspace({
+  temporaryStorage = false,
   school,
   role = "lead",
   builderLabel,
@@ -42,6 +43,7 @@ export function Workspace({
   builderAudience,
   onLogout
 }: {
+  temporaryStorage?: boolean;
   school: PublicSchool;
   role?: WorkspaceRole;
   builderLabel?: string;
@@ -111,6 +113,10 @@ export function Workspace({
   };
 
   const leadIntroKey = draft ? `lead-intro:${draft.id}` : "";
+  useEffect(() => {
+    if (!draft) return;
+    try { setNamePromptDone(sessionStorage.getItem(`anonymous:${draft.id}`) === "1"); } catch { /* 선택적 편의 기능 */ }
+  }, [draft?.id]);
   const needsName = Boolean(draft) && !workspace.displayName && !namePromptDone;
   useEffect(() => {
     if (isBuilder || !leadIntroKey || needsName) {
@@ -229,7 +235,7 @@ export function Workspace({
     setSettingsOpen(false);
   };
 
-  /** 대상 탭은 Tab 키로도 넘깁니다. 마우스 왕복을 줄이기 위함입니다. */
+  /** 대상 전환은 Alt+오른쪽 화살표로도 가능합니다. Tab은 기본 초점 이동을 유지합니다. 마우스 왕복을 줄이기 위함입니다. */
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -239,7 +245,7 @@ export function Workspace({
         target?.isContentEditable;
 
       // 대상이 정해진 링크는 탭이 하나뿐이라 Tab을 그대로 둡니다.
-      if (event.key === "Tab" && !typing && !builderAudience) {
+      if (event.key === "ArrowRight" && event.altKey && !typing && !builderAudience) {
         event.preventDefault();
         setActiveAudience((current) => {
           const index = AUDIENCES.indexOf(current);
@@ -283,6 +289,7 @@ export function Workspace({
    * 대신 `groupId`로 묶어 두어 서식3-2의 평가주체 열을 만들 때 모읍니다.
    */
   const toggleQuestion = (question: QuestionBankItem, audience: Audience) => {
+    if (question.audience !== audience || (builderAudience && builderAudience !== audience)) return;
     const existing = workspace.items.find(
       (item) => item.sourceQuestionId === question.id && item.audience === audience
     );
@@ -432,6 +439,7 @@ export function Workspace({
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
+          {temporaryStorage ? <span className="ws-badge" title="서버를 다시 시작하면 자료가 사라질 수 있습니다. 실제 학교 자료는 운영 환경에서 입력하세요.">체험 · 임시 저장</span> : null}
           {isBuilder ? (
             <span className="ws-mode ws-mode--static">{builderLabel || "문항 작업"}</span>
           ) : (
@@ -578,9 +586,9 @@ export function Workspace({
 
       {activeScreen === "build" ? (
         <main className="ws-grid">
-          <IndicatorTree bank={questionBank} selection={selection} onSelect={setSelection} />
+          <IndicatorTree bank={questionBank.filter((item) => item.audience === activeAudience)} selection={selection} onSelect={setSelection} />
           <QuestionFinder
-            bank={questionBank}
+            bank={questionBank.filter((item) => item.audience === activeAudience)}
             selection={selection}
             activeAudience={activeAudience}
             addedByAudience={addedByAudience}
@@ -609,11 +617,10 @@ export function Workspace({
             onImportPrior={importPriorItems}
           />
         </main>
-      ) : (
-        <main className="ra-main">
-          <ResultsAnalysis draft={draft} items={workspace.items} />
-        </main>
-      )}
+      ) : null}
+      {!isBuilder ? <main className="ra-main" hidden={activeScreen !== "analyze"}>
+        <ResultsAnalysis draft={draft} items={workspace.items} />
+      </main> : null}
 
       {guideOpen ? (
         <GuideModal variant={isBuilder ? "builder" : "lead"} onClose={() => setGuideOpen(false)} />
@@ -665,7 +672,10 @@ export function Workspace({
             workspace.setDisplayName(name);
             setNamePromptDone(true);
           }}
-          onSkip={() => setNamePromptDone(true)}
+          onSkip={() => {
+            setNamePromptDone(true);
+            try { if (draft) sessionStorage.setItem(`anonymous:${draft.id}`, "1"); } catch { /* 이 화면에서는 계속 진행 */ }
+          }}
         />
       ) : null}
 

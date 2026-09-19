@@ -32,12 +32,13 @@ export async function GET(request: Request) {
     return jsonError("집계 결과를 찾을 수 없습니다.", 404);
   }
 
-  const uploads = await Promise.all(uploadIds.map((id) => getResultUpload(draft.id, id)));
+  const uploads = await Promise.all((result.uploadIds ?? uploadIds).map((id) => getResultUpload(draft.id, id)));
   if (uploads.some((upload) => upload === null)) {
     return jsonError("업로드한 결과 파일 일부를 찾을 수 없습니다.", 404);
   }
 
-  const html = buildResultReportHtml(draft, items, result, uploads as NonNullable<(typeof uploads)[number]>[]);
+  const frozenUploads = uploads.map(u => ({ ...u!, mapping: result.uploadMappings?.[u!.id] ?? u!.mapping }));
+  const html = buildResultReportHtml(draft, result.itemsSnapshot ?? items, result, frozenUploads);
   const fileName = encodeURIComponent(resultReportFileName(draft));
 
   return new Response(html, {

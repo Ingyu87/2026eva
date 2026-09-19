@@ -16,7 +16,8 @@ npm run verify      # typecheck + 문항 풀 + 디자인 규칙
 npm run dev         # http://localhost:3000
 ```
 
-**현재 5~8단계 코드 전부 완료(각각 검증 스크립트 통과). 남은 건 브라우저·Word 육안 확인뿐.**
+**2026-09-19: 대상별 963문항, 직접 의견 작성, 결과 복원, 제출 검사를 보완했습니다.**
+브라우저·DOCX 변환 검증과 운영 환경에서 남은 확인은 [종합 검토 기록](docs/review-2026-09-19.md)을 먼저 읽으세요. 실제 Google Forms·Firestore·한컴 실기동 검증은 미완료입니다.
 진행 상황은 [docs/implementation.md](docs/implementation.md)의 표에서 확인하세요.
 
 ---

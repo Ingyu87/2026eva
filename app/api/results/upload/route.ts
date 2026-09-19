@@ -36,6 +36,9 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return jsonError("파일을 첨부하세요.");
   }
+  if (!/\.(xlsx|csv)$/i.test(file.name) || file.size > 4 * 1024 * 1024) {
+    return jsonError('4MB 이하의 XLSX 또는 CSV 파일을 올려 주세요.');
+  }
 
   let buffer: Buffer;
   try {
@@ -52,6 +55,9 @@ export async function POST(request: Request) {
   }
 
   const { draft, items } = await getDraftBundle(context.schoolId, context.schoolName);
+  if (Buffer.byteLength(JSON.stringify(parsed), 'utf8') > 800_000) {
+    return jsonError('응답 자료가 저장 한도를 넘었습니다. 이름·연락처 등 불필요한 열을 삭제하고 다시 올려 주세요.');
+  }
   const audienceItems = itemsForAudience(items, audience);
   const formInfo = draft.googleFormsByAudience?.[audience];
 
@@ -63,6 +69,7 @@ export async function POST(request: Request) {
   }));
 
   const upload = await saveResultUpload(draft.id, {
+    mode: draft.mode,
     audience,
     filename: file.name,
     headers: parsed.headers,

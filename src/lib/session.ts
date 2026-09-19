@@ -31,6 +31,9 @@ export type BuilderSession = {
 type SignedPayload = Record<string, unknown>;
 
 function secret(): string {
+  if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+    throw new Error('운영 환경에 SESSION_SECRET을 설정해야 합니다.');
+  }
   return process.env.SESSION_SECRET || "local-dev-session-secret-change-before-production";
 }
 
@@ -63,7 +66,7 @@ export function decodeSignedToken<T extends SignedPayload>(token?: string): T | 
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as T;
     const exp = typeof payload.exp === "number" ? payload.exp : 0;
-    if (exp && exp < Math.floor(Date.now() / 1000)) {
+    if (!exp || exp <= Math.floor(Date.now() / 1000)) {
       return null;
     }
     return payload;

@@ -260,7 +260,7 @@ mark {
   display: grid;
   grid-template-rows: var(--h-topbar) var(--h-audience-tabs) 1fr;
   height: 100dvh;
-  min-width: var(--app-min-width);
+  min-width: 0;
   overflow: hidden; /* 페이지 자체는 절대 스크롤하지 않습니다 */
 }
 
@@ -445,6 +445,7 @@ mark {
 }
 
 .ws-col {
+  min-width: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
   min-height: 0;
@@ -453,6 +454,22 @@ mark {
   background: var(--bg-card);
   box-shadow: var(--sh-card);
   overflow: hidden;
+}
+
+.ws-finder { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.ws-bank-source { padding: var(--sp-2) var(--sp-4); margin: 0; border-bottom: 1px solid var(--line); }
+.ra-main[hidden] { display: none; }
+.ra-ai-options { margin-top: var(--sp-4); padding: var(--sp-4); background: var(--bg-subtle); border-radius: var(--r-md); }
+.ra-ai-options summary { cursor: pointer; font-weight: 600; margin-bottom: var(--sp-3); }
+.ws-check { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-3) 0; }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600); outline-offset: 2px; }
+@media (max-width: 1600px) {
+  .ws-root { grid-template-rows: auto var(--h-audience-tabs) minmax(0, 1fr); }
+  .ws-root.ws-root--analyze { grid-template-rows: auto minmax(0, 1fr); }
+  .ws-topbar { grid-template-columns: auto 1fr; padding: var(--sp-3) var(--sp-4); gap: var(--sp-2); }
+  .ws-topbar-center { justify-content: flex-end; }
+  .ws-topbar-right { grid-column: 1 / -1; flex-wrap: wrap; }
+  .ws-grid { grid-template-columns: 20% minmax(0, 1fr) 34%; gap: var(--sp-3); padding: var(--sp-3); }
 }
 
 .ws-col-head {
@@ -1899,3 +1916,5 @@ mark {
 .ws-item.is-locked {
   background: var(--bg-subtle);
 }
+
+.ra-editor-fieldset { margin: 0; padding: 0; border: 0; min-inline-size: 0; }

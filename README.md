@@ -105,3 +105,9 @@ GOOGLE_REDIRECT_URI=https://your-vercel-domain.vercel.app/api/google/callback
 - 개인정보처리방침: `https://2026eva.vercel.app/privacy`
 - 이용약관: `https://2026eva.vercel.app/terms`
 - 검증 체크리스트: [docs/google-oauth-verification-checklist.md](docs/google-oauth-verification-checklist.md)
+
+## 2026-09-19 종합 검토 반영
+
+최신 변경·점수 산정·검증·운영 환경 미확인 항목은 [종합 검토 기록](docs/review-2026-09-19.md)에 기록했습니다.
+문항 풀은 대상별 963개이며 AI 없이 평가 의견을 작성할 수 있습니다. 제출본은 학년말 집계의 대상·문항별 응답과 평가 의견 검사를 통과해야 합니다.
+로컬 체험 저장소는 재시작 시 유지되지 않을 수 있습니다. 운영에는 Firebase와 강한 SESSION_SECRET이 필요합니다.

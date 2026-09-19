@@ -1,4 +1,4 @@
-import { SURVEY_MODE_LABELS, type SurveyDraft } from "./types";
+import { SURVEY_MODE_LABELS, type SurveyDraft, type SurveyResult } from "./types";
 
 /**
  * 어떤 산출물을 지금 만들 수 있는지 판단합니다.
@@ -34,8 +34,12 @@ const ANNUAL_ONLY: ExportKind[] = ["indicator-xlsx", "report-docx"];
 
 export function canExport(
   kind: ExportKind,
-  draft: Pick<SurveyDraft, "mode">
+  draft: Pick<SurveyDraft, "mode">,
+  result?: Pick<SurveyResult, "mode">
 ): ExportAvailability {
+  if (ANNUAL_ONLY.includes(kind) && result && result.mode !== 'annual') {
+    return { allowed: false, reason: '학년말에 집계한 결과가 필요합니다. 시기만 바꾼 중간평가 결과나 시기가 기록되지 않은 예전 결과는 제출할 수 없습니다.' };
+  }
   if (ANNUAL_ONLY.includes(kind) && draft.mode !== "annual") {
     return {
       allowed: false,
