@@ -231,8 +231,9 @@ npm run verify:concurrent
 1. **학년 분류 문항 자동 삽입** — 학생용 폼 맨 앞, 필수.
    `studentGrades`가 비어 있으면 학생용 폼 생성 자체를 막습니다(에러로 안내).
 2. **문항 ↔ 구글폼 연결표 저장** — `GoogleFormInfo.questionLinks`/`gradeQuestion`에
-   폼 생성 시점의 제목을 스냅숏으로 저장합니다. 문항의 `id`를 그대로 Google Forms
-   `item.itemId`로 지정해 두어(Forms API가 생성 시 클라이언트 지정 ID를 허용) 연결이 명시적입니다.
+   폼 생성 시점의 제목을 스냅숏으로 저장합니다. Google가 발급한 `itemId`를
+   `batchUpdate` 응답에서 받아 앱의 `selectedQuestionId`와 연결합니다.
+   앱 UUID를 Google `itemId`로 보내면 실제 API가 `Invalid ID`로 거부하므로 되돌리지 마세요.
    6단계에서 결과 파일의 열 제목을 이 스냅숏과 대조해 자동 연결합니다.
    사용자가 구글폼에서 문항을 직접 고치면(제목이 스냅숏과 달라짐) 연결이 끊어지므로,
    **수동 연결 화면은 S4(6단계, 결과 분석 화면)에서 만듭니다** — spec.md 9장 참고.

@@ -42,7 +42,7 @@ type GoogleFormResponse = {
 function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`???? ${name}?(?) ???? ?? ????. .env.example? ?????.`);
+    throw new Error(`서버에 ${name} 설정이 없습니다. 운영 담당자에게 문의해 주세요.`);
   }
   return value;
 }
@@ -58,7 +58,7 @@ export function createGoogleAuthUrl(schoolId: string, schoolName: string, reques
   const clientId = requiredEnv("GOOGLE_CLIENT_ID");
   const redirectUri = getGoogleRedirectUri(requestOrigin);
   if (!redirectUri) {
-    throw new Error("OAuth ????? URI? ?? ? ????.");
+    throw new Error("Google 인증 후 돌아올 주소가 설정되지 않았습니다.");
   }
 
   const state = encodeSignedToken({
@@ -104,7 +104,7 @@ export async function exchangeGoogleCode(code: string, requestOrigin: string): P
     const parsed = tryParseOAuthError(detail);
     throw new Error(
       parsed ??
-        `Google OAuth ?? ??? ??????. ????? URI? Google Cloud ??? ??? URI? ??? ????? ?????. (${detail})`
+        `Google 인증을 완료하지 못했습니다. 운영 담당자가 Google Cloud의 리디렉션 주소 설정을 확인해야 합니다. (${detail})`
     );
   }
 
@@ -138,7 +138,6 @@ function textItem(title: string, description?: string, itemId?: string) {
   const safeDesc =
     description === undefined ? undefined : formsSingleLineText(description, " ");
   return {
-    itemId,
     title: safeTitle,
     description: safeDesc,
     textItem: {}
@@ -154,7 +153,6 @@ function choiceItem(
   itemId?: string
 ) {
   return {
-    itemId,
     title: formsSingleLineText(title, " "),
     description: formsSingleLineText(description, " "),
     questionItem: {
@@ -181,7 +179,6 @@ function questionItem(
   const safeDescription = formsSingleLineText(description, " ");
   if (responseType === "text") {
     return {
-      itemId,
       title: safeTitle,
       description: safeDescription,
       questionItem: {
@@ -254,7 +251,7 @@ async function createGoogleFormForAudience(
   gradeQuestion?: GoogleFormGradeQuestion;
 }> {
   if (items.length === 0) {
-    throw new Error(`${AUDIENCE_LABELS[audience]} ??? ?? Google Form? ?? ? ????.`);
+    throw new Error(`${AUDIENCE_LABELS[audience]} 문항이 없어 Google Forms를 만들 수 없습니다.`);
   }
 
   const studentGrades = draft.studentGrades ?? [];
@@ -285,7 +282,7 @@ async function createGoogleFormForAudience(
 
   if (!createResponse.ok) {
     const detail = await createResponse.text();
-    throw new Error(`Google Forms API? ?? ?? ? ????. ${detail}`);
+    throw new Error(`Google Forms 파일을 만들지 못했습니다. ${detail}`);
   }
 
   const form = (await createResponse.json()) as GoogleFormResponse;
@@ -351,7 +348,23 @@ async function createGoogleFormForAudience(
 
   if (!updateResponse.ok) {
     const detail = await updateResponse.text();
-    throw new Error(`Google Form ?? ??(batchUpdate)? ??????. ${detail}`);
+    throw new Error(`Google Forms에 문항을 추가하지 못했습니다. ${detail}`);
+  }
+
+  // Google가 발급한 ID를 사용합니다. 앱의 UUID를 보내면 Invalid ID로 거부됩니다.
+  const updated = (await updateResponse.json()) as {
+    replies?: Array<{ createItem?: { itemId?: string } }>;
+  };
+  const questionOffset = gradeQuestion ? 2 : 1;
+  for (let i = 0; i < questionLinks.length; i++) {
+    const itemId = updated.replies?.[i + questionOffset]?.createItem?.itemId;
+    if (!itemId) throw new Error("Google Forms 문항 연결 정보를 받지 못했습니다.");
+    questionLinks[i].itemId = itemId;
+  }
+  if (gradeQuestion) {
+    const itemId = updated.replies?.[1]?.createItem?.itemId;
+    if (!itemId) throw new Error("Google Forms 학년 문항 연결 정보를 받지 못했습니다.");
+    gradeQuestion.itemId = itemId;
   }
 
   let responderUrl = form.responderUri;
@@ -389,7 +402,7 @@ export async function createGoogleFormsByAudienceFromDraft(
     nextForms[audience] = await createGoogleFormForAudience(draft, audience, items, accessToken);
   }
   if (Object.keys(nextForms).length === 0) {
-    throw new Error("??? ??? ?? Google Forms? ??? ? ????.");
+    throw new Error("선택한 문항이 없어 Google Forms를 만들 수 없습니다.");
   }
   return nextForms;
 }

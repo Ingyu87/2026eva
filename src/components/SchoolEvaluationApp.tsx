@@ -232,6 +232,7 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
   // 작업 화면은 100dvh를 그대로 써야 해서 바깥 껍데기 없이 그립니다.
   if (mode === "user" && school) {
     return (
+      <>
       <Workspace
         temporaryStorage={temporaryStorage}
         school={school}
@@ -241,6 +242,21 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
         builderAudience={builderAudience}
         onLogout={() => void logout()}
       />
+      {(error || status) ? (
+        <div className="ws-overlay" role="dialog" aria-modal="true" aria-label="Google Forms 연결 결과">
+          <div className="ws-modal">
+            <div className="ws-modal-head">
+              <h2>{error ? "Google Forms를 만들지 못했습니다" : "Google Forms 연결 결과"}</h2>
+              <button type="button" className="ws-btn" autoFocus onClick={() => { setError(""); setStatus(""); }}>확인</button>
+            </div>
+            <div className="ws-modal-body">
+              <p role={error ? "alert" : "status"}>{error || status}</p>
+              {error ? <p>저장한 설문 문항은 유지됩니다. 위 오류 내용을 확인한 뒤 다시 시도해 주세요.</p> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      </>
     );
   }
 
