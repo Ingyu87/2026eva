@@ -163,12 +163,36 @@ export type NewSelectedQuestion = Pick<
 > &
   Partial<Pick<SelectedQuestion, "choices" | "department">>;
 
+/**
+ * 문항 하나가 구글폼의 어느 문항으로 만들어졌는지 기록한 연결표.
+ *
+ * 폼 생성 시점에 실제로 보낸 제목(title) 문자열을 그대로 남겨 둡니다. 이후 학교가
+ * 구글폼에서 문항을 직접 고치거나, 앱에서 `editedQuestion`을 다시 고쳐도
+ * 이 스냅숏을 기준으로 결과 파일의 열 제목과 이어붙일 수 있습니다(spec.md 7.4).
+ * 스냅숏과 결과 파일의 열 제목이 달라졌으면 자동 연결이 실패하고, S4의
+ * 수동 연결 화면에서 사람이 골라야 합니다.
+ */
+export type GoogleFormQuestionLink = {
+  itemId: string;
+  selectedQuestionId: string;
+  title: string;
+};
+
+/** 학생용 폼 맨 앞에 자동으로 넣는 학년 분류 문항의 연결 정보. */
+export type GoogleFormGradeQuestion = {
+  itemId: string;
+  title: string;
+  grades: number[];
+};
+
 export type GoogleFormInfo = {
   formId: string;
   editUrl: string;
   responderUrl?: string;
   createdAt: string;
   googleEmail?: string;
+  questionLinks?: GoogleFormQuestionLink[];
+  gradeQuestion?: GoogleFormGradeQuestion;
 };
 
 export type GoogleFormsByAudience = Partial<Record<Audience, GoogleFormInfo>>;

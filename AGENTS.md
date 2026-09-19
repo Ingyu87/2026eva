@@ -16,7 +16,7 @@ npm run verify      # typecheck + 문항 풀 + 디자인 규칙
 npm run dev         # http://localhost:3000
 ```
 
-**현재 4단계까지 완료. 다음은 5단계(구글폼 확장).**
+**현재 5단계(구글폼 확장) 코드 구현 완료, 실제 Google 계정 확인 대기. 그다음은 6단계(계산 엔진).**
 진행 상황은 [docs/implementation.md](docs/implementation.md)의 표에서 확인하세요.
 
 ---
@@ -223,18 +223,26 @@ npm run verify:concurrent
 
 ---
 
-## 9. 다음 작업 — 5단계 구글폼 확장
+## 9. 다음 작업 — 5단계 구글폼 확장 (코드 완료, 실사용 확인 대기)
 
-`src/lib/googleForms.ts`를 손봅니다.
+`src/lib/googleForms.ts`에 아래가 들어갔습니다.
 
-1. **학년 분류 문항 자동 삽입** — 학생용 폼 맨 앞, 필수
-   `SurveyDraft.studentGrades`는 4단계에서 이미 들어갔습니다.
-   이게 없으면 결과 보고서의 학년별 분해가 불가능합니다.
-2. **문항 ↔ 구글폼 연결표 저장** — 6단계에서 결과 파일의 열과 이어 붙일 때 씁니다.
-   사용자가 구글폼에서 문항을 직접 고치면 연결이 끊어지므로, 수동 연결 화면도 필요합니다.
+1. **학년 분류 문항 자동 삽입** — 학생용 폼 맨 앞, 필수.
+   `studentGrades`가 비어 있으면 학생용 폼 생성 자체를 막습니다(에러로 안내).
+2. **문항 ↔ 구글폼 연결표 저장** — `GoogleFormInfo.questionLinks`/`gradeQuestion`에
+   폼 생성 시점의 제목을 스냅숏으로 저장합니다. 문항의 `id`를 그대로 Google Forms
+   `item.itemId`로 지정해 두어(Forms API가 생성 시 클라이언트 지정 ID를 허용) 연결이 명시적입니다.
+   6단계에서 결과 파일의 열 제목을 이 스냅숏과 대조해 자동 연결합니다.
+   사용자가 구글폼에서 문항을 직접 고치면(제목이 스냅숏과 달라짐) 연결이 끊어지므로,
+   **수동 연결 화면은 S4(6단계, 결과 분석 화면)에서 만듭니다** — spec.md 9장 참고.
 
 선택형·서술형 문항은 이미 됩니다(`choice_single`, `checklist`, `text`).
 보기 목록 편집기는 `src/components/workspace/ResponseTypeEditor.tsx` 에 있습니다.
+
+**남은 것:** 이 개발 환경에는 Google OAuth 크리덴셜이 없어 실제 Forms API 호출을 확인하지
+못했습니다(typecheck·verify:bank·verify:design만 통과). 실제 계정으로 학생용 폼을 만들어
+① 첫 문항이 학년 선택인지 ② 선택형/서술형이 정상 생성되는지 확인한 뒤 `docs/implementation.md`의
+5단계를 완료로 바꾸세요.
 
 그다음은 6단계 계산 엔진 → 7단계 AI 해석 → 8단계 산출물입니다.
 각 단계의 "끝났다고 보는 기준"이 `docs/implementation.md`에 체크리스트로 있습니다.

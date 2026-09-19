@@ -6,7 +6,9 @@ import {
   LIKERT_5_OPTIONS,
   YES_NO_OPTIONS,
   type Audience,
+  type GoogleFormGradeQuestion,
   type GoogleFormInfo,
+  type GoogleFormQuestionLink,
   type ResponseType,
   type SelectedQuestion,
   type SurveyDraft
@@ -131,11 +133,12 @@ function formsSingleLineText(value: string, ifEmpty: string): string {
   return collapsed || ifEmpty;
 }
 
-function textItem(title: string, description?: string) {
+function textItem(title: string, description?: string, itemId?: string) {
   const safeTitle = formsSingleLineText(title, " ");
   const safeDesc =
     description === undefined ? undefined : formsSingleLineText(description, " ");
   return {
+    itemId,
     title: safeTitle,
     description: safeDesc,
     textItem: {}
@@ -146,14 +149,17 @@ function choiceItem(
   title: string,
   description: string,
   options: string[],
-  type: "RADIO" | "CHECKBOX" = "RADIO"
+  type: "RADIO" | "CHECKBOX" = "RADIO",
+  required = false,
+  itemId?: string
 ) {
   return {
+    itemId,
     title: formsSingleLineText(title, " "),
     description: formsSingleLineText(description, " "),
     questionItem: {
       question: {
-        required: false,
+        required,
         choiceQuestion: {
           type,
           options: options.map((value) => ({ value: formsSingleLineText(value, value) })),
@@ -168,12 +174,14 @@ function questionItem(
   title: string,
   description: string,
   responseType: ResponseType,
-  choices?: string[]
+  choices: string[] | undefined,
+  itemId: string
 ) {
   const safeTitle = formsSingleLineText(title, " ");
   const safeDescription = formsSingleLineText(description, " ");
   if (responseType === "text") {
     return {
+      itemId,
       title: safeTitle,
       description: safeDescription,
       questionItem: {
@@ -188,10 +196,10 @@ function questionItem(
   }
 
   if (responseType === "likert_3") {
-    return choiceItem(safeTitle, safeDescription, LIKERT_3_OPTIONS, "RADIO");
+    return choiceItem(safeTitle, safeDescription, LIKERT_3_OPTIONS, "RADIO", false, itemId);
   }
   if (responseType === "yes_no") {
-    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO");
+    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO", false, itemId);
   }
 
   // 객관식은 학교가 쓴 보기를 씁니다. 비어 있으면 폼 생성이 실패하므로 막아 둡니다.
@@ -204,11 +212,33 @@ function questionItem(
       safeTitle,
       safeDescription,
       options,
-      responseType === "checklist" ? "CHECKBOX" : "RADIO"
+      responseType === "checklist" ? "CHECKBOX" : "RADIO",
+      false,
+      itemId
     );
   }
 
-  return choiceItem(safeTitle, safeDescription, LIKERT_5_OPTIONS, "RADIO");
+  return choiceItem(safeTitle, safeDescription, LIKERT_5_OPTIONS, "RADIO", false, itemId);
+}
+
+/** 학생용 폼 맨 앞에 넣는 학년 분류 문항. 학년별 결과 분해의 전제라 필수·단일 선택입니다. */
+function gradeItemId(draftId: string): string {
+  return `grade-${draftId}`;
+}
+
+const GRADE_QUESTION_TITLE = "학년";
+
+function gradeQuestionItem(draftId: string, grades: number[]) {
+  const sortedGrades = grades.slice().sort((a, b) => a - b);
+  const options = sortedGrades.map((grade) => `${grade}학년`);
+  return choiceItem(
+    GRADE_QUESTION_TITLE,
+    "해당하는 학년을 선택해 주세요.",
+    options,
+    "RADIO",
+    true,
+    gradeItemId(draftId)
+  );
 }
 
 async function createGoogleFormForAudience(
@@ -220,9 +250,18 @@ async function createGoogleFormForAudience(
   formId: string;
   editUrl: string;
   responderUrl?: string;
+  questionLinks: GoogleFormQuestionLink[];
+  gradeQuestion?: GoogleFormGradeQuestion;
 }> {
   if (items.length === 0) {
     throw new Error(`${AUDIENCE_LABELS[audience]} ??? ?? Google Form? ?? ? ????.`);
+  }
+
+  const studentGrades = draft.studentGrades ?? [];
+  if (audience === "student" && studentGrades.length === 0) {
+    throw new Error(
+      "학생용 구글폼을 만들려면 설정에서 학생 설문 학년을 먼저 선택하세요. 학년 문항이 없으면 결과를 학년별로 나눌 수 없습니다."
+    );
   }
 
   const titleForAudience = formsSingleLineText(
@@ -253,23 +292,51 @@ async function createGoogleFormForAudience(
   const requests: unknown[] = [
     {
       createItem: {
-        item: textItem(`${AUDIENCE_LABELS[audience]} 안내문`, draft.introByAudience[audience]),
+        item: textItem(
+          `${AUDIENCE_LABELS[audience]} 안내문`,
+          draft.introByAudience[audience],
+          `intro-${draft.id}`
+        ),
         location: { index: 0 }
       }
     }
   ];
 
-  for (const item of items.slice().sort((a, b) => a.order - b.order)) {
+  let gradeQuestion: GoogleFormGradeQuestion | undefined;
+  if (audience === "student" && studentGrades.length > 0) {
+    const item = gradeQuestionItem(draft.id, studentGrades);
     requests.push({
       createItem: {
-        item: questionItem(
-          item.editedQuestion || item.originalQuestion,
-          `${item.area} / ${item.subarea} / ${item.indicator}`,
-          item.responseType,
-          item.choices
-        ),
+        item,
         location: { index: requests.length }
       }
+    });
+    gradeQuestion = {
+      itemId: gradeItemId(draft.id),
+      title: item.title,
+      grades: studentGrades.slice().sort((a, b) => a - b)
+    };
+  }
+
+  const questionLinks: GoogleFormQuestionLink[] = [];
+  for (const item of items.slice().sort((a, b) => a.order - b.order)) {
+    const builtItem = questionItem(
+      item.editedQuestion || item.originalQuestion,
+      `${item.area} / ${item.subarea} / ${item.indicator}`,
+      item.responseType,
+      item.choices,
+      item.id
+    );
+    requests.push({
+      createItem: {
+        item: builtItem,
+        location: { index: requests.length }
+      }
+    });
+    questionLinks.push({
+      itemId: item.id,
+      selectedQuestionId: item.id,
+      title: builtItem.title
     });
   }
 
@@ -301,7 +368,9 @@ async function createGoogleFormForAudience(
   return {
     formId: form.formId,
     editUrl: `https://docs.google.com/forms/d/${form.formId}/edit`,
-    responderUrl
+    responderUrl,
+    questionLinks,
+    gradeQuestion
   };
 }
 
