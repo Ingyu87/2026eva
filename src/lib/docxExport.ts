@@ -38,16 +38,16 @@ const KOREAN_LANGUAGE = {
   eastAsia: "ko-KR"
 } as const;
 
-const KOREAN_RUN_DEFAULTS = {
+export const KOREAN_RUN_DEFAULTS = {
   font: KOREAN_FONT,
   language: KOREAN_LANGUAGE
 } as const;
 
-function koreanRun(text: string, bold = false): TextRun {
+export function koreanRun(text: string, bold = false): TextRun {
   return new TextRun({ text, bold, ...KOREAN_RUN_DEFAULTS });
 }
 
-function koreanParagraph(options: IParagraphOptions): Paragraph {
+export function koreanParagraph(options: IParagraphOptions): Paragraph {
   return new Paragraph({
     autoSpaceEastAsianText: true,
     ...options,
@@ -55,14 +55,14 @@ function koreanParagraph(options: IParagraphOptions): Paragraph {
   });
 }
 
-function textParagraph(text: string, bold = false): Paragraph {
+export function textParagraph(text: string, bold = false): Paragraph {
   return koreanParagraph({
     children: [koreanRun(text, bold)],
     spacing: { after: 120 }
   });
 }
 
-function cell(children: Paragraph[], width: number): TableCell {
+export function cell(children: Paragraph[], width: number): TableCell {
   return new TableCell({
     width: { size: width, type: WidthType.PERCENTAGE },
     margins: { top: 120, bottom: 120, left: 120, right: 120 },

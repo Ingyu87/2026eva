@@ -141,8 +141,28 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
             >
               평가지표 및 현황 (XLSX)
             </button>
+            <button
+              type="button"
+              className="ws-btn ws-btn--soft"
+              disabled={!canExport("report-docx", draft).allowed || !analysis.result?.aiAnalysis}
+              title={
+                canExport("report-docx", draft).reason ??
+                (!analysis.result?.aiAnalysis ? "AI 해석을 먼저 실행하세요." : undefined)
+              }
+              onClick={() => void analysis.downloadReportDocx("submit")}
+            >
+              학교평가서 제출용 (DOCX)
+            </button>
+            <button
+              type="button"
+              className="ws-btn ws-btn--soft"
+              disabled={!canExport("report-docx", draft).allowed}
+              title={canExport("report-docx", draft).reason}
+              onClick={() => void analysis.downloadReportDocx("internal")}
+            >
+              학교평가서 보관용 (DOCX)
+            </button>
           </div>
-          <p className="ws-hint">학교평가서(DOCX)는 다음 단계에서 열립니다.</p>
         </section>
       ) : null}
     </div>

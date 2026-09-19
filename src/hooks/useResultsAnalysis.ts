@@ -253,6 +253,16 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     }
   }
 
+  async function downloadReportDocx(type: "submit" | "internal") {
+    if (!result) return;
+    setError("");
+    try {
+      await downloadFile(`/api/export/report-docx?type=${type}&resultId=${result.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "학교평가서를 만들지 못했습니다.");
+    }
+  }
+
   return {
     uploads,
     itemsByAudience,
@@ -268,6 +278,7 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     runAnalysis,
     saveAnalysisEdits,
     downloadIndicatorXlsx,
-    downloadResultHtml
+    downloadResultHtml,
+    downloadReportDocx
   };
 }
