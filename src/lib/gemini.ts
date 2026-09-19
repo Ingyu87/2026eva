@@ -31,24 +31,24 @@ type GeminiResponse = {
   }>;
 };
 
-/** Gemini에 구조화 JSON 응답을 요청하고, 파싱된 텍스트(JSON 문자열)를 그대로 돌려줍니다. */
-export async function callGemini(prompt: string, options: GeminiCallOptions = {}): Promise<string> {
+async function generateContent(
+  parts: Array<Record<string, unknown>>,
+  options: GeminiCallOptions
+): Promise<string> {
   const apiKey = requiredEnv("GEMINI_API_KEY");
   const model = options.model ?? process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
-
-  const body = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: options.temperature ?? 0.2,
-      responseMimeType: "application/json",
-      ...(options.responseSchema ? { responseSchema: options.responseSchema } : {})
-    }
-  };
 
   const response = await fetch(`${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        temperature: options.temperature ?? 0.2,
+        responseMimeType: "application/json",
+        ...(options.responseSchema ? { responseSchema: options.responseSchema } : {})
+      }
+    })
   });
 
   if (!response.ok) {
@@ -63,6 +63,25 @@ export async function callGemini(prompt: string, options: GeminiCallOptions = {}
     throw new Error(`Gemini 응답에서 내용을 찾을 수 없습니다. (finishReason: ${reason})`);
   }
   return text;
+}
+
+/** Gemini에 구조화 JSON 응답을 요청하고, 파싱된 텍스트(JSON 문자열)를 그대로 돌려줍니다. */
+export async function callGemini(prompt: string, options: GeminiCallOptions = {}): Promise<string> {
+  return generateContent([{ text: prompt }], options);
+}
+
+export async function callGeminiWithPdf(
+  prompt: string,
+  pdfBase64: string,
+  options: GeminiCallOptions = {}
+): Promise<string> {
+  return generateContent(
+    [
+      { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
+      { text: prompt }
+    ],
+    options
+  );
 }
 
 /** Gemini가 돌려준 JSON 텍스트를 파싱합니다. 스키마를 지정해도 가끔 코드펜스가 섞여 오므로 방어합니다. */

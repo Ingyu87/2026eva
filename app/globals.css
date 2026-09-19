@@ -1422,6 +1422,29 @@ mark {
   border-radius: var(--r-md);
   background: var(--bg-card);
   text-align: left;
+  letter-spacing: 0;
+  word-break: keep-all;
+}
+
+.ws-prior {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.ws-prior-list {
+  display: grid;
+  gap: var(--sp-3);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.ws-prior-item {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
 }
 
 .ws-start-action:hover {

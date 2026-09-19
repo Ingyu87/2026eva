@@ -5,11 +5,7 @@ import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
-import {
-  confirmCoverageGaps,
-  isCurrentSubarea,
-  placementFromSubarea
-} from "@/lib/evaluationFramework";
+import { confirmCoverageGaps, placementFromSubarea } from "@/lib/evaluationFramework";
 import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
@@ -25,6 +21,7 @@ import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorT
 import { QuestionFinder } from "./QuestionFinder";
 import { SelectedPanel } from "./SelectedPanel";
 import { AnnualStart } from "./AnnualStart";
+import type { PriorSurveyCommit } from "./PriorSurveyImport";
 import { GuideModal } from "./GuideModal";
 import { SettingsModal } from "./SettingsModal";
 
@@ -135,10 +132,6 @@ export function Workspace({
   );
 
   const counts = useMemo(() => countByAudience(workspace.items), [workspace.items]);
-  const legacyCount = useMemo(
-    () => workspace.items.filter((item) => !isCurrentSubarea(item.subarea)).length,
-    [workspace.items]
-  );
 
   /** 예시문항 하나가 어느 대상에 담겨 있는지. 카드의 주체 칩이 이 값을 씁니다. */
   const addedByAudience = useMemo(() => {
@@ -248,6 +241,32 @@ export function Workspace({
       workspace.removeItem(item.id);
     }
     setNotice("문항을 모두 비웠습니다.");
+    setSettingsOpen(false);
+    dismissAnnualStart("build");
+  };
+
+  const importPriorItems = (rows: PriorSurveyCommit[]) => {
+    if (rows.length === 0) {
+      return;
+    }
+    workspace.addItems(
+      rows.map((row) => {
+        const id = `prior-${crypto.randomUUID()}`;
+        return {
+          sourceQuestionId: id,
+          groupId: id,
+          audience: row.audience,
+          sourceRow: 0,
+          area: row.area,
+          subarea: row.subarea,
+          indicator: row.indicator,
+          originalQuestion: row.question,
+          editedQuestion: row.question,
+          responseType: row.responseType
+        };
+      })
+    );
+    setNotice(`${rows.length}개를 담았습니다.`);
     setSettingsOpen(false);
     dismissAnnualStart("build");
   };
@@ -415,10 +434,9 @@ export function Workspace({
         <main className="ra-main">
           <AnnualStart
             itemCount={workspace.items.length}
-            legacyCount={legacyCount}
             onReviewItems={() => dismissAnnualStart("build")}
-            onOpenAnalyze={() => dismissAnnualStart("analyze")}
             onStartFresh={resetAllItems}
+            onImportPrior={importPriorItems}
           />
         </main>
       ) : (
@@ -440,6 +458,7 @@ export function Workspace({
           onSwitchedToAnnual={openAnnualStart}
           itemCount={workspace.items.length}
           onResetItems={resetAllItems}
+          onImportPrior={importPriorItems}
         />
       ) : null}
 

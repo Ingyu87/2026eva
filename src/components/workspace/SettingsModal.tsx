@@ -12,6 +12,7 @@ import {
   type SurveyDraftAuthor,
   type SurveyMode
 } from "@/lib/types";
+import { PriorSurveyImport, type PriorSurveyCommit } from "./PriorSurveyImport";
 
 /**
  * 설문 설정 모달.
@@ -33,7 +34,8 @@ export function SettingsModal({
   onDisplayName,
   onSwitchedToAnnual,
   itemCount,
-  onResetItems
+  onResetItems,
+  onImportPrior
 }: {
   draft: SurveyDraft;
   displayName: string;
@@ -44,6 +46,7 @@ export function SettingsModal({
   onSwitchedToAnnual?: () => void;
   itemCount: number;
   onResetItems: () => void;
+  onImportPrior: (items: PriorSurveyCommit[]) => void;
 }) {
   const [tab, setTab] = useState<Tab>("survey");
   const [introFor, setIntroFor] = useState<Audience>("teacher");
@@ -130,7 +133,7 @@ export function SettingsModal({
                 </div>
                 <p className="ws-hint">
                   {draft.mode === "annual"
-                    ? "문항은 그대로 둡니다. 학년말 설문과 결과는 처음부터 다시 받습니다. 제출 서류는 그 새 결과로만 만듭니다. (가이드북 Q12)"
+                    ? "중간평가 문항은 남습니다. 제출 서류는 올해 학년말 결과로만 만듭니다. (가이드북 Q12)"
                     : "중간 점검용입니다. 제출 서류는 학년말에서만 만듭니다. 학년말로 바꾸면 문항은 남기고, 다음에 할 일만 보여 줍니다."}
                 </p>
               </div>
@@ -192,6 +195,11 @@ export function SettingsModal({
                 <p className="ws-hint">
                   고른 학년이 학생용 설문의 첫 문항으로 들어가고, 결과를 학년별로 나눠 봅니다.
                 </p>
+              </div>
+
+              <div className="ws-field">
+                <span>전년도 학년말 문항지</span>
+                <PriorSurveyImport onCommit={onImportPrior} />
               </div>
 
               <div className="ws-field">

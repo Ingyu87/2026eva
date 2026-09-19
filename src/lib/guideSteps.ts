@@ -18,7 +18,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "mode",
     title: "평가 시기",
-    caption: "왼쪽 위 배지로 시기를 바꿉니다. 학년말로 바꾸면 중간평가 문항이 남습니다. 이어서 쓸지, 비우고 다시 고를지 고릅니다.",
+    caption: "왼쪽 위 배지로 시기를 바꿉니다. 학년말로 바꾸면 중간평가 문항이 남습니다. 이어서 쓰거나, 비우고 다시 고르거나, 전년도 학년말 문항지 PDF를 올립니다.",
     image: "/guide/01-workspace.svg",
     highlight: { top: "2%", left: "10%", width: "8%", height: "6%" }
   },
