@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useResultsAnalysis } from "@/hooks/useResultsAnalysis";
+import { canExport } from "@/lib/exportGate";
 import {
   AUDIENCES,
   AUDIENCE_SHORT_LABELS,
@@ -9,15 +10,16 @@ import {
   type AiFinding,
   type AreaStat,
   type Audience,
-  type SelectedQuestion
+  type SelectedQuestion,
+  type SurveyDraft
 } from "@/lib/types";
 
 /**
  * S4 — 결과 분석 화면 (spec.md 3.3, design.md 7.3).
  *
- * 1. 파일 올리기 → 2. 문항 연결 확인 → 3. 집계 결과 → 4. AI 해석 실행 → 5. 산출물로 이동(다음 단계)
+ * 1. 파일 올리기 → 2. 문항 연결 확인 → 3. 집계 결과 → 4. AI 해석 실행 → 5. 산출물 내려받기
  */
-export function ResultsAnalysis({ items }: { items: SelectedQuestion[] }) {
+export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: SelectedQuestion[] }) {
   const analysis = useResultsAnalysis(items);
   const [schoolContext, setSchoolContext] = useState("");
   const [draftAnalysis, setDraftAnalysis] = useState<AiAnalysis | null>(null);
@@ -123,10 +125,24 @@ export function ResultsAnalysis({ items }: { items: SelectedQuestion[] }) {
         </section>
       ) : null}
 
-      {analysis.result?.aiAnalysis ? (
+      {analysis.result ? (
         <section className="ws-card ra-section">
-          <h2 className="ra-title">5. 다음 단계</h2>
-          <p className="ws-hint">산출물(평가지표 및 현황 XLSX·설문 결과 보고서 HTML·학교평가서 DOCX) 만들기는 다음 단계에서 열립니다.</p>
+          <h2 className="ra-title">5. 산출물 내려받기</h2>
+          <div className="ra-actions">
+            <button type="button" className="ws-btn ws-btn--soft" onClick={() => void analysis.downloadResultHtml()}>
+              설문 결과 보고서 (HTML)
+            </button>
+            <button
+              type="button"
+              className="ws-btn ws-btn--soft"
+              disabled={!canExport("indicator-xlsx", draft).allowed}
+              title={canExport("indicator-xlsx", draft).reason}
+              onClick={() => void analysis.downloadIndicatorXlsx()}
+            >
+              평가지표 및 현황 (XLSX)
+            </button>
+          </div>
+          <p className="ws-hint">학교평가서(DOCX)는 다음 단계에서 열립니다.</p>
         </section>
       ) : null}
     </div>

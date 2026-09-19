@@ -328,7 +328,7 @@ export function Workspace({
         </main>
       ) : (
         <main className="ra-main">
-          <ResultsAnalysis items={workspace.items} />
+          <ResultsAnalysis draft={draft} items={workspace.items} />
         </main>
       )}
 

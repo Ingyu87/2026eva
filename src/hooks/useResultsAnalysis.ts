@@ -19,6 +19,33 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return payload.data;
 }
 
+/** 파일 내려받기 GET 요청. 서버가 에러를 JSON으로 돌려주면 메시지를 그대로 던집니다. */
+async function downloadFile(url: string): Promise<void> {
+  const response = await fetch(url);
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json()) as ApiEnvelope<unknown>;
+    throw new Error(!payload.ok ? payload.error : "파일을 만들지 못했습니다.");
+  }
+  if (!response.ok) {
+    throw new Error("파일을 만들지 못했습니다.");
+  }
+
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
+  const fileName = match ? decodeURIComponent(match[1]) : "download";
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export type ColumnReview = {
   column: string;
   status: "question" | "grade" | "unmatched";
@@ -205,6 +232,27 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     }
   }
 
+  async function downloadIndicatorXlsx() {
+    if (!result) return;
+    setError("");
+    try {
+      await downloadFile(`/api/export/indicator-xlsx?resultId=${result.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "평가지표 및 현황을 만들지 못했습니다.");
+    }
+  }
+
+  async function downloadResultHtml() {
+    if (!result) return;
+    setError("");
+    try {
+      const uploadIds = uploadedAudiences.map((audience) => uploads[audience].uploadId).filter((id): id is string => Boolean(id));
+      await downloadFile(`/api/export/result-html?resultId=${result.id}&uploadIds=${uploadIds.join(",")}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "결과 보고서를 만들지 못했습니다.");
+    }
+  }
+
   return {
     uploads,
     itemsByAudience,
@@ -218,6 +266,8 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     updateColumn,
     confirmAndAggregate,
     runAnalysis,
-    saveAnalysisEdits
+    saveAnalysisEdits,
+    downloadIndicatorXlsx,
+    downloadResultHtml
   };
 }
