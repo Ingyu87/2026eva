@@ -14,6 +14,11 @@ dist/
 *학교평가서(*).pdf
 *평가지표 및 현황(*).xlsx
 
+# 0단계 템플릿 폴더 — 실제 학교 엑셀 원본은 로컬에만 둡니다(docs/implementation.md 0단계).
+# 인식 결과(map.json)는 셀 좌표·헤더 이름만 담으므로 커밋해도 되지만, 원본 xlsx는 안 됩니다.
+templates/*.xlsx
+templates/*.xlsm
+
 # 교육청 배포 원본 자료 (용량이 크고 공식 배포처가 따로 있습니다)
 *.pdf
 
