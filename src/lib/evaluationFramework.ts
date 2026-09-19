@@ -116,7 +116,13 @@ export const GRADE_BANDS = [
 
 export type GradeLabel = (typeof GRADE_BANDS)[number]["label"];
 
-/** 영역 평균점수를 4단계 척도로 옮깁니다. 소수 둘째 자리에서 반올림한 값을 넣으세요. */
+/**
+ * 영역 평균점수를 4단계 척도로 옮깁니다.
+ *
+ * ⚠️ **반올림 전 원값**을 넣으세요. 반올림한 값을 넣으면 3.999가 4.0으로 올라가
+ * "매우 우수"로 잘못 판정됩니다(spec.md 10.1 경계값 테스트: 3.999 → 우수, 4.0 → 매우 우수).
+ * 화면 표시용 반올림은 판정과 별개로 `src/lib/scoring.ts`의 `roundToOneDecimal()`로 합니다.
+ */
 export function toGrade(mean: number): GradeLabel {
   return (GRADE_BANDS.find((band) => mean >= band.min) ?? GRADE_BANDS[3]).label;
 }

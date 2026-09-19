@@ -13,7 +13,8 @@
     "verify:concurrent": "bash scripts/verify-concurrent-editing.sh",
     "verify:design": "node scripts/verify-design-rules.mjs",
     "verify:bank": "node scripts/verify-question-bank.mjs",
-    "verify": "npm run typecheck && npm run verify:bank && npm run verify:design"
+    "verify:scoring": "node scripts/verify-scoring.mjs",
+    "verify": "npm run typecheck && npm run verify:bank && npm run verify:design && npm run verify:scoring"
   },
   "dependencies": {
     "docx": "^9.5.1",
