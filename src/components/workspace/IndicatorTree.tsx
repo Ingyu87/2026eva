@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AREAS } from "@/lib/evaluationFramework";
 import type { QuestionBankItem } from "@/lib/types";
 
 /**
@@ -28,6 +29,9 @@ type Node = {
 
 function buildTree(items: QuestionBankItem[]): Node[] {
   const areas = new Map<string, Map<string, Map<string, number>>>();
+  for (const area of AREAS) {
+    areas.set(area.name, new Map(area.subareas.map((subarea) => [subarea, new Map<string, number>()])));
+  }
 
   for (const item of items) {
     const subareas = areas.get(item.area) ?? new Map();
@@ -164,6 +168,9 @@ export function IndicatorTree({
                           >
                             <span>{subarea.label}</span>
                             <span className="ws-count">{subarea.count}</span>
+                            {subarea.count === 0 && subarea.label.startsWith("Ⅲ-4") ? (
+                              <span className="ws-tree-note">해당 학교 유형만</span>
+                            ) : null}
                           </button>
                         </div>
 

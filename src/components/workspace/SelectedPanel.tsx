@@ -3,9 +3,11 @@
 import { useState } from "react";
 import {
   isCurrentSubarea,
-  requiresAllAreas,
+  missingRequiredAreas,
+  REQUIRED_AREA_CODES,
   SUBAREA_CHANGES_2025_TO_2026
 } from "@/lib/evaluationFramework";
+import { SubareaField } from "./SubareaField";
 import {
   AUDIENCE_LABELS,
   type Audience,
@@ -21,9 +23,6 @@ import { previewOptions, ResponseTypeEditor } from "./ResponseTypeEditor";
  * 저장되는 order는 분수라서 순서를 바꿔도 자기 문서 하나만 고쳐집니다.
  */
 
-/** 학생·학부모·교원은 Ⅰ·Ⅱ·Ⅲ 전 영역에 문항이 있어야 합니다(가이드북 Q9). 직원은 예외입니다. */
-const REQUIRED_AREAS = ["Ⅰ", "Ⅱ", "Ⅲ"];
-
 /**
  * 2025 자료로 담아 둔 문항을 찾아 안내 문구를 만듭니다.
  *
@@ -31,8 +30,11 @@ const REQUIRED_AREAS = ["Ⅰ", "Ⅱ", "Ⅲ"];
  * 엉뚱한 세부영역에 들어갑니다. 사람이 다시 고르게 하는 것이 안전합니다.
  */
 function legacyNoticeFor(subarea: string): string | null {
-  if (isCurrentSubarea(subarea) || subarea === "직접입력") {
+  if (isCurrentSubarea(subarea)) {
     return null;
+  }
+  if (subarea === "직접입력") {
+    return "세부영역이 없습니다. 수정에서 2026 세부영역을 고르세요.";
   }
   const change = SUBAREA_CHANGES_2025_TO_2026.find((entry) => entry.from === subarea);
   if (!change) {
@@ -41,13 +43,6 @@ function legacyNoticeFor(subarea: string): string | null {
   return change.note
     ? `2025 분류입니다. ${change.to}로 바뀌었습니다. ${change.note}`
     : `2025 분류입니다. ${change.to}로 다시 담아 주세요.`;
-}
-
-function coverage(items: SelectedQuestion[]): Record<string, boolean> {
-  return REQUIRED_AREAS.reduce<Record<string, boolean>>((acc, roman) => {
-    acc[roman] = items.some((item) => item.area.startsWith(roman));
-    return acc;
-  }, {});
 }
 
 export function SelectedPanel({
@@ -81,9 +76,9 @@ export function SelectedPanel({
     onEditingChange(undefined);
   };
 
-  const covered = coverage(items);
-  const missing = REQUIRED_AREAS.filter((roman) => !covered[roman]);
-  const showWarning = requiresAllAreas(audience) && missing.length > 0;
+  const missing = missingRequiredAreas(items, audience);
+  const present = REQUIRED_AREA_CODES.filter((code) => items.some((item) => item.area.startsWith(code)));
+  const showWarning = missing.length > 0;
   const legacyCount = items.filter((item) => legacyNoticeFor(item.subarea)).length;
 
   /** 다른 사람이 지금 보고 있는 문항을 표시합니다. */
@@ -194,6 +189,12 @@ export function SelectedPanel({
                       }
                     />
 
+                    <SubareaField
+                      subarea={item.subarea}
+                      indicator={item.indicator}
+                      onChange={(next) => onPatch(item.id, next)}
+                    />
+
                     <ResponseTypeEditor
                       responseType={item.responseType}
                       choices={item.choices}
@@ -229,10 +230,10 @@ export function SelectedPanel({
       <div className="ws-col-foot">
         <div className={showWarning ? "ws-coverage has-warning" : "ws-coverage"}>
           <div className="ws-coverage-row">
-            {REQUIRED_AREAS.map((roman) => (
+            {REQUIRED_AREA_CODES.map((roman) => (
               <span
                 key={roman}
-                className={covered[roman] ? "ws-coverage-dot is-on" : "ws-coverage-dot"}
+                className={present.includes(roman) ? "ws-coverage-dot is-on" : "ws-coverage-dot"}
               >
                 {roman}
               </span>

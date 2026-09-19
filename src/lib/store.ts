@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
+import { isCurrentSubarea, placementFromSubarea } from "./evaluationFramework";
 import { getFirebaseDb } from "./firebaseAdmin";
 import {
   AUDIENCES,
@@ -640,21 +641,47 @@ export async function patchDraftMeta(
 }
 
 /** 문항을 한 번에 여러 개 추가합니다. 새 문서라 충돌이 발생하지 않습니다. */
+function withLegalPlacement<T extends { area: string; subarea: string }>(item: T): T {
+  const placement = placementFromSubarea(item.subarea);
+  if (!placement) {
+    throw new Error("2026 세부영역을 선택하세요. 영역·세부영역은 학교가 바꿀 수 없습니다.");
+  }
+  return { ...item, area: placement.area, subarea: placement.subarea };
+}
+
+/** 세부영역을 바꿀 때만 법정 목록을 강제합니다. 옛 '직접입력' 문항은 문장만 고쳐도 저장됩니다. */
+function applyItemPatch(current: SelectedQuestion, patch: SelectedQuestionPatch): SelectedQuestion {
+  const merged = { ...current, ...patch };
+  if (patch.subarea !== undefined) {
+    return withLegalPlacement(merged);
+  }
+  if (isCurrentSubarea(current.subarea)) {
+    const placement = placementFromSubarea(current.subarea);
+    if (placement) {
+      return { ...merged, area: placement.area, subarea: placement.subarea };
+    }
+  }
+  return merged;
+}
+
 export async function createDraftItems(
   draftId: string,
   items: NewSelectedQuestion[],
   updatedBy?: string
 ): Promise<SelectedQuestion[]> {
   const now = nowIso();
-  const prepared: SelectedQuestion[] = items.map((item) => ({
-    ...item,
-    id: item.id || randomUUID(),
-    groupId: item.groupId || item.sourceQuestionId,
-    rev: 0,
-    createdAt: now,
-    updatedAt: now,
-    updatedBy
-  }));
+  const prepared: SelectedQuestion[] = items.map((item) => {
+    const legal = withLegalPlacement(item);
+    return {
+      ...legal,
+      id: legal.id || randomUUID(),
+      groupId: legal.groupId || legal.sourceQuestionId,
+      rev: 0,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy
+    };
+  });
 
   const db = getFirebaseDb();
   if (db) {
@@ -700,8 +727,7 @@ export async function patchDraftItem(
         throw new ConflictError(current);
       }
       const next: SelectedQuestion = {
-        ...current,
-        ...patch,
+        ...applyItemPatch(current, patch),
         rev: current.rev + 1,
         updatedAt: now,
         updatedBy
@@ -720,8 +746,7 @@ export async function patchDraftItem(
     throw new ConflictError(current);
   }
   const next: SelectedQuestion = {
-    ...current,
-    ...patch,
+    ...applyItemPatch(current, patch),
     rev: current.rev + 1,
     updatedAt: now,
     updatedBy

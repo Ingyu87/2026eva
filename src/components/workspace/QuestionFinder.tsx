@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { defaultSubareaFromSelection } from "@/lib/evaluationFramework";
 import {
   AUDIENCES,
   AUDIENCE_SHORT_LABELS,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/types";
 import type { TreeSelection } from "./IndicatorTree";
 import { ResponseTypeEditor } from "./ResponseTypeEditor";
+import { SubareaField } from "./SubareaField";
 
 /**
  * 가운데 열 — 문항 찾기.
@@ -60,7 +62,12 @@ export function QuestionFinder({
   /** 예시문항 id -> 이미 담아 둔 대상들 */
   addedByAudience: Map<string, Set<Audience>>;
   onToggle: (question: QuestionBankItem, audience: Audience) => void;
-  onAddCustom: (text: string, responseType: ResponseType, choices?: string[]) => void;
+  onAddCustom: (
+    text: string,
+    responseType: ResponseType,
+    choices: string[] | undefined,
+    placement: { area: string; subarea: string; indicator: string }
+  ) => void;
 }) {
   const [keyword, setKeyword] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -70,6 +77,8 @@ export function QuestionFinder({
   const [customType, setCustomType] = useState<ResponseType>("likert_5");
   const [customChoices, setCustomChoices] = useState<string[] | undefined>(undefined);
   const [customError, setCustomError] = useState("");
+  const [customSubarea, setCustomSubarea] = useState(defaultSubareaFromSelection(selection));
+  const [customIndicator, setCustomIndicator] = useState(selection.indicator || "학교 자체 문항");
   const searchRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -133,6 +142,13 @@ export function QuestionFinder({
     active?.scrollIntoView({ block: "nearest" });
   }, [cursor]);
 
+  const openCustom = () => {
+    setCustomSubarea(defaultSubareaFromSelection(selection));
+    setCustomIndicator(selection.indicator || "학교 자체 문항");
+    setCustomError("");
+    setCustomOpen(true);
+  };
+
   const submitCustom = () => {
     const text = customText.trim();
     if (!text) {
@@ -144,7 +160,12 @@ export function QuestionFinder({
       setCustomError("보기를 2개 이상 입력해 주세요.");
       return;
     }
-    onAddCustom(text, customType, needsChoices(customType) ? filled : undefined);
+    const indicator = customIndicator.trim() || "학교 자체 문항";
+    onAddCustom(text, customType, needsChoices(customType) ? filled : undefined, {
+      area: "",
+      subarea: customSubarea,
+      indicator
+    });
     setCustomText("");
     setCustomType("likert_5");
     setCustomChoices(undefined);
@@ -187,7 +208,7 @@ export function QuestionFinder({
         {results.length === 0 ? (
           <div className="ws-empty">
             <p>{debounced ? `'${debounced}' 검색 결과가 없습니다.` : "문항이 없습니다."}</p>
-            <button type="button" className="ws-btn ws-btn--soft" onClick={() => setCustomOpen(true)}>
+            <button type="button" className="ws-btn ws-btn--soft" onClick={openCustom}>
               직접 문항 작성
             </button>
           </div>
@@ -269,6 +290,16 @@ export function QuestionFinder({
             />
 
             {/* 담기 전에 유형을 정합니다. 담고 나서 찾아 들어가지 않아도 되게 합니다. */}
+            <SubareaField
+              subarea={customSubarea}
+              indicator={customIndicator}
+              onChange={(next) => {
+                setCustomSubarea(next.subarea);
+                setCustomIndicator(next.indicator);
+                setCustomError("");
+              }}
+            />
+
             <ResponseTypeEditor
               responseType={customType}
               choices={customChoices}
@@ -299,7 +330,7 @@ export function QuestionFinder({
             </div>
           </div>
         ) : (
-          <button type="button" className="ws-btn ws-btn--soft" onClick={() => setCustomOpen(true)}>
+          <button type="button" className="ws-btn ws-btn--soft" onClick={openCustom}>
             ＋ 직접 문항 작성
           </button>
         )}

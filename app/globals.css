@@ -714,6 +714,16 @@ mark {
   gap: var(--sp-2);
 }
 
+.ws-subarea-field {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.ws-tree-note {
+  color: var(--text-faint);
+  font-size: var(--fs-caption);
+}
+
 .ws-custom {
   display: grid;
   gap: var(--sp-2);

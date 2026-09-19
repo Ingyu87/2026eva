@@ -5,7 +5,7 @@ import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
-import { canExport } from "@/lib/exportGate";
+import { confirmCoverageGaps, placementFromSubarea } from "@/lib/evaluationFramework";
 import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
@@ -143,8 +143,14 @@ export function Workspace({
   const addCustomQuestion = (
     text: string,
     responseType: ResponseType,
-    choices?: string[]
+    choices: string[] | undefined,
+    placement: { area: string; subarea: string; indicator: string }
   ) => {
+    const legal = placementFromSubarea(placement.subarea);
+    if (!legal) {
+      setNotice("2026 세부영역을 먼저 고르세요.");
+      return;
+    }
     const id = `custom-${crypto.randomUUID()}`;
     workspace.addItems([
       {
@@ -152,9 +158,9 @@ export function Workspace({
         groupId: id,
         audience: activeAudience,
         sourceRow: 0,
-        area: "직접입력",
-        subarea: "직접입력",
-        indicator: "직접 작성",
+        area: legal.area,
+        subarea: legal.subarea,
+        indicator: placement.indicator.trim() || "학교 자체 문항",
         originalQuestion: text,
         editedQuestion: text,
         responseType,
@@ -238,14 +244,11 @@ export function Workspace({
             </button>
             <button
               type="button"
-              className="ws-screen-tab is-locked"
+              className="ws-screen-tab"
               role="tab"
               aria-selected={false}
-              disabled
-              title={
-                canExport("report-docx", draft).reason ??
-                "제출 서류 생성은 다음 단계에서 열립니다."
-              }
+              title="산출물 내려받기는 결과 분석 아래에 있습니다."
+              onClick={() => setActiveScreen("analyze")}
             >
               내보내기
             </button>
@@ -259,7 +262,7 @@ export function Workspace({
             type="button"
             className="ws-btn ws-btn--ghost"
             onClick={() => {
-              if (ensureSynced()) {
+              if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
                 window.location.href = "/api/export/docx";
               }
             }}
@@ -270,7 +273,7 @@ export function Workspace({
             type="button"
             className="ws-btn ws-btn--primary"
             onClick={() => {
-              if (ensureSynced()) {
+              if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
                 window.location.href = "/api/google/start";
               }
             }}

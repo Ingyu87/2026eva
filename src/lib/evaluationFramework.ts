@@ -1,4 +1,4 @@
-import type { Audience } from "./types";
+import { AUDIENCES, AUDIENCE_SHORT_LABELS, type Audience } from "./types";
 
 /**
  * 2026학년도 학교평가 평가체제.
@@ -104,6 +104,74 @@ export const SUBAREA_CHANGES_2025_TO_2026: Array<{
  */
 export function requiresAllAreas(audience: Audience): boolean {
   return audience !== "staff";
+}
+
+export const REQUIRED_AREA_CODES: AreaCode[] = ["Ⅰ", "Ⅱ", "Ⅲ"];
+
+/** 해당 대상에서 빠진 필수 영역. 직원은 빈 배열입니다. */
+export function missingRequiredAreas(
+  items: Array<{ area: string }>,
+  audience: Audience
+): AreaCode[] {
+  if (!requiresAllAreas(audience)) {
+    return [];
+  }
+  return REQUIRED_AREA_CODES.filter((code) => !items.some((item) => item.area.startsWith(code)));
+}
+
+/**
+ * 문항이 하나라도 있는 대상만 검사합니다. 폼을 안 만드는 빈 대상은 빼 둡니다.
+ */
+export function coverageGaps(
+  items: Array<{ audience: Audience; area: string; deleted?: boolean }>
+): Array<{ audience: Audience; missing: AreaCode[] }> {
+  const live = items.filter((item) => !item.deleted);
+  return AUDIENCES.flatMap((audience) => {
+    const subset = live.filter((item) => item.audience === audience);
+    if (subset.length === 0) {
+      return [];
+    }
+    const missing = missingRequiredAreas(subset, audience);
+    return missing.length > 0 ? [{ audience, missing }] : [];
+  });
+}
+
+export function confirmCoverageGaps(
+  items: Array<{ audience: Audience; area: string; deleted?: boolean }>
+): boolean {
+  const gaps = coverageGaps(items);
+  if (gaps.length === 0) {
+    return true;
+  }
+  const lines = gaps.map(
+    (gap) => `${AUDIENCE_SHORT_LABELS[gap.audience]}: ${gap.missing.join("·")}영역 문항 없음`
+  );
+  return window.confirm(
+    `${lines.join("\n")}\n\n학생·학부모·교원은 전 영역을 평가해야 합니다. (가이드북 Q9)\n그래도 진행할까요?`
+  );
+}
+
+/** 세부영역으로 영역을 확정합니다. 목록 밖이면 null입니다. */
+export function placementFromSubarea(subarea: string): { area: string; subarea: string } | null {
+  const area = areaOfSubarea(subarea);
+  return area ? { area: area.name, subarea } : null;
+}
+
+/** 트리에서 고른 값이 있으면 그걸, 없으면 첫 세부영역을 씁니다. */
+export function defaultSubareaFromSelection(selection: {
+  area?: string;
+  subarea?: string;
+}): string {
+  if (selection.subarea && AREA_BY_SUBAREA.has(selection.subarea)) {
+    return selection.subarea;
+  }
+  if (selection.area) {
+    const area = AREAS.find((entry) => entry.name === selection.area);
+    if (area) {
+      return area.subareas[0];
+    }
+  }
+  return SUBAREAS[0];
 }
 
 /** 평가 결과를 4단계 척도로 옮길 때 쓰는 구간. (가이드북 p.51) */

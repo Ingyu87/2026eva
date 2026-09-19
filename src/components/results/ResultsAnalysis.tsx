@@ -86,6 +86,9 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
       {analysis.result ? (
         <section className="ws-card ra-section">
           <h2 className="ra-title">3. 집계 결과</h2>
+          <p className="ws-hint">
+            4단계 판정은 반올림 전 원값 기준입니다. 3.96은 표시가 4.0이어도 우수입니다. (가이드북 p.51)
+          </p>
           <AreaStatsTable areaStats={analysis.result.areaStats} />
         </section>
       ) : null}
@@ -292,7 +295,8 @@ function AreaStatsTable({ areaStats }: { areaStats: AreaStat[] }) {
         <tr>
           <th>영역</th>
           <th>주체</th>
-          <th>평균</th>
+          <th>평균(원값)</th>
+          <th>표시</th>
           <th>4단계 판정</th>
         </tr>
       </thead>
@@ -301,13 +305,14 @@ function AreaStatsTable({ areaStats }: { areaStats: AreaStat[] }) {
           <tr key={`${stat.area}-${stat.audience}`}>
             <td>{stat.area}</td>
             <td>{AUDIENCE_SHORT_LABELS[stat.audience]}</td>
-            <td className={gradeClass(stat.grade4)}>{stat.meanRounded.toFixed(1)}</td>
+            <td className={gradeClass(stat.grade4)}>{stat.mean.toFixed(2)}</td>
+            <td>{stat.meanRounded.toFixed(1)}</td>
             <td className={gradeClass(stat.grade4)}>{stat.grade4}</td>
           </tr>
         ))}
         {areaStats.length === 0 ? (
           <tr>
-            <td colSpan={4} className="ws-empty">
+            <td colSpan={5} className="ws-empty">
               5점 척도 문항의 응답이 없습니다.
             </td>
           </tr>
