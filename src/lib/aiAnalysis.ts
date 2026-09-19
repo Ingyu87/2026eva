@@ -10,6 +10,7 @@ import { callGemini, parseGeminiJson } from "./gemini";
 import { roundToOneDecimal } from "./scoring";
 import {
   AUDIENCES,
+  AUDIENCE_SHORT_LABELS,
   type AiAnalysis,
   type AiEvidence,
   type AiFinding,
@@ -19,16 +20,8 @@ import {
   type SelectedQuestion
 } from "./types";
 
-/** 가이드북·XLSX가 쓰는 짧은 주체 라벨. `AUDIENCE_LABELS`("교원용" 등)와 다릅니다. */
-const SUBJECT_LABELS: Record<Audience, string> = {
-  teacher: "교원",
-  parent: "학부모",
-  student: "학생",
-  staff: "직원"
-};
-
 const SUBJECT_LABEL_TO_AUDIENCE: Record<string, Audience> = Object.fromEntries(
-  AUDIENCES.map((audience) => [SUBJECT_LABELS[audience], audience])
+  AUDIENCES.map((audience) => [AUDIENCE_SHORT_LABELS[audience], audience])
 ) as Record<string, Audience>;
 
 const MAX_RETRIES = 2; // spec.md 4.9: 최대 2회 재생성 (총 3회 시도)
@@ -129,7 +122,7 @@ function renderStatsTable(items: SelectedQuestion[], questionStats: QuestionStat
     const item = byId.get(stat.questionId);
     if (!item) continue;
     lines.push(
-      `${stat.questionId} | ${item.area} | ${item.subarea} | ${item.indicator} | ${SUBJECT_LABELS[stat.audience]} | ${roundToOneDecimal(stat.mean)} | ${stat.responseCount}`
+      `${stat.questionId} | ${item.area} | ${item.subarea} | ${item.indicator} | ${AUDIENCE_SHORT_LABELS[stat.audience]} | ${roundToOneDecimal(stat.mean)} | ${stat.responseCount}`
     );
   }
 
@@ -143,7 +136,7 @@ function renderStatsTable(items: SelectedQuestion[], questionStats: QuestionStat
   lines.push("");
   lines.push("[영역별 평균 및 4단계 판정] 영역 | 주체 | 평균 | 판정");
   for (const stat of areaStats) {
-    lines.push(`${stat.area} | ${SUBJECT_LABELS[stat.audience]} | ${stat.meanRounded} | ${stat.grade4}`);
+    lines.push(`${stat.area} | ${AUDIENCE_SHORT_LABELS[stat.audience]} | ${stat.meanRounded} | ${stat.grade4}`);
   }
 
   return lines.join("\n");
@@ -166,7 +159,7 @@ function buildPrompt(input: AnalysisInput): string {
   if (input.maskedFreeText.length > 0) {
     parts.push("", "[서술형 응답 원문 (개인정보 마스킹됨)]");
     for (const entry of input.maskedFreeText.slice(0, 200)) {
-      parts.push(`(${SUBJECT_LABELS[entry.audience]}) ${entry.text}`);
+      parts.push(`(${AUDIENCE_SHORT_LABELS[entry.audience]}) ${entry.text}`);
     }
   }
 

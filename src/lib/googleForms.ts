@@ -202,11 +202,11 @@ function questionItem(
     return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO", false, itemId);
   }
 
-  // 객관식은 학교가 쓴 보기를 씁니다. 비어 있으면 폼 생성이 실패하므로 막아 둡니다.
+  // 선택형은 학교가 쓴 보기를 씁니다. 비어 있으면 폼 생성이 실패하므로 막아 둡니다.
   if (responseType === "choice_single" || responseType === "checklist") {
     const options = (choices ?? []).map((choice) => choice.trim()).filter(Boolean);
     if (options.length < 2) {
-      throw new Error(`객관식 문항에 보기가 부족합니다: ${title}`);
+      throw new Error(`선택형 문항에 보기가 부족합니다: ${title}`);
     }
     return choiceItem(
       safeTitle,

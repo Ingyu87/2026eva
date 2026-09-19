@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AUDIENCES,
-  AUDIENCE_LABELS,
+  AUDIENCE_SHORT_LABELS,
   needsChoices,
   type Audience,
   type QuestionBankItem,
@@ -238,7 +238,7 @@ export function QuestionFinder({
                       aria-pressed={takenBy.has(audience)}
                       onClick={() => onToggle(question, audience)}
                     >
-                      {AUDIENCE_LABELS[audience].replace("용", "")}
+                      {AUDIENCE_SHORT_LABELS[audience]}
                     </button>
                   ))}
                 </div>

@@ -11,17 +11,32 @@ export const SURVEY_MODES = ["interim", "annual"] as const;
 export type SurveyMode = (typeof SURVEY_MODES)[number];
 
 export const SURVEY_MODE_LABELS: Record<SurveyMode, string> = {
-  interim: "1학기 중간평가",
+  interim: "중간평가",
   annual: "학년말 학교평가"
 };
 
 export type Audience = (typeof AUDIENCES)[number];
 
+/** 문서 제목 등 "~용"이 자연스러운 자리에 씁니다 (설문지·구글폼 제목, 안내문 탭 등). */
 export const AUDIENCE_LABELS: Record<Audience, string> = {
   teacher: "교원용",
   parent: "학부모용",
   student: "학생용",
-  staff: "교직원용"
+  staff: "직원용"
+};
+
+/**
+ * 가이드북·평가지표 및 현황 표가 쓰는 맨 표기: "학생/학부모/교원/직원".
+ * 대상 탭, 결과 표처럼 소속을 나열할 때는 이 짧은 형태를 씁니다(design.md 6.2·7.1).
+ *
+ * ⚠️ `staff`는 "교직원"이 아니라 "직원"입니다. 가이드북 p.8: 교직원을
+ * 교원(교장·교감·수석교사·교사)과 직원(교원을 제외한 학교의 모든 직원)으로 나눠 평가합니다.
+ */
+export const AUDIENCE_SHORT_LABELS: Record<Audience, string> = {
+  teacher: "교원",
+  parent: "학부모",
+  student: "학생",
+  staff: "직원"
 };
 
 export type ResponseType =
@@ -45,8 +60,8 @@ export const RESPONSE_TYPE_LABELS: Record<ResponseType, string> = {
   likert_5: "5점 척도",
   likert_3: "3점 척도",
   yes_no: "예 / 아니오",
-  choice_single: "객관식 (하나 선택)",
-  checklist: "객관식 (여러 개 선택)",
+  choice_single: "선택형 (하나 선택)",
+  checklist: "선택형 (여러 개 선택)",
   text: "서술형"
 };
 

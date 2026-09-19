@@ -9,7 +9,7 @@ import { canExport } from "@/lib/exportGate";
 import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
-  AUDIENCE_LABELS,
+  AUDIENCE_SHORT_LABELS,
   SURVEY_MODE_LABELS,
   type Audience,
   type ResponseType,
@@ -117,7 +117,7 @@ export function Workspace({
 
     if (existing) {
       workspace.removeItem(existing.id);
-      setNotice(`${AUDIENCE_LABELS[audience]}에서 뺐습니다.`);
+      setNotice(`${AUDIENCE_SHORT_LABELS[audience]}에서 뺐습니다.`);
       return;
     }
 
@@ -135,7 +135,7 @@ export function Workspace({
         responseType: "likert_5"
       }
     ]);
-    setNotice(`${AUDIENCE_LABELS[audience]}에 담았습니다.`);
+    setNotice(`${AUDIENCE_SHORT_LABELS[audience]}에 담았습니다.`);
   };
 
   const addCustomQuestion = (
@@ -168,7 +168,7 @@ export function Workspace({
       return;
     }
     const confirmed = window.confirm(
-      `${AUDIENCE_LABELS[activeAudience]} 문항 ${targets.length}개를 모두 비울까요?`
+      `${AUDIENCE_SHORT_LABELS[activeAudience]} 문항 ${targets.length}개를 모두 비울까요?`
     );
     if (!confirmed) {
       return;
@@ -260,7 +260,7 @@ export function Workspace({
               }
             }}
           >
-            DOCX
+            설문지 (DOCX)
           </button>
           <button
             type="button"
@@ -296,7 +296,7 @@ export function Workspace({
               className={activeAudience === audience ? "ws-audience-tab is-active" : "ws-audience-tab"}
               onClick={() => setActiveAudience(audience)}
             >
-              {AUDIENCE_LABELS[audience]}
+              {AUDIENCE_SHORT_LABELS[audience]}
               <span className="ws-count">{counts[audience]}</span>
             </button>
           ))}

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useResultsAnalysis } from "@/hooks/useResultsAnalysis";
 import {
   AUDIENCES,
-  AUDIENCE_LABELS,
+  AUDIENCE_SHORT_LABELS,
   type AiAnalysis,
   type AiFinding,
   type AreaStat,
@@ -35,7 +35,7 @@ export function ResultsAnalysis({ items }: { items: SelectedQuestion[] }) {
     <div className="ra-root">
       <section className="ws-card ra-section">
         <h2 className="ra-title">1. 결과 파일 올리기</h2>
-        <p className="ws-hint">구글폼 응답을 다운로드한 XLSX 또는 CSV 파일을 대상별로 올리세요.</p>
+        <p className="ws-hint">구글폼 응답을 다운로드한 엑셀 파일을 대상별로 올리세요.</p>
         <div className="ra-upload-grid">
           {AUDIENCES.map((audience) => (
             <UploadSlot
@@ -146,7 +146,7 @@ function UploadSlot({
 
   return (
     <div className="ra-dropzone">
-      <span className="ra-dropzone-label">{AUDIENCE_LABELS[audience]}</span>
+      <span className="ra-dropzone-label">{AUDIENCE_SHORT_LABELS[audience]}</span>
       {state.status === "uploaded" ? (
         <>
           <span className="ra-dropzone-file">✔ {state.filename}</span>
@@ -155,7 +155,7 @@ function UploadSlot({
       ) : state.status === "uploading" ? (
         <span className="ws-hint">올리는 중…</span>
       ) : (
-        <span className="ws-hint">{state.status === "error" ? state.error : "XLSX 또는 CSV"}</span>
+        <span className="ws-hint">{state.status === "error" ? state.error : "엑셀 파일"}</span>
       )}
       <input
         ref={inputRef}
@@ -188,7 +188,7 @@ function ColumnReviewTable({
 }) {
   return (
     <div className="ra-mapping-block">
-      <h3 className="ws-group-title">{AUDIENCE_LABELS[audience]} — {state.filename}</h3>
+      <h3 className="ws-group-title">{AUDIENCE_SHORT_LABELS[audience]} — {state.filename}</h3>
       <table className="ra-table">
         <thead>
           <tr>
@@ -264,7 +264,7 @@ function AreaStatsTable({ areaStats }: { areaStats: AreaStat[] }) {
         {areaStats.map((stat) => (
           <tr key={`${stat.area}-${stat.audience}`}>
             <td>{stat.area}</td>
-            <td>{AUDIENCE_LABELS[stat.audience]}</td>
+            <td>{AUDIENCE_SHORT_LABELS[stat.audience]}</td>
             <td className={gradeClass(stat.grade4)}>{stat.meanRounded.toFixed(1)}</td>
             <td className={gradeClass(stat.grade4)}>{stat.grade4}</td>
           </tr>
