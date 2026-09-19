@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AUDIENCES,
   AUDIENCE_SHORT_LABELS,
@@ -22,10 +22,11 @@ function formatTime(iso: string): string {
  * 부장이 담은 문항은 같은 초안에 모이므로 따로 합칠 필요가 없습니다.
  */
 export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInviteSummary[]) => void }) {
-  const [label, setLabel] = useState("");
-  const [audience, setAudience] = useState<Audience | "">("");
+  const [rows, setRows] = useState<{ id: number; label: string; audience: Audience | "" }[]>([0, 1, 2, 3].map(id => ({ id, label: "", audience: "" })));
+  const nextId = useRef(4);
+  const creating = useRef(false);
+  const [busy, setBusy] = useState(false);
   const [invites, setInvites] = useState<BuilderInviteSummary[]>([]);
-  const [created, setCreated] = useState<{ label: string; url: string; copied: boolean } | null>(null);
   const [error, setError] = useState("");
 
   async function reload() {
@@ -47,30 +48,30 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
   const linkOf = (token: string) => `${window.location.origin}/?invite=${token}`;
 
   async function createLink() {
-    setError("");
-    setCreated(null);
-    const response = await fetch("/api/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, audience: audience || undefined })
-    });
-    const payload = (await response.json()) as ApiEnvelope<{ invite: BuilderInviteSummary }>;
-    if (!payload.ok) {
-      setError(payload.error);
-      return;
-    }
-    setLabel("");
-    setAudience("");
-    await reload();
-    const url = linkOf(payload.data.invite.token);
-    let copied = false;
+    if (creating.current) return;
+    const pending = rows.filter(row => row.label.trim());
+    if (!pending.length) return;
+    const names = pending.map(row => row.label.trim());
+    if (new Set(names).size !== names.length) { setError("역할 이름이 겹칩니다. 구분할 수 있게 이름을 바꿔 주세요."); return; }
+    creating.current = true; setBusy(true); setError("");
     try {
-      await navigator.clipboard.writeText(url);
-      copied = true;
-    } catch {
-      // 복사가 막힌 환경에서는 아래 주소 칸에서 직접 복사합니다.
+      for (const row of pending) {
+        const response = await fetch("/api/invite", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: row.label.trim(), audience: row.audience || undefined })
+        });
+        const payload = await response.json() as ApiEnvelope<{ invite: BuilderInviteSummary }>;
+        if (!payload.ok) throw new Error(row.label + ": " + payload.error);
+        setInvites(previous => [...previous, payload.data.invite]);
+        setRows(previous => previous.filter(entry => entry.id !== row.id));
+      }
+      setRows(previous => previous.length ? previous : [{ id: nextId.current++, label: "", audience: "" }]);
+    } catch (err) {
+      setError((err instanceof Error ? err.message : "링크 생성 중 연결이 끊겼습니다.") + " 완료된 링크는 위 목록에 남아 있습니다. 다시 만들기 전에 목록을 확인하세요.");
+    } finally {
+      try { await reload(); } catch { setError("목록을 불러오지 못했습니다. 연결을 확인하고 다시 열어 생성된 링크를 확인하세요."); }
+      creating.current = false; setBusy(false);
     }
-    setCreated({ label: payload.data.invite.label, url, copied });
   }
 
   async function revoke(invite: BuilderInviteSummary) {
@@ -135,52 +136,19 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
       <p className="ws-hint">
         이 브라우저에서 링크를 열면 지금 계정이 로그아웃됩니다. 확인은 시크릿 창에서 하세요.
       </p>
-      <label className="ws-field">
-        <span>새 링크의 역할 이름</span>
-        <input
-          className="ws-input"
-          value={label}
-          placeholder="교무부장"
-          onChange={(event) => setLabel(event.target.value)}
-        />
-      </label>
-      <label className="ws-field">
-        <span>대상</span>
-        <select
-          className="ws-select"
-          value={audience}
-          onChange={(event) => setAudience(event.target.value as Audience | "")}
-        >
-          <option value="">전체</option>
-          {AUDIENCES.map((entry) => (
-            <option key={entry} value={entry}>
-              {AUDIENCE_SHORT_LABELS[entry]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        className="ws-btn ws-btn--primary"
-        disabled={!label.trim()}
-        onClick={() => void createLink()}
-      >
-        링크 만들기
-      </button>
+      <p className="ws-hint">부장 이름과 응답 대상을 여러 줄로 입력한 뒤 한 번에 만드세요. 이름이 빈 줄은 건너뜁니다. 만든 링크는 위 목록에서 부장별로 복사하세요.</p>
+      <fieldset className="ra-editor-fieldset ws-form" disabled={busy}>
+        {rows.map((row, index) => <div className="ws-invite-batch-row" key={row.id}>
+          <label className="ws-field"><span>부장 이름 {index + 1}</span><input className="ws-input" value={row.label} placeholder={index === 0 ? "예: 교무부장" : "부장 이름"} maxLength={60} onChange={event => setRows(previous => previous.map(entry => entry.id === row.id ? { ...entry, label: event.target.value } : entry))} /></label>
+          <label className="ws-field"><span>대상 {index + 1}</span><select className="ws-select" value={row.audience} onChange={event => setRows(previous => previous.map(entry => entry.id === row.id ? { ...entry, audience: event.target.value as Audience | "" } : entry))}>
+            <option value="">전체</option>{AUDIENCES.map(entry => <option key={entry} value={entry}>{AUDIENCE_SHORT_LABELS[entry]}</option>)}
+          </select></label>
+          <button type="button" className="ws-btn ws-btn--ghost" aria-label={index + 1 + "행 삭제"} disabled={rows.length === 1} onClick={() => setRows(previous => previous.filter(entry => entry.id !== row.id))}>삭제</button>
+        </div>)}
+        <button type="button" className="ws-btn ws-btn--soft" disabled={rows.length >= 30} onClick={() => setRows(previous => [...previous, { id: nextId.current++, label: "", audience: "" }])}>＋ 부장 추가</button>
+        <button type="button" className="ws-btn ws-btn--primary" disabled={busy || !rows.some(row => row.label.trim())} onClick={() => void createLink()}>{busy ? "링크 만드는 중…" : "입력한 " + rows.filter(row => row.label.trim()).length + "명 링크 한 번에 만들기"}</button>
+      </fieldset>
       {error ? <p className="ws-custom-error">{error}</p> : null}
-      {created ? (
-        <div className="ws-field">
-          <span>
-            {created.label} 링크를 만들었습니다{created.copied ? " (복사됨)" : ""}. 이 부장에게만 보내세요.
-          </span>
-          <input
-            className="ws-input"
-            readOnly
-            value={created.url}
-            onFocus={(event) => event.currentTarget.select()}
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

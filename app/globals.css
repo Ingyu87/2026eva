@@ -1931,3 +1931,5 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
 .ra-fold .ra-editor-fieldset:disabled { opacity: 0.7; }
 .ra-step-nav { position: sticky; top: 0; z-index: 2; background: var(--bg-card); padding: var(--sp-2); border-radius: var(--r-md); }
 .ra-fold { scroll-margin-top: 64px; }
+
+.ws-invite-batch-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: var(--sp-2); align-items: end; }
