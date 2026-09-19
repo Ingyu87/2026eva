@@ -1416,7 +1416,7 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
 }
 
 .ws-start-card {
-  width: min(520px, 100%);
+  width: min(880px, 100%);
   display: grid;
   gap: var(--sp-4);
   padding: var(--sp-8);
@@ -1933,3 +1933,7 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
 .ra-fold { scroll-margin-top: 64px; }
 
 .ws-invite-batch-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: var(--sp-2); align-items: end; }
+
+.ws-prior-controls { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--sp-3); }
+.ws-prior-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ws-prior-filename { overflow-wrap: anywhere; }

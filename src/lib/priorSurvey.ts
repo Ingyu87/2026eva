@@ -1,6 +1,6 @@
-import { areaOfSubarea, isCurrentSubarea, SUBAREA_CHANGES_2025_TO_2026 } from "./evaluationFramework";
+import { AREAS, areaOfSubarea, isCurrentSubarea, SUBAREA_CHANGES_2025_TO_2026 } from "./evaluationFramework";
 import { callGeminiWithPdf, parseGeminiJson } from "./gemini";
-import type { Audience } from "./types";
+import { RESPONSE_TYPES, LIKERT_5_OPTIONS, LIKERT_3_OPTIONS, YES_NO_OPTIONS, type Audience, type ResponseType } from "./types";
 
 export type PriorSurveyItem = {
   audience: Audience;
@@ -8,6 +8,8 @@ export type PriorSurveyItem = {
   subarea: string;
   indicator: string;
   question: string;
+  responseType: ResponseType | null;
+  choices?: string[];
 };
 
 type RawItem = {
@@ -15,6 +17,8 @@ type RawItem = {
   subarea?: string;
   indicator?: string;
   question?: string;
+  responseType?: string;
+  choices?: string[];
 };
 
 const GEMINI_SCHEMA = {
@@ -28,7 +32,9 @@ const GEMINI_SCHEMA = {
           audience: { type: "STRING", description: "교원, 학부모, 학생, 직원 중 하나" },
           subarea: { type: "STRING", description: "세부영역 이름" },
           indicator: { type: "STRING", description: "평가지표 이름" },
-          question: { type: "STRING", description: "문항 문장" }
+          question: { type: "STRING", description: "문항 원문" },
+          responseType: { type: "STRING", description: "likert_5, likert_3, yes_no, choice_single, checklist, text. 불명확하면 unknown" },
+          choices: { type: "ARRAY", items: { type: "STRING" }, description: "원문 보기 전체, 순서 유지" }
         },
         required: ["question"]
       }
@@ -48,20 +54,22 @@ const UPSTAGE_SCHEMA = {
           audience: { type: "string", description: "교원, 학부모, 학생, 직원" },
           subarea: { type: "string", description: "세부영역" },
           indicator: { type: "string", description: "평가지표" },
-          question: { type: "string", description: "문항 문장" }
+          question: { type: "string", description: "문항 원문" },
+          responseType: { type: "string", description: "likert_5, likert_3, yes_no, choice_single, checklist, text. 불명확하면 unknown" },
+          choices: { type: "array", items: { type: "string" } }
         }
       }
     }
   }
 };
 
-function parseAudience(raw?: string): Audience {
+export function parseAudience(raw?: string): Audience | undefined {
   const text = (raw ?? "").replace(/\s/g, "");
-  if (text.includes("학부모")) return "parent";
+  if ((text.includes("학부모") || text.includes("보호자"))) return "parent";
   if (text.includes("학생")) return "student";
   if (text.includes("직원")) return "staff";
   if (text.includes("교원") || text.includes("교사")) return "teacher";
-  return "teacher";
+  return undefined;
 }
 
 function suggestedSubarea(raw?: string): string {
@@ -76,27 +84,29 @@ function suggestedSubarea(raw?: string): string {
   return "";
 }
 
-export function normalizePriorSurveyItems(rawItems: RawItem[]): PriorSurveyItem[] {
-  const seen = new Set<string>();
+export function normalizePriorSurveyItems(rawItems: RawItem[], audienceHint?: Audience): PriorSurveyItem[] {
   const items: PriorSurveyItem[] = [];
   for (const raw of rawItems) {
     const question = (raw.question ?? "").replace(/\s+/g, " ").trim();
-    if (question.length < 8) {
+    if (!question) {
       continue;
     }
     const subarea = suggestedSubarea(raw.subarea);
     const area = areaOfSubarea(subarea)?.name ?? "";
-    const key = `${parseAudience(raw.audience)}|${question}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
+    const audience = audienceHint ?? parseAudience(raw.audience);
+    let responseType = RESPONSE_TYPES.includes(raw.responseType as ResponseType) ? raw.responseType as ResponseType : null;
+    const choices = Array.isArray(raw.choices) ? raw.choices.filter((c): c is string => typeof c === "string").map(c => c.trim()).filter(Boolean) : [];
+    const fixed = responseType === "likert_5" ? LIKERT_5_OPTIONS : responseType === "likert_3" ? LIKERT_3_OPTIONS : responseType === "yes_no" ? YES_NO_OPTIONS : undefined;
+    if (fixed && choices.length && JSON.stringify(fixed) !== JSON.stringify(choices)) responseType = "choice_single";
+    if (fixed && !choices.length) responseType = null;
     items.push({
-      audience: parseAudience(raw.audience),
+      audience: audience ?? "teacher",
       area,
       subarea,
       indicator: (raw.indicator ?? "").trim() || "학교 자체 문항",
-      question
+      question,
+      responseType,
+      choices: choices.length ? choices : undefined
     });
   }
   return items;
@@ -157,7 +167,9 @@ async function extractWithGemini(base64: string): Promise<RawItem[]> {
     [
       "이 파일은 전년도 학교평가 설문 문항지입니다.",
       "모든 문항을 빠짐없이 items로 추출하세요.",
-      "척도 보기(매우 그렇다 등)와 안내문은 빼세요.",
+      `subarea는 올해 허용 목록에서 문항 내용에 맞는 값을 제안하세요. 확실하지 않으면 빈 문자열로 두세요: ${AREAS.flatMap(area => area.subareas).join(" / ")}`,
+      "안내문은 빼고 문항 원문과 보기 전체를 순서대로 보존하세요. 복수 선택은 checklist, 자유 응답은 text입니다.",
+      "likert_5는 매우 그렇다/그렇다/보통이다/그렇지 않다/전혀 그렇지 않다, likert_3는 그렇다/보통이다/그렇지 않다, yes_no는 예/아니오인 경우만 사용하세요. 다른 보기는 choice_single 또는 checklist로 보존하세요. 유형 불명확 시 unknown.",
       "audience는 교원/학부모/학생/직원 중 하나입니다. 구분이 없으면 교원입니다."
     ].join("\n"),
     base64,
@@ -167,7 +179,7 @@ async function extractWithGemini(base64: string): Promise<RawItem[]> {
   return parsed.items ?? [];
 }
 
-export async function extractPriorSurveyPdf(buffer: Buffer): Promise<PriorSurveyItem[]> {
+export async function extractPriorSurveyPdf(buffer: Buffer, audienceHint?: Audience): Promise<PriorSurveyItem[]> {
   const base64 = buffer.toString("base64");
   let raw: RawItem[] = [];
   if (process.env.UPSTAGE_API_KEY?.trim()) {
@@ -177,7 +189,7 @@ export async function extractPriorSurveyPdf(buffer: Buffer): Promise<PriorSurvey
   } else {
     throw new Error("서버에 UPSTAGE_API_KEY 또는 GEMINI_API_KEY가 필요합니다.");
   }
-  const items = normalizePriorSurveyItems(raw);
+  const items = normalizePriorSurveyItems(raw, audienceHint);
   if (items.length === 0) {
     throw new Error("문항을 찾지 못했습니다.");
   }

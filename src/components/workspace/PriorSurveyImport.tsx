@@ -1,154 +1,95 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { placementFromSubarea } from "@/lib/evaluationFramework";
 import type { PriorSurveyItem } from "@/lib/priorSurvey";
-import {
-  AUDIENCES,
-  AUDIENCE_SHORT_LABELS,
-  type Audience,
-  type ResponseType
-} from "@/lib/types";
+import { AUDIENCES, AUDIENCE_SHORT_LABELS, needsChoices, type Audience, type ResponseType } from "@/lib/types";
 import { SubareaField } from "./SubareaField";
+import { ResponseTypeEditor } from "./ResponseTypeEditor";
 
-export type PriorSurveyCommit = {
-  audience: Audience;
-  area: string;
-  subarea: string;
-  indicator: string;
-  question: string;
-  responseType: ResponseType;
-};
+export type PriorSurveyCommit = Omit<PriorSurveyItem, "responseType"> & { responseType: ResponseType };
+type ReviewItem = PriorSurveyItem & { included: boolean };
+type Source = { id: string; name: string; items: ReviewItem[]; error?: string; checked: boolean };
 
-type ApiEnvelope<T> = { ok: true; data: T } | { ok: false; error: string };
-
-export function PriorSurveyImport({
-  onCommit
-}: {
-  onCommit: (items: PriorSurveyCommit[]) => void;
-}) {
+export function PriorSurveyImport({ onCommit }: { onCommit: (items: PriorSurveyCommit[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<"idle" | "reading" | "ready">("idle");
+  const busy = useRef(false);
+  const request = useRef<AbortController | null>(null);
+  const cancelled = useRef(false);
+  useEffect(() => () => { cancelled.current = true; request.current?.abort(); }, []);
+  const [reading, setReading] = useState("");
   const [error, setError] = useState("");
-  const [items, setItems] = useState<PriorSurveyItem[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [active, setActive] = useState<Audience>("teacher");
+  const selected = sources.flatMap(source => source.items.filter(item => item.included));
+  const valid = (item: ReviewItem) => Boolean(item.question.trim() && placementFromSubarea(item.subarea) && item.responseType && (!needsChoices(item.responseType) || ((item.choices?.length ?? 0) >= 2 && item.choices?.every(c => c.trim()) && new Set(item.choices.map(c => c.trim())).size === item.choices.length)));
+  const ready = selected.length > 0 && selected.every(valid) && sources.every(s => !s.error && s.checked);
 
-  const ready = items.length > 0 && items.every((item) => placementFromSubarea(item.subarea));
-
-  async function upload(file: File) {
+  async function upload(files: File[]) {
+    if (busy.current) return;
+    if (sources.length + files.length > 4) { setError("한 번에 최대 4개 파일을 확인할 수 있습니다. 기존 파일을 지운 뒤 다시 올려 주세요."); return; }
+    if (files.some(f => !f.name.toLowerCase().endsWith(".pdf") || f.size > 12 * 1024 * 1024)) { setError("파일마다 12MB 이하의 PDF를 선택하세요."); return; }
+    if (files.some(f => sources.some(s => s.name === f.name)) || new Set(files.map(f => f.name)).size !== files.length) { setError("같은 이름의 파일이 있습니다. 중복 파일을 제외하세요."); return; }
+    busy.current = true;
+    cancelled.current = false;
     setError("");
-    setStatus("reading");
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const response = await fetch("/api/ingest/prior-survey", { method: "POST", body: form });
-      const payload = (await response.json()) as ApiEnvelope<{ items: PriorSurveyItem[] }>;
-      if (!payload.ok) {
-        throw new Error(payload.error);
+      for (const file of files) {
+        if (cancelled.current) break;
+        request.current = new AbortController();
+        setReading(file.name);
+        const source: Source = { id: crypto.randomUUID(), name: file.name, items: [], checked: false };
+        try {
+          const form = new FormData(); form.append("file", file);
+          const response = await fetch("/api/ingest/prior-survey", { method: "POST", body: form, signal: AbortSignal.any([request.current.signal, AbortSignal.timeout(180000)]) });
+          const payload = await response.json();
+          if (!payload.ok) throw new Error(payload.error || "문항지를 읽지 못했습니다.");
+          source.items = (payload.data.items as PriorSurveyItem[]).map(item => ({ ...item, included: true }));
+          if (!source.items.length) throw new Error("문항을 찾지 못했습니다.");
+        } catch (err) { source.error = err instanceof Error && err.name === "TimeoutError" ? "문항 추출이 3분 안에 끝나지 않았습니다. 다시 시도해 주세요." : err instanceof Error ? err.message : "문항지를 읽지 못했습니다."; }
+        if (cancelled.current) break;
+        setSources(current => [...current, source]);
       }
-      setItems(payload.data.items);
-      setStatus("ready");
-    } catch (err) {
-      setItems([]);
-      setStatus("idle");
-      setError(err instanceof Error ? err.message : "문항지를 읽지 못했습니다.");
-    }
+    } finally { busy.current = false; setReading(""); }
   }
 
-  return (
-    <div className="ws-prior">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="application/pdf,.pdf"
-        className="ra-file-input"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) {
-            void upload(file);
-          }
-          event.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        className="ws-start-action"
-        disabled={status === "reading"}
-        onClick={() => inputRef.current?.click()}
-      >
-        <strong>전년도 학년말 문항지 올리기</strong>
-        <span>{status === "reading" ? "읽는 중…" : "PDF"}</span>
-      </button>
-      {error ? <p className="ws-custom-error">{error}</p> : null}
+  function update(id: string, index: number, patch: Partial<ReviewItem>) {
+    setSources(current => current.map(s => s.id === id ? { ...s, checked: false, items: s.items.map((item, i) => i === index ? { ...item, ...patch } : item) } : s));
+  }
 
-      {status === "ready" ? (
-        <>
-          <p className="ws-hint">{items.length}개</p>
-          <div className="ws-prior-list">
-            {items.map((item, index) => (
-              <div key={`${item.audience}-${index}`} className="ws-prior-item">
-                <p className="ws-item-text">{item.question}</p>
-                <label className="ws-field">
-                  <span>대상</span>
-                  <select
-                    className="ws-select"
-                    value={item.audience}
-                    onChange={(event) => {
-                      const audience = event.target.value as Audience;
-                      setItems((current) =>
-                        current.map((entry, entryIndex) =>
-                          entryIndex === index ? { ...entry, audience } : entry
-                        )
-                      );
-                    }}
-                  >
-                    {AUDIENCES.map((audience) => (
-                      <option key={audience} value={audience}>
-                        {AUDIENCE_SHORT_LABELS[audience]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <SubareaField
-                  subarea={item.subarea}
-                  indicator={item.indicator}
-                  onChange={(next) => {
-                    setItems((current) =>
-                      current.map((entry, entryIndex) =>
-                        entryIndex === index ? { ...entry, ...next } : entry
-                      )
-                    );
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="ws-btn ws-btn--primary"
-            disabled={!ready}
-            onClick={() => {
-              const next = items.flatMap((item) => {
-                const legal = placementFromSubarea(item.subarea);
-                if (!legal) {
-                  return [];
-                }
-                return [
-                  {
-                    ...legal,
-                    audience: item.audience,
-                    indicator: item.indicator.trim() || "학교 자체 문항",
-                    question: item.question,
-                    responseType: "likert_5" as const
-                  }
-                ];
-              });
-              onCommit(next);
-            }}
-          >
-            담기
-          </button>
-        </>
-      ) : null}
-    </div>
-  );
+  return <div className="ws-prior">
+    <p className="ws-hint">교원용·직원용·학생용·학부모용 PDF를 함께 선택하세요. 가지고 있는 대상의 파일만 올려도 됩니다. 문항지 내용은 문항 추출을 위해 외부 AI 서비스로 전송됩니다. 응답 결과나 개인정보가 포함된 파일은 올리지 마세요.</p>
+    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf" className="ra-file-input" onChange={event => { const files = Array.from(event.target.files ?? []); if (files.length) void upload(files); event.target.value = ""; }} />
+    <button type="button" className="ws-start-action" disabled={Boolean(reading)} onClick={() => inputRef.current?.click()}><strong>작년 설문지 올리기</strong><span>PDF 최대 4개 · 파일당 12MB</span></button>
+    <p className="ws-hint" role="status">{reading ? `${reading} 읽는 중…` : error}</p>
+    {reading && <button type="button" className="ws-btn ws-btn--soft" onClick={() => { cancelled.current = true; request.current?.abort(); setError("읽기를 중단했습니다. 완료된 파일은 아래에 유지됩니다."); }}>읽기 중단</button>}
+    {sources.length > 0 && <>
+      <fieldset disabled={Boolean(reading)} className="ws-prior-controls">
+        {sources.map(source => <div className="ws-prior-item" key={source.id}>
+          <strong className="ws-prior-filename">{source.name}</strong>
+          {source.error ? <p role="alert" className="ws-custom-error">{source.error} 파일을 지운 뒤 다시 올려 주세요.</p> : <>
+            <label className="ws-field"><span>이 파일 전체의 대상 변경</span><select className="ws-select" aria-label={`${source.name} 대상`} value={new Set(source.items.map(i => i.audience)).size === 1 ? source.items[0]?.audience : ""} onChange={e => setSources(current => current.map(s => s.id === source.id ? { ...s, checked: false, items: s.items.map(i => ({ ...i, audience: e.target.value as Audience })) } : s))}><option value="" disabled>문항별 대상</option>{AUDIENCES.map(a => <option key={a} value={a}>{AUDIENCE_SHORT_LABELS[a]}</option>)}</select></label>
+            <span>{source.items.filter(i => i.included).length} / {source.items.length}문항 선택</span>
+            <label><input type="checkbox" checked={source.checked} onChange={e => setSources(current => current.map(s => s.id === source.id ? { ...s, checked: e.target.checked } : s))} /> 원본과 문항·보기·응답 유형을 대조했습니다.</label>
+          </>}
+          <button type="button" className="ws-btn ws-btn--soft" onClick={() => setSources(current => current.filter(s => s.id !== source.id))}>파일 제외</button>
+        </div>)}
+        <div className="ws-prior-tabs" aria-label="대상별 문항 확인">{AUDIENCES.map(a => <button type="button" className={active === a ? "ws-btn ws-btn--primary" : "ws-btn ws-btn--soft"} aria-pressed={active === a} key={a} onClick={() => setActive(a)}>{AUDIENCE_SHORT_LABELS[a]} {selected.filter(i => i.audience === a).length}</button>)}</div>
+        <div className="ws-prior-list">
+          {!sources.some(s => s.items.some(i => i.audience === active)) && <p className="ws-hint">이 대상의 문항이 없습니다. 파일을 추가하거나 파일의 대상을 확인하세요.</p>}
+          {sources.flatMap(source => source.items.map((item, index) => item.audience !== active ? null : <div className="ws-prior-item" key={`${source.id}-${index}`}>
+            <label><input type="checkbox" checked={item.included} onChange={e => update(source.id, index, { included: e.target.checked })} /> {index + 1}번 문항 사용</label>
+            <span className="ws-hint ws-prior-filename">{source.name}</span>
+            <label className="ws-field"><span>문항</span><textarea className="ws-input" value={item.question} onChange={e => update(source.id, index, { question: e.target.value })} /></label>
+            <label className="ws-field"><span>대상</span><select className="ws-select" value={item.audience} onChange={e => update(source.id, index, { audience: e.target.value as Audience })}>{AUDIENCES.map(a => <option key={a} value={a}>{AUDIENCE_SHORT_LABELS[a]}</option>)}</select></label>
+            <SubareaField subarea={item.subarea} indicator={item.indicator} onChange={patch => update(source.id, index, patch)} />
+            {item.responseType ? <ResponseTypeEditor responseType={item.responseType} choices={item.choices} onChange={patch => update(source.id, index, patch)} /> : <label className="ws-field"><span>응답 유형을 확인하세요</span><select className="ws-select" value="" onChange={e => update(source.id, index, { responseType: e.target.value as ResponseType })}><option value="" disabled>유형 선택</option><option value="likert_5">5점 척도</option><option value="likert_3">3점 척도</option><option value="yes_no">예 / 아니오</option><option value="choice_single">하나 선택</option><option value="checklist">여러 개 선택</option><option value="text">서술형</option></select></label>}
+            {item.included && !valid(item) && <p className="ws-custom-error">문항, 올해 세부영역, 응답 유형과 선택형 보기(서로 다른 2개 이상)를 확인하세요.</p>}
+          </div>))}
+        </div>
+      </fieldset>
+      <p className="ws-hint">올해 세부영역과 원본 대조를 모두 확인하면 담을 수 있습니다. 기존 문항은 유지하고 선택한 {selected.length}개를 추가합니다.</p>
+      <button type="button" className="ws-btn ws-btn--primary" disabled={!ready || Boolean(reading)} onClick={() => { if (busy.current || !ready) return; busy.current = true; onCommit(selected.map(item => ({ ...placementFromSubarea(item.subarea)!, audience: item.audience, indicator: item.indicator.trim() || "학교 자체 문항", question: item.question.trim(), responseType: item.responseType!, choices: item.responseType && needsChoices(item.responseType) ? item.choices?.map(c => c.trim()) : undefined }))); setSources([]); busy.current = false; }}>확인한 문항으로 올해 설문 시작하기</button>
+    </>}
+  </div>;
 }

@@ -199,7 +199,7 @@ export function Workspace({
   };
 
   useEffect(() => {
-    if (isBuilder || !draft || draft.mode !== "annual") {
+    if (isBuilder || !draft || (draft.mode !== "annual" && workspace.items.length > 0)) {
       return;
     }
     try {
@@ -370,7 +370,8 @@ export function Workspace({
   const resetAllItems = () => {
     const live = workspace.items;
     if (live.length === 0) {
-      setNotice("비울 문항이 없습니다.");
+      setSettingsOpen(false);
+      dismissAnnualStart("build");
       return;
     }
     const confirmed = window.confirm(
@@ -404,7 +405,8 @@ export function Workspace({
           indicator: row.indicator,
           originalQuestion: row.question,
           editedQuestion: row.question,
-          responseType: row.responseType
+          responseType: row.responseType,
+          choices: row.choices
         };
       })
     );

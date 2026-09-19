@@ -199,7 +199,7 @@ export function SettingsModal({
               </div>
 
               <div className="ws-field">
-                <span>전년도 학년말 문항지</span>
+                <span>작년 설문을 가져와 수정하기</span>
                 <PriorSurveyImport onCommit={onImportPrior} />
               </div>
 

@@ -15,6 +15,11 @@ export type GuideVariant = "lead" | "builder";
  */
 export const LEAD_GUIDE_STEPS: GuideStep[] = [
   {
+    id: "prior-survey",
+    title: "작년 설문으로 시작하기",
+    caption: "첫 시작 화면 또는 설문 설정에서 ‘작년 설문지 올리기’를 누르세요. 교원용·직원용·학생용·학부모용 PDF를 최대 4개 함께 선택할 수 있습니다. 대상별 탭에서 문항·보기·응답 유형과 올해 세부영역을 확인하세요. 쓰지 않을 문항은 체크를 해제합니다. 파일마다 원본 대조 확인을 체크하고 ‘확인한 문항으로 올해 설문 시작하기’를 누르면 기존 문항에 추가됩니다. 읽지 못한 파일은 제외한 뒤 다시 올릴 수 있습니다."
+  },
+  {
     id: "flow",
     title: "진행 순서",
     caption:

@@ -1,6 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { resolveDraftContext } from "@/lib/draftApi";
-import { extractPriorSurveyPdf } from "@/lib/priorSurvey";
+import { extractPriorSurveyPdf, parseAudience } from "@/lib/priorSurvey";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const items = await extractPriorSurveyPdf(buffer);
+    const items = await extractPriorSurveyPdf(buffer, parseAudience(file.name));
     return jsonOk({ items });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "문항지를 읽지 못했습니다.");
