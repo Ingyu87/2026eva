@@ -1005,6 +1005,41 @@ export async function getSurveyResult(draftId: string, resultId: string): Promis
   return memoryStateFor(draftId).results.get(resultId) ?? null;
 }
 
+/** 7단계 Gemini 해석 결과를 기존 집계 결과에 붙입니다(spec.md `/api/results/analyze`·`/analysis`). */
+export async function updateSurveyResultAnalysis(
+  draftId: string,
+  resultId: string,
+  aiAnalysis: SurveyResult["aiAnalysis"]
+): Promise<SurveyResult> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(resultId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new NotFoundError("집계 결과를 찾을 수 없습니다.");
+    }
+    const updated: SurveyResult = {
+      ...(plain(doc.data()) as SurveyResult),
+      aiAnalysis,
+      aiGeneratedAt: now,
+      updatedAt: now
+    };
+    await ref.set(updated);
+    return updated;
+  }
+
+  const state = memoryStateFor(draftId);
+  const existing = state.results.get(resultId);
+  if (!existing) {
+    throw new NotFoundError("집계 결과를 찾을 수 없습니다.");
+  }
+  const updated: SurveyResult = { ...existing, aiAnalysis, aiGeneratedAt: now, updatedAt: now };
+  state.results.set(resultId, updated);
+  return updated;
+}
+
 /** 최근 업로드 순으로 돌려줍니다. 결과 화면은 가장 최근 것을 기본으로 보여줍니다. */
 export async function listSurveyResults(draftId: string): Promise<SurveyResult[]> {
   const db = getFirebaseDb();

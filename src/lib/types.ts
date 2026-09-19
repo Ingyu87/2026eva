@@ -340,6 +340,48 @@ export type ResultUpload = {
   updatedAt: string;
 };
 
+/** 서식3-1의 세 구분과 1:1 대응 (spec.md 4.9). */
+export type AiFindingCategory = "우수한 점" | "개선할 점" | "컨설팅장학 등 교육청 지원이 필요한 부분";
+
+/** AI가 문장에 붙이는 근거. `questionId`+`subject`로 실제 집계 결과와 대조합니다(환각 방지). */
+export type AiEvidence = {
+  questionId: string;
+  /** 표시용 주체 라벨: "학생"·"학부모"·"교원"·"직원". */
+  subject: string;
+  value: number;
+};
+
+/** 원인 → 개선방안 4단 구조 중 결과·원인·방안 3단(가이드북 p.37). `evidence`는 필수입니다. */
+export type AiFinding = {
+  category: AiFindingCategory;
+  subarea: string;
+  indicator: string;
+  content: string;
+  cause?: string;
+  action?: string;
+  evidence: AiEvidence[];
+  /** 환각 방지 검증에 최종 실패해 내용을 비운 경우. 화면에 "⚠ 확인 필요"로 표시합니다. */
+  needsReview?: boolean;
+};
+
+export type AiFeaturedCase = {
+  subarea: string;
+  content: string;
+};
+
+export type AiAreaAnalysis = {
+  area: string;
+  findings: AiFinding[];
+};
+
+/** Gemini 해석 결과 (spec.md 4.9 출력 형식). 자유 산문이 아니라 구조화 JSON입니다. */
+export type AiAnalysis = {
+  areas: AiAreaAnalysis[];
+  consultingNeeds: AiFinding[];
+  featuredCases: AiFeaturedCase[];
+  overallOpinion: string;
+};
+
 /** `surveyDrafts/{draftId}/results/{resultId}` — 결과 파일 업로드 1회의 집계 결과. */
 export type SurveyResult = {
   id: string;
@@ -347,6 +389,8 @@ export type SurveyResult = {
   responsesByAudience: Partial<Record<Audience, number>>;
   questionStats: QuestionStat[];
   areaStats: AreaStat[];
+  aiAnalysis?: AiAnalysis;
+  aiGeneratedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
