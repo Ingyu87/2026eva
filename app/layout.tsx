@@ -7,11 +7,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://2026eva.vercel.app"
 
 export const metadata: Metadata = {
   title: "학교평가 설문 생성기",
-  description: "학교평가 문항 선택, DOCX 출력, Google Forms 생성을 지원하는 웹앱",
+  description: "연구부장이 링크를 나눠 주면 부장들이 학교평가 문항을 담아 제출하고, 설문지(DOCX)와 Google Forms로 내보냅니다.",
   metadataBase: new URL(siteUrl),
   openGraph: {
     title: "학교평가 설문 생성기",
-    description: "학교평가 문항 선택, DOCX 출력, Google Forms 생성을 지원하는 웹앱",
+    description: "연구부장이 링크를 나눠 주면 부장들이 학교평가 문항을 담아 제출하고, 설문지(DOCX)와 Google Forms로 내보냅니다.",
     url: "/",
     siteName: "학교평가 설문 생성기",
     locale: "ko_KR",
@@ -19,16 +19,16 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 726,
-        height: 443,
-        alt: "학교평가 설문 생성기 로그인 화면"
+        width: 1200,
+        height: 630,
+        alt: "학교평가 설문 생성기 문항 구성 화면"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
     title: "학교평가 설문 생성기",
-    description: "학교평가 문항 선택, DOCX 출력, Google Forms 생성을 지원하는 웹앱",
+    description: "연구부장이 링크를 나눠 주면 부장들이 학교평가 문항을 담아 제출하고, 설문지(DOCX)와 Google Forms로 내보냅니다.",
     images: ["/og-image.png"]
   }
 };

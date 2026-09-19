@@ -128,7 +128,7 @@ export function SelectedPanel({
               <div
                 key={item.id}
                 className={
-                  [editing ? "is-editing" : "", legacy ? "is-legacy" : ""]
+                  [editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
                     .filter(Boolean)
                     .reduce((acc, cls) => `${acc} ${cls}`, "ws-item")
                 }

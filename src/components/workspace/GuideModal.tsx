@@ -56,22 +56,15 @@ export function GuideModal({
           </nav>
 
           <div className="guide-main">
-            <div className="guide-frame">
-              <img src={step.image} alt={step.title} className="guide-image" />
-              <span
-                className="guide-highlight"
-                style={{
-                  top: step.highlight.top,
-                  left: step.highlight.left,
-                  width: step.highlight.width,
-                  height: step.highlight.height
-                }}
-              />
-            </div>
             <p className="guide-caption">
               <strong>{step.title}</strong>
               {step.caption}
             </p>
+            {step.image ? (
+              <div className="guide-frame">
+                <img src={step.image} alt={step.title} className="guide-image" />
+              </div>
+            ) : null}
             <div className="guide-nav">
               <button
                 type="button"
