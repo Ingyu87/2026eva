@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from "@/components/ui";
+import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
 import { canExport } from "@/lib/exportGate";
@@ -38,6 +39,7 @@ export function Workspace({
   const draft = workspace.draft;
 
   const [activeAudience, setActiveAudience] = useState<Audience>("teacher");
+  const [activeScreen, setActiveScreen] = useState<"build" | "analyze">("build");
   const [selection, setSelection] = useState<TreeSelection>(EMPTY_SELECTION);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [namePromptDone, setNamePromptDone] = useState(false);
@@ -198,7 +200,7 @@ export function Workspace({
   }
 
   return (
-    <div className="ws-root">
+    <div className={activeScreen === "analyze" ? "ws-root ws-root--analyze" : "ws-root"}>
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
@@ -212,16 +214,21 @@ export function Workspace({
 
         <div className="ws-topbar-center">
           <div className="ws-screen-tabs" role="tablist" aria-label="화면 전환">
-            <button type="button" className="ws-screen-tab is-active" role="tab" aria-selected>
+            <button
+              type="button"
+              className={activeScreen === "build" ? "ws-screen-tab is-active" : "ws-screen-tab"}
+              role="tab"
+              aria-selected={activeScreen === "build"}
+              onClick={() => setActiveScreen("build")}
+            >
               문항 구성
             </button>
             <button
               type="button"
-              className="ws-screen-tab is-locked"
+              className={activeScreen === "analyze" ? "ws-screen-tab is-active" : "ws-screen-tab"}
               role="tab"
-              aria-selected={false}
-              disabled
-              title="결과 분석은 다음 단계에서 열립니다."
+              aria-selected={activeScreen === "analyze"}
+              onClick={() => setActiveScreen("analyze")}
             >
               결과 분석
             </button>
@@ -280,42 +287,50 @@ export function Workspace({
         </div>
       </header>
 
-      <nav className="ws-audience-tabs" aria-label="평가 주체 선택">
-        {AUDIENCES.map((audience) => (
-          <button
-            key={audience}
-            type="button"
-            className={activeAudience === audience ? "ws-audience-tab is-active" : "ws-audience-tab"}
-            onClick={() => setActiveAudience(audience)}
-          >
-            {AUDIENCE_LABELS[audience]}
-            <span className="ws-count">{counts[audience]}</span>
-          </button>
-        ))}
-        {notice ? <span className="ws-notice">{notice}</span> : null}
-      </nav>
+      {activeScreen === "build" ? (
+        <nav className="ws-audience-tabs" aria-label="평가 주체 선택">
+          {AUDIENCES.map((audience) => (
+            <button
+              key={audience}
+              type="button"
+              className={activeAudience === audience ? "ws-audience-tab is-active" : "ws-audience-tab"}
+              onClick={() => setActiveAudience(audience)}
+            >
+              {AUDIENCE_LABELS[audience]}
+              <span className="ws-count">{counts[audience]}</span>
+            </button>
+          ))}
+          {notice ? <span className="ws-notice">{notice}</span> : null}
+        </nav>
+      ) : null}
 
-      <main className="ws-grid">
-        <IndicatorTree bank={questionBank} selection={selection} onSelect={setSelection} />
-        <QuestionFinder
-          bank={questionBank}
-          selection={selection}
-          activeAudience={activeAudience}
-          addedByAudience={addedByAudience}
-          onToggle={toggleQuestion}
-          onAddCustom={addCustomQuestion}
-        />
-        <SelectedPanel
-          audience={activeAudience}
-          items={selectedItems}
-          presence={workspace.presence}
-          onPatch={(id, patch) => workspace.patchItem(id, patch as Partial<SelectedQuestion>)}
-          onRemove={workspace.removeItem}
-          onMove={workspace.moveItem}
-          onReset={resetAudience}
-          onEditingChange={workspace.setEditingItemId}
-        />
-      </main>
+      {activeScreen === "build" ? (
+        <main className="ws-grid">
+          <IndicatorTree bank={questionBank} selection={selection} onSelect={setSelection} />
+          <QuestionFinder
+            bank={questionBank}
+            selection={selection}
+            activeAudience={activeAudience}
+            addedByAudience={addedByAudience}
+            onToggle={toggleQuestion}
+            onAddCustom={addCustomQuestion}
+          />
+          <SelectedPanel
+            audience={activeAudience}
+            items={selectedItems}
+            presence={workspace.presence}
+            onPatch={(id, patch) => workspace.patchItem(id, patch as Partial<SelectedQuestion>)}
+            onRemove={workspace.removeItem}
+            onMove={workspace.moveItem}
+            onReset={resetAudience}
+            onEditingChange={workspace.setEditingItemId}
+          />
+        </main>
+      ) : (
+        <main className="ra-main">
+          <ResultsAnalysis items={workspace.items} />
+        </main>
+      )}
 
       {settingsOpen ? (
         <SettingsModal

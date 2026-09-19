@@ -51,6 +51,14 @@
   --info-bg: #e8f1fe;
   --mark-bg: #fff3bf;
 
+  /* 결과 분석 표의 점수 구간 색 (design.md 7.3, 원본 결과 보고서 HTML과 동일) */
+  --score-high-bg: #ffcdd2;
+  --score-high-ink: #c62828;
+  --score-good-bg: #fff9c4;
+  --score-good-ink: #f9a825;
+  --score-mid-bg: #e1f5fe;
+  --score-mid-ink: #0277bd;
+
   /* 강조 카드 한 곳에만 씁니다. 여러 곳에 쓰면 촌스러워집니다. */
   --grad-hero: linear-gradient(135deg, #6c5ce7 0%, #5145cd 100%);
 

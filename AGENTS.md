@@ -16,7 +16,7 @@ npm run verify      # typecheck + 문항 풀 + 디자인 규칙
 npm run dev         # http://localhost:3000
 ```
 
-**현재 5·6·7단계 API·계산·AI 해석 완료(각각 검증 스크립트 통과). S4 화면 UI가 다음.**
+**현재 5·6·7단계 완료(API+S4 화면, 각각 검증 스크립트 통과). 8단계(산출물 3종)가 다음.**
 진행 상황은 [docs/implementation.md](docs/implementation.md)의 표에서 확인하세요.
 
 ---

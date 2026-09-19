@@ -1332,6 +1332,193 @@ mark {
   font-size: var(--fs-section-title);
 }
 
+/* ── S4 결과 분석 (design.md 7.3) ───────────────────────────────── */
+
+.ws-btn--sm {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-small);
+}
+
+.ws-root--analyze {
+  grid-template-rows: var(--h-topbar) 1fr;
+}
+
+.ra-main {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-6) var(--pad-content);
+}
+
+.ra-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.ra-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ra-title {
+  font-size: var(--fs-section-title);
+  color: var(--text-strong);
+}
+
+.ra-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+}
+
+.ra-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-4);
+  border: 2px dashed var(--brand-200);
+  border-radius: var(--r-lg);
+  text-align: center;
+}
+
+.ra-dropzone-label {
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.ra-dropzone-file {
+  color: var(--ok);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.ra-file-input {
+  display: none;
+}
+
+.ra-mapping-block + .ra-mapping-block {
+  margin-top: var(--sp-6);
+}
+
+.ra-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ra-table th {
+  background: var(--bg-subtle);
+  font: 700 13px/1.4 var(--font-sans);
+  color: var(--text-body);
+  height: 44px;
+  text-align: left;
+  padding: 0 var(--sp-3);
+}
+
+.ra-table td {
+  border-bottom: 1px solid var(--line-soft);
+  height: 48px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-body);
+}
+
+.ra-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-full);
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+.ra-pill--ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.ra-pill--warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+
+.ra-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.ra-warn {
+  color: var(--warn-ink);
+  font-size: var(--fs-small);
+}
+
+.ra-error {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: var(--fs-small);
+}
+
+.ra-score {
+  border-radius: var(--r-sm);
+  font-weight: 700;
+}
+
+.ra-score--high {
+  background: var(--score-high-bg);
+  color: var(--score-high-ink);
+}
+
+.ra-score--good {
+  background: var(--score-good-bg);
+  color: var(--score-good-ink);
+}
+
+.ra-score--mid {
+  background: var(--score-mid-bg);
+  color: var(--score-mid-ink);
+}
+
+.ra-analysis {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.ra-area-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ra-finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.ra-finding--review {
+  border-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.ra-finding-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
 .doc-page p,
 .doc-page li {
   line-height: var(--lh-body);
