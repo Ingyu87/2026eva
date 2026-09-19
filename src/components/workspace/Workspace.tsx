@@ -20,6 +20,7 @@ import {
 import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorTree";
 import { QuestionFinder } from "./QuestionFinder";
 import { SelectedPanel } from "./SelectedPanel";
+import { GuideModal } from "./GuideModal";
 import { SettingsModal } from "./SettingsModal";
 
 /**
@@ -42,6 +43,7 @@ export function Workspace({
   const [activeScreen, setActiveScreen] = useState<"build" | "analyze">("build");
   const [selection, setSelection] = useState<TreeSelection>(EMPTY_SELECTION);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [namePromptDone, setNamePromptDone] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -204,12 +206,14 @@ export function Workspace({
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
-          <span
+          <button
+            type="button"
             className={draft.mode === "annual" ? "ws-mode is-annual" : "ws-mode"}
-            title="설정에서 바꿀 수 있습니다."
+            title="눌러서 중간평가 / 학년말 학교평가를 바꿉니다."
+            onClick={() => setSettingsOpen(true)}
           >
             {SURVEY_MODE_LABELS[draft.mode]}
-          </span>
+          </button>
         </div>
 
         <div className="ws-topbar-center">
@@ -275,6 +279,13 @@ export function Workspace({
           </button>
           <button
             type="button"
+            className="ws-btn ws-btn--ghost"
+            onClick={() => setGuideOpen(true)}
+          >
+            도움말
+          </button>
+          <button
+            type="button"
             className="ws-icon-btn"
             aria-label="설문 설정"
             onClick={() => setSettingsOpen(true)}
@@ -331,6 +342,8 @@ export function Workspace({
           <ResultsAnalysis draft={draft} items={workspace.items} />
         </main>
       )}
+
+      {guideOpen ? <GuideModal onClose={() => setGuideOpen(false)} /> : null}
 
       {settingsOpen ? (
         <SettingsModal

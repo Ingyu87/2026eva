@@ -291,11 +291,18 @@ mark {
 /* 평가 시기 표시 — 어떤 산출물을 만들 수 있는지가 여기서 갈립니다. */
 .ws-mode {
   padding: 3px var(--sp-3);
+  border: 0;
   border-radius: var(--r-full);
   background: var(--bg-subtle);
   color: var(--text-muted);
+  font: inherit;
   font-size: var(--fs-caption);
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.ws-mode:hover {
+  background: var(--bg-hover, var(--brand-100));
 }
 
 .ws-mode.is-annual {
@@ -1522,4 +1529,126 @@ mark {
 .doc-page p,
 .doc-page li {
   line-height: var(--lh-body);
+}
+
+/* 도움말 — 장면 한 장 + 짧은 설명 */
+.guide-modal {
+  width: min(1040px, 100%);
+}
+
+.guide-layout {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+
+.guide-toc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.guide-toc-item {
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.guide-toc-item.is-active {
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-weight: 700;
+}
+
+.guide-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-5);
+}
+
+.guide-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+}
+
+.guide-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.guide-highlight {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--brand-600);
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 9999px var(--bg-overlay);
+  pointer-events: none;
+}
+
+.guide-caption {
+  margin: 0;
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.guide-caption strong {
+  display: block;
+  margin-bottom: var(--sp-1);
+  color: var(--text-strong);
+}
+
+.guide-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.guide-dots {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.guide-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+  cursor: pointer;
+}
+
+.guide-dot.is-on {
+  background: var(--brand-600);
+}
+
+@media (max-width: 800px) {
+  .guide-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-toc {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
 }

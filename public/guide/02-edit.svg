@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 820" fill="none">
+  <rect width="1440" height="820" fill="#EEF0F9"/>
+  <rect x="16" y="16" width="1408" height="56" rx="16" fill="#fff"/>
+  <text x="36" y="50" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="16" font-weight="700">예시초등학교</text>
+  <rect x="940" y="84" width="484" height="720" rx="16" fill="#fff" stroke="#4341C4" stroke-width="2"/>
+  <text x="960" y="120" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="15" font-weight="700">교원용 1</text>
+  <text x="960" y="156" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">1  학교 비전 공유 및 실현</text>
+  <rect x="960" y="176" width="444" height="88" rx="12" fill="#F5F6FA"/>
+  <text x="976" y="208" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="14">학교 구성원의 소통과 협력을 바탕으로</text>
+  <text x="976" y="232" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="14">학교 비전을 공유하고 있다.</text>
+  <rect x="960" y="280" width="88" height="28" rx="8" fill="#4341C4"/>
+  <text x="972" y="299" fill="#fff" font-family="Malgun Gothic, sans-serif" font-size="12">5점 척도</text>
+  <rect x="1056" y="280" width="88" height="28" rx="8" fill="#F5F6FA"/>
+  <text x="1068" y="299" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">3점 척도</text>
+  <rect x="1152" y="280" width="100" height="28" rx="8" fill="#F5F6FA"/>
+  <text x="1162" y="299" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">예 / 아니오</text>
+  <rect x="960" y="324" width="444" height="36" rx="8" fill="#F5F6FA"/>
+  <text x="976" y="347" fill="#9AA0B0" font-family="Malgun Gothic, sans-serif" font-size="13">담당부서 (선택)</text>
+  <rect x="960" y="376" width="72" height="36" rx="18" fill="#4341C4"/>
+  <text x="980" y="399" fill="#fff" font-family="Malgun Gothic, sans-serif" font-size="14" font-weight="700">완료</text>
+  <rect x="16" y="84" width="908" height="720" rx="16" fill="#fff"/>
+  <text x="40" y="120" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="13">가운데 문항을 담은 뒤, 오른쪽에서 고칩니다.</text>
+  <rect x="40" y="148" width="860" height="80" rx="12" fill="#F5F6FA"/>
+  <text x="60" y="196" fill="#333340" font-family="Malgun Gothic, sans-serif" font-size="14">학교 구성원의 소통과 협력을 바탕으로 학교 비전을 공유하고 있다.</text>
+</svg>
