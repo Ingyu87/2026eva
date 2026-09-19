@@ -285,6 +285,72 @@ export type ConflictPayload<T> = {
   current: T | null;
 };
 
+/** 5점 척도 응답 분포. 인덱스 0 = 5점 응답 수 ... 인덱스 4 = 1점 응답 수. */
+export type Distribution5 = [number, number, number, number, number];
+
+/** 문항 하나의 집계 결과. `src/lib/scoring.ts`가 계산하고 여기 그대로 저장합니다. */
+export type QuestionStat = {
+  questionId: string;
+  audience: Audience;
+  /** 학생 문항일 때만. 없으면 전체(학년 구분 없음) 집계입니다. */
+  grade?: number;
+  distribution: Distribution5;
+  responseCount: number;
+  /** 반올림 전 원값. 4단계 판정에는 이 값을 씁니다 (evaluationFramework.ts `toGrade`). */
+  mean: number;
+};
+
+/** 4단계 판정 라벨. `src/lib/evaluationFramework.ts`의 `GradeLabel`과 같은 값입니다. */
+export type Grade4 = "매우 우수" | "우수" | "보통" | "미흡";
+
+/** 영역 × 평가주체 하나의 집계 결과 (서식3-1: 3영역 × 4주체 × 4단계). */
+export type AreaStat = {
+  area: string;
+  audience: Audience;
+  subtotal: Distribution5;
+  /** 반올림 전 원값. */
+  mean: number;
+  /** 소수 첫째 자리. 화면 표시 전용, 판정에는 쓰지 않습니다. */
+  meanRounded: number;
+  grade4: Grade4;
+};
+
+/** 결과 파일의 열 하나를 어디에 연결했는지. `null`은 "이 열은 집계에 안 씀"(연결 안 됨/직접 제외). */
+export type ResultColumnMapping = {
+  column: string;
+  questionId?: string;
+  isGrade?: boolean;
+};
+
+/**
+ * `surveyDrafts/{draftId}/resultUploads/{uploadId}` — 결과 파일 업로드 1건의 원본 + 연결 상태.
+ *
+ * 업로드 직후에는 열 제목을 자동 연결한 초안 상태이고, S4의 수동 연결 화면에서
+ * 사람이 확인·수정한 뒤 확정합니다. 여러 대상(교원/학부모/학생/직원) 파일을 각각 올려
+ * `POST /api/results/aggregate`에서 한 번에 계산합니다(spec.md 6.2).
+ */
+export type ResultUpload = {
+  id: string;
+  audience: Audience;
+  filename: string;
+  headers: string[];
+  rows: string[][];
+  mapping: ResultColumnMapping[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** `surveyDrafts/{draftId}/results/{resultId}` — 결과 파일 업로드 1회의 집계 결과. */
+export type SurveyResult = {
+  id: string;
+  uploadedAt: string;
+  responsesByAudience: Partial<Record<Audience, number>>;
+  questionStats: QuestionStat[];
+  areaStats: AreaStat[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type School = {
   id: string;
   schoolName: string;

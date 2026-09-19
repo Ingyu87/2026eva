@@ -6,10 +6,17 @@
  */
 
 import { toGrade, type GradeLabel } from "./evaluationFramework";
-import { LIKERT_5_OPTIONS, countsTowardAreaMean, type Audience, type ResponseType } from "./types";
+import {
+  LIKERT_5_OPTIONS,
+  countsTowardAreaMean,
+  type Audience,
+  type AreaStat,
+  type Distribution5,
+  type QuestionStat,
+  type ResponseType
+} from "./types";
 
-/** 5점 척도 응답 분포. 인덱스 0 = 5점 응답 수 ... 인덱스 4 = 1점 응답 수. */
-export type Distribution5 = [number, number, number, number, number];
+export type { Distribution5, QuestionStat, AreaStat };
 
 const LIKERT_LABEL_TO_SCORE: Record<string, number> = Object.fromEntries(
   LIKERT_5_OPTIONS.map((label, index) => [label, LIKERT_5_OPTIONS.length - index])
@@ -91,17 +98,6 @@ export function gradeForMean(mean: number): GradeLabel {
   return toGrade(stable);
 }
 
-export type QuestionStat = {
-  questionId: string;
-  audience: Audience;
-  /** 학생 문항일 때만. 없으면 전체(학년 구분 없음) 집계입니다. */
-  grade?: number;
-  distribution: Distribution5;
-  responseCount: number;
-  /** 반올림 전 원값. */
-  mean: number;
-};
-
 export function computeQuestionStat(
   questionId: string,
   audience: Audience,
@@ -118,17 +114,6 @@ export function computeQuestionStat(
     mean: weightedMean(distribution)
   };
 }
-
-export type AreaStat = {
-  area: string;
-  audience: Audience;
-  subtotal: Distribution5;
-  /** 반올림 전 원값. */
-  mean: number;
-  /** 소수 첫째 자리. 화면 표시 전용. */
-  meanRounded: number;
-  grade4: GradeLabel;
-};
 
 export type AreaMeanItem = {
   questionId: string;

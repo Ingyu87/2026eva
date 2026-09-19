@@ -13,9 +13,11 @@ import {
   type School,
   type SelectedQuestion,
   type SelectedQuestionPatch,
+  type ResultUpload,
   type SurveyDraft,
   type SurveyDraftAuthor,
   type SurveyDraftPatch,
+  type SurveyResult,
   type SyncResponse
 } from "./types";
 
@@ -299,6 +301,8 @@ export async function deleteSchool(id: string): Promise<void> {
 
 const ITEMS = "items";
 const PRESENCE = "presence";
+const RESULTS = "results";
+const RESULT_UPLOADS = "resultUploads";
 
 /** presence 하트비트가 이 시간 이상 끊기면 접속이 끝난 것으로 봅니다. */
 const PRESENCE_TTL_MS = 30_000;
@@ -328,6 +332,8 @@ type MemoryDraftState = {
   draft: SurveyDraft;
   items: Map<string, SelectedQuestion>;
   presence: Map<string, Presence>;
+  results: Map<string, SurveyResult>;
+  resultUploads: Map<string, ResultUpload>;
 };
 
 const memoryDrafts: Map<string, MemoryDraftState> =
@@ -455,7 +461,9 @@ export async function getOrCreateDraft(schoolId: string, schoolName: string): Pr
   memoryDrafts.set(draft.id, {
     draft,
     items: new Map<string, SelectedQuestion>(),
-    presence: new Map<string, Presence>()
+    presence: new Map<string, Presence>(),
+    results: new Map<string, SurveyResult>(),
+    resultUploads: new Map<string, ResultUpload>()
   });
   return draft;
 }
@@ -874,6 +882,139 @@ export async function attachGoogleForms(
     updatedAt: now
   };
   return state.draft;
+}
+
+/* ------------------------------------------------------------------ *
+ * 결과 집계 (6단계)
+ *
+ * 업로드 1회 = 문서 1개. 초안 문항과 달리 동시에 여러 사람이 같은 결과 파일을
+ * 편집하지 않으므로 rev/트랜잭션 없이 단순 저장으로 충분합니다.
+ * ------------------------------------------------------------------ */
+
+/** 결과 파일을 올린 직후, 자동 연결 결과를 담아 저장합니다(spec.md `/api/results/upload`). */
+export async function saveResultUpload(
+  draftId: string,
+  input: Omit<ResultUpload, "id" | "createdAt" | "updatedAt">
+): Promise<ResultUpload> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+  const upload: ResultUpload = {
+    ...input,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now
+  };
+
+  if (db) {
+    const draftDoc = await db.collection(DRAFTS).doc(draftId).get();
+    if (!draftDoc.exists) {
+      throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
+    }
+    await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(upload.id).set(upload);
+    return upload;
+  }
+
+  memoryStateFor(draftId).resultUploads.set(upload.id, upload);
+  return upload;
+}
+
+export async function getResultUpload(draftId: string, uploadId: string): Promise<ResultUpload | null> {
+  const db = getFirebaseDb();
+  if (db) {
+    const doc = await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(uploadId).get();
+    return doc.exists ? (plain(doc.data()) as ResultUpload) : null;
+  }
+  return memoryStateFor(draftId).resultUploads.get(uploadId) ?? null;
+}
+
+export async function listResultUploads(draftId: string): Promise<ResultUpload[]> {
+  const db = getFirebaseDb();
+  const uploads = db
+    ? (await db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).get()).docs.map(
+        (doc) => plain(doc.data()) as ResultUpload
+      )
+    : Array.from(memoryStateFor(draftId).resultUploads.values());
+
+  return uploads.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+/** S4 수동 연결 화면에서 사람이 고친 연결표로 덮어씁니다(spec.md `/api/results/map`). */
+export async function updateResultUploadMapping(
+  draftId: string,
+  uploadId: string,
+  mapping: ResultUpload["mapping"]
+): Promise<ResultUpload> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId).collection(RESULT_UPLOADS).doc(uploadId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new NotFoundError("업로드한 결과 파일을 찾을 수 없습니다.");
+    }
+    const updated = { ...(plain(doc.data()) as ResultUpload), mapping, updatedAt: now };
+    await ref.set(updated);
+    return updated;
+  }
+
+  const state = memoryStateFor(draftId);
+  const existing = state.resultUploads.get(uploadId);
+  if (!existing) {
+    throw new NotFoundError("업로드한 결과 파일을 찾을 수 없습니다.");
+  }
+  const updated = { ...existing, mapping, updatedAt: now };
+  state.resultUploads.set(uploadId, updated);
+  return updated;
+}
+
+/** 집계 결과를 새로 저장합니다. 같은 초안에 다시 올리면 이전 결과 옆에 나란히 쌓입니다. */
+export async function saveSurveyResult(
+  draftId: string,
+  input: Omit<SurveyResult, "id" | "createdAt" | "updatedAt">
+): Promise<SurveyResult> {
+  const db = getFirebaseDb();
+  const now = nowIso();
+  const result: SurveyResult = {
+    ...input,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now
+  };
+
+  if (db) {
+    const ref = db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(result.id);
+    const draftDoc = await db.collection(DRAFTS).doc(draftId).get();
+    if (!draftDoc.exists) {
+      throw new NotFoundError("설문 초안을 찾을 수 없습니다.");
+    }
+    await ref.set(result);
+    return result;
+  }
+
+  memoryStateFor(draftId).results.set(result.id, result);
+  return result;
+}
+
+export async function getSurveyResult(draftId: string, resultId: string): Promise<SurveyResult | null> {
+  const db = getFirebaseDb();
+  if (db) {
+    const doc = await db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(resultId).get();
+    return doc.exists ? (plain(doc.data()) as SurveyResult) : null;
+  }
+  return memoryStateFor(draftId).results.get(resultId) ?? null;
+}
+
+/** 최근 업로드 순으로 돌려줍니다. 결과 화면은 가장 최근 것을 기본으로 보여줍니다. */
+export async function listSurveyResults(draftId: string): Promise<SurveyResult[]> {
+  const db = getFirebaseDb();
+  const results = db
+    ? (await db.collection(DRAFTS).doc(draftId).collection(RESULTS).get()).docs.map(
+        (doc) => plain(doc.data()) as SurveyResult
+      )
+    : Array.from(memoryStateFor(draftId).results.values());
+
+  return results.slice().sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
 }
 
 export async function logAdminAction(action: string, targetSchoolId?: string): Promise<void> {
