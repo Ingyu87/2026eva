@@ -5,7 +5,11 @@ import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
-import { confirmCoverageGaps, placementFromSubarea } from "@/lib/evaluationFramework";
+import {
+  confirmCoverageGaps,
+  isCurrentSubarea,
+  placementFromSubarea
+} from "@/lib/evaluationFramework";
 import { questionBank } from "@/lib/questionBank";
 import {
   AUDIENCES,
@@ -20,6 +24,7 @@ import {
 import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorTree";
 import { QuestionFinder } from "./QuestionFinder";
 import { SelectedPanel } from "./SelectedPanel";
+import { AnnualStart } from "./AnnualStart";
 import { GuideModal } from "./GuideModal";
 import { SettingsModal } from "./SettingsModal";
 
@@ -40,7 +45,7 @@ export function Workspace({
   const draft = workspace.draft;
 
   const [activeAudience, setActiveAudience] = useState<Audience>("teacher");
-  const [activeScreen, setActiveScreen] = useState<"build" | "analyze">("build");
+  const [activeScreen, setActiveScreen] = useState<"build" | "analyze" | "annual-start">("build");
   const [selection, setSelection] = useState<TreeSelection>(EMPTY_SELECTION);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -59,6 +64,43 @@ export function Workspace({
     const timer = setTimeout(() => setNotice(""), 2500);
     return () => clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    if (!draft || draft.mode !== "annual") {
+      return;
+    }
+    try {
+      if (sessionStorage.getItem(`annual-start:${draft.id}`)) {
+        return;
+      }
+    } catch {
+      // 시크릿 모드 등에서 sessionStorage가 막혀도 시작 화면은 한 번 보여 줍니다.
+    }
+    setActiveScreen("annual-start");
+  }, [draft?.id, draft?.mode]);
+
+  const dismissAnnualStart = (next: "build" | "analyze") => {
+    if (draft) {
+      try {
+        sessionStorage.setItem(`annual-start:${draft.id}`, "1");
+      } catch {
+        // 저장에 실패해도 화면은 바꿉니다.
+      }
+    }
+    setActiveScreen(next);
+  };
+
+  const openAnnualStart = () => {
+    if (draft) {
+      try {
+        sessionStorage.removeItem(`annual-start:${draft.id}`);
+      } catch {
+        // 지워지지 않아도 시작 화면은 엽니다.
+      }
+    }
+    setActiveScreen("annual-start");
+    setSettingsOpen(false);
+  };
 
   /** 대상 탭은 Tab 키로도 넘깁니다. 마우스 왕복을 줄이기 위함입니다. */
   useEffect(() => {
@@ -93,6 +135,10 @@ export function Workspace({
   );
 
   const counts = useMemo(() => countByAudience(workspace.items), [workspace.items]);
+  const legacyCount = useMemo(
+    () => workspace.items.filter((item) => !isCurrentSubarea(item.subarea)).length,
+    [workspace.items]
+  );
 
   /** 예시문항 하나가 어느 대상에 담겨 있는지. 카드의 주체 칩이 이 값을 씁니다. */
   const addedByAudience = useMemo(() => {
@@ -186,6 +232,26 @@ export function Workspace({
     }
   };
 
+  const resetAllItems = () => {
+    const live = workspace.items;
+    if (live.length === 0) {
+      setNotice("비울 문항이 없습니다.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `담아 둔 문항 ${live.length}개를 모두 비울까요?\n다른 부장이 담은 문항도 사라집니다.`
+    );
+    if (!confirmed) {
+      return;
+    }
+    for (const item of live) {
+      workspace.removeItem(item.id);
+    }
+    setNotice("문항을 모두 비웠습니다.");
+    setSettingsOpen(false);
+    dismissAnnualStart("build");
+  };
+
   /** 아직 서버가 못 받은 편집이 있으면 내보내기가 옛 내용을 담게 되므로 막습니다. */
   const ensureSynced = (): boolean => {
     if (workspace.pendingCount > 0) {
@@ -208,7 +274,7 @@ export function Workspace({
   }
 
   return (
-    <div className={activeScreen === "analyze" ? "ws-root ws-root--analyze" : "ws-root"}>
+    <div className={activeScreen === "build" ? "ws-root" : "ws-root ws-root--analyze"}>
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
@@ -229,7 +295,7 @@ export function Workspace({
               className={activeScreen === "build" ? "ws-screen-tab is-active" : "ws-screen-tab"}
               role="tab"
               aria-selected={activeScreen === "build"}
-              onClick={() => setActiveScreen("build")}
+              onClick={() => dismissAnnualStart("build")}
             >
               문항 구성
             </button>
@@ -238,7 +304,7 @@ export function Workspace({
               className={activeScreen === "analyze" ? "ws-screen-tab is-active" : "ws-screen-tab"}
               role="tab"
               aria-selected={activeScreen === "analyze"}
-              onClick={() => setActiveScreen("analyze")}
+              onClick={() => dismissAnnualStart("analyze")}
             >
               결과 분석
             </button>
@@ -248,7 +314,7 @@ export function Workspace({
               role="tab"
               aria-selected={false}
               title="산출물 내려받기는 결과 분석 아래에 있습니다."
-              onClick={() => setActiveScreen("analyze")}
+              onClick={() => dismissAnnualStart("analyze")}
             >
               내보내기
             </button>
@@ -315,6 +381,11 @@ export function Workspace({
             </button>
           ))}
           {notice ? <span className="ws-notice">{notice}</span> : null}
+          {workspace.items.length > 0 ? (
+            <button type="button" className="ws-link ws-link--danger ws-audience-reset" onClick={resetAllItems}>
+              초기화
+            </button>
+          ) : null}
         </nav>
       ) : null}
 
@@ -340,6 +411,16 @@ export function Workspace({
             onEditingChange={workspace.setEditingItemId}
           />
         </main>
+      ) : activeScreen === "annual-start" ? (
+        <main className="ra-main">
+          <AnnualStart
+            itemCount={workspace.items.length}
+            legacyCount={legacyCount}
+            onReviewItems={() => dismissAnnualStart("build")}
+            onOpenAnalyze={() => dismissAnnualStart("analyze")}
+            onStartFresh={resetAllItems}
+          />
+        </main>
       ) : (
         <main className="ra-main">
           <ResultsAnalysis draft={draft} items={workspace.items} />
@@ -356,6 +437,9 @@ export function Workspace({
           onClose={() => setSettingsOpen(false)}
           onMeta={workspace.setMeta}
           onDisplayName={workspace.setDisplayName}
+          onSwitchedToAnnual={openAnnualStart}
+          itemCount={workspace.items.length}
+          onResetItems={resetAllItems}
         />
       ) : null}
 

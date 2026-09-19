@@ -18,7 +18,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "mode",
     title: "평가 시기",
-    caption: "왼쪽 위 배지를 눌러 중간평가 / 학년말 학교평가를 바꿉니다. 초안은 하나라 문항은 그대로입니다.",
+    caption: "왼쪽 위 배지로 시기를 바꿉니다. 학년말로 바꾸면 중간평가 문항이 남습니다. 이어서 쓸지, 비우고 다시 고를지 고릅니다.",
     image: "/guide/01-workspace.svg",
     highlight: { top: "2%", left: "10%", width: "8%", height: "6%" }
   },
@@ -53,7 +53,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "analyze",
     title: "결과 분석",
-    caption: "가운데 탭에서 결과 분석으로 이동합니다. 구글폼에서 받은 엑셀을 대상별로 올립니다.",
+    caption: "가운데 탭에서 결과 분석으로 갑니다. 학년말 응답 엑셀을 대상별로 올립니다. 중간평가 때 받은 파일은 쓰지 마세요.",
     image: "/guide/03-analyze.svg",
     highlight: { top: "2%", left: "44%", width: "8%", height: "6%" }
   },
@@ -67,7 +67,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "docs",
     title: "제출 서류",
-    caption: "학년말에서만 열립니다. 중간평가 결과로는 학교평가서를 만들지 않습니다.",
+    caption: "학년말에서만 열립니다. 중간평가 결과로는 학교평가서를 만들지 않습니다. (가이드북 Q12)",
     image: "/guide/03-analyze.svg",
     highlight: { top: "68%", left: "1%", width: "98%", height: "30%" }
   }

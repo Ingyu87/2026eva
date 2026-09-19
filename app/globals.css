@@ -137,6 +137,10 @@ mark {
   color: var(--danger);
 }
 
+.ws-btn--danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+
 .ws-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -408,6 +412,16 @@ mark {
   background: var(--ok-bg);
   color: var(--ok);
   font-size: var(--fs-small);
+}
+
+.ws-audience-reset {
+  align-self: center;
+  margin-left: auto;
+  padding: 0 var(--sp-3);
+}
+
+.ws-notice + .ws-audience-reset {
+  margin-left: 0;
 }
 
 /* 3열 */
@@ -1365,6 +1379,64 @@ mark {
   min-height: 0;
   overflow-y: auto;
   padding: var(--sp-6) var(--pad-content);
+}
+
+.ws-start {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.ws-start-card {
+  width: min(520px, 100%);
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-8);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-card);
+}
+
+.ws-start-kicker {
+  margin: 0;
+  color: var(--brand-600);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.ws-start-card h2 {
+  font-size: var(--fs-page-title);
+}
+
+.ws-start-actions {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.ws-start-action {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  text-align: left;
+}
+
+.ws-start-action:hover {
+  border-color: var(--brand-600);
+  background: var(--brand-050);
+}
+
+.ws-start-action strong {
+  color: var(--text-strong);
+}
+
+.ws-start-action span {
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  line-height: var(--lh-body);
 }
 
 .ra-root {

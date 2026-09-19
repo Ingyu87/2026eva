@@ -30,7 +30,10 @@ export function SettingsModal({
   googleForms,
   onClose,
   onMeta,
-  onDisplayName
+  onDisplayName,
+  onSwitchedToAnnual,
+  itemCount,
+  onResetItems
 }: {
   draft: SurveyDraft;
   displayName: string;
@@ -38,6 +41,9 @@ export function SettingsModal({
   onClose: () => void;
   onMeta: (patch: Partial<SurveyDraft>) => void;
   onDisplayName: (name: string) => void;
+  onSwitchedToAnnual?: () => void;
+  itemCount: number;
+  onResetItems: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("survey");
   const [introFor, setIntroFor] = useState<Audience>("teacher");
@@ -111,7 +117,12 @@ export function SettingsModal({
                         type="radio"
                         name="survey-mode"
                         checked={draft.mode === mode}
-                        onChange={() => onMeta({ mode: mode as SurveyMode })}
+                        onChange={() => {
+                          onMeta({ mode: mode as SurveyMode });
+                          if (mode === "annual") {
+                            onSwitchedToAnnual?.();
+                          }
+                        }}
                       />
                       {SURVEY_MODE_LABELS[mode]}
                     </label>
@@ -119,8 +130,8 @@ export function SettingsModal({
                 </div>
                 <p className="ws-hint">
                   {draft.mode === "annual"
-                    ? "제출 서류(평가지표 및 현황, 학교평가서)를 만들 수 있습니다. 문항은 그대로 두고 시기만 바뀝니다."
-                    : "중간 점검용입니다. 제출 서류는 학년말 학교평가에서만 만듭니다. (가이드북 Q12) 학년말로 바꾸면 지금 고른 문항을 이어서 씁니다. 초안을 따로 만들지는 않습니다."}
+                    ? "문항은 그대로 둡니다. 학년말 설문과 결과는 처음부터 다시 받습니다. 제출 서류는 그 새 결과로만 만듭니다. (가이드북 Q12)"
+                    : "중간 점검용입니다. 제출 서류는 학년말에서만 만듭니다. 학년말로 바꾸면 문항은 남기고, 다음에 할 일만 보여 줍니다."}
                 </p>
               </div>
 
@@ -180,6 +191,22 @@ export function SettingsModal({
                 </div>
                 <p className="ws-hint">
                   고른 학년이 학생용 설문의 첫 문항으로 들어가고, 결과를 학년별로 나눠 봅니다.
+                </p>
+              </div>
+
+              <div className="ws-field">
+                <span>문항 초기화</span>
+                <button
+                  type="button"
+                  className="ws-btn ws-btn--danger"
+                  disabled={itemCount === 0}
+                  onClick={onResetItems}
+                >
+                  담은 문항 모두 비우기
+                </button>
+                <p className="ws-hint">
+                  교원·학부모·학생·직원 문항을 한꺼번에 비웁니다. 다른 부장이 담은 것도 사라집니다.
+                  설문 제목·안내문·결과는 그대로입니다.
                 </p>
               </div>
 
