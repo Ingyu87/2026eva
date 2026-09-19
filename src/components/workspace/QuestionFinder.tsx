@@ -206,6 +206,16 @@ export function QuestionFinder({
 
       <p className="ws-hint ws-bank-source">2026 교육청 예시 · {AUDIENCE_SHORT_LABELS[activeAudience]}용 {bank.length}문항</p>
       <div className="ws-col-body" ref={listRef} aria-live="polite">
+        <details className="ws-selection-help">
+          <summary>어떤 문항을 고르면 좋을까요?</summary>
+          <ol>
+            <li>올해 교육목표·중점 활동과 담당 업무를 확인하고 관련 지표를 고르세요.</li>
+            <li>응답자가 직접 경험하거나 알 수 있는 내용인지 확인하세요. 학생에게 내부 행정 절차를 묻는 문항은 적합하지 않을 수 있습니다.</li>
+            <li>같은 내용을 반복하는 문항은 대표 문항으로 줄이고, 한 문항에 여러 질문이 섞이지 않도록 수정하세요.</li>
+            <li>문항을 담은 뒤 오른쪽에서 내용과 척도를 확인하세요. 학생·학부모·교원은 세 영역 모두를 평가해야 하며, 직원은 학교 상황에 맞게 구성합니다.</li>
+          </ol>
+          <p className="ws-hint">예시문항을 모두 사용할 필요는 없습니다. 영역·세부영역은 유지하고 평가지표와 문항은 학교 상황에 맞게 정하세요.</p>
+        </details>
         {results.length === 0 ? (
           <div className="ws-empty">
             <p>{debounced ? `'${debounced}' 검색 결과가 없습니다.` : "문항이 없습니다."}</p>

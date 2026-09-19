@@ -52,9 +52,20 @@ check((await school.request('/api/results/analysis','PATCH',{resultId:result.id,
 const restored=await school.data('/api/results');
 check(restored.results[0].aiAnalysis.overallOpinion===analysis.overallOpinion,'저장된 결과·직접 작성 의견 복원');
 check(!('rows' in restored.uploads[0]),'결과 목록에는 응답 원문을 반환하지 않음');
+const metadata={resultId:result.id,expectedUpdatedAt:restored.results[0].updatedAt,label:'위원회 검토 전',review:{note:'가상 자료 검토 메모',checked:['evidence','coverage']}};
+const named=(await school.data('/api/results','PATCH',metadata)).result;
+check(named.label===metadata.label && named.review.note===metadata.review.note,'집계 이름·검토 메모 저장');
+check((await school.data('/api/results')).results[0].review.checked.length===2,'검토 체크 복원');
+check((await school.request('/api/results','PATCH',metadata)).status===409,'검토 기록 동시 수정 충돌 차단');
+check((await school.request('/api/results','PATCH',{...metadata,label:'a'.repeat(61)})).status===400,'너무 긴 집계 이름 차단');
+check((await school.request('/api/results','PATCH',{...metadata,review:{note:'',checked:['unknown']}})).status===400,'알 수 없는 검토 체크 차단');
+const reedited=(await school.data('/api/results/analysis','PATCH',{resultId:result.id,aiAnalysis:analysis,expectedUpdatedAt:named.updatedAt})).result;
+check(reedited.review.checked.length===0 && reedited.review.note===metadata.review.note,'의견 재저장 시 검토 체크만 해제하고 메모 보존');
 check((await school.request('/api/results/analyze','POST',{resultId:result.id,uploadIds})).status===400,'전송 안내 미확인 AI 요청 차단 (외부 호출 없음)');
 const other=await client(`별도검증-${Date.now()}`);
 check((await other.request(`/api/export/report-docx?type=draft&resultId=${result.id}`)).status!==200,'다른 학교 결과 접근 차단');
+check((await other.request('/api/results','PATCH',metadata)).status===404,'다른 학교의 검토 기록 수정 차단');
+check((await fetch(base+'/api/admin/readiness')).status===401,'운영 설정 조회는 관리자만 허용');
 check((await fetch(base+'/api/results')).status===401,'로그인 없는 결과 조회 차단');
 const {invite}=await school.data('/api/invite','POST',{label:'가상 학생 담당 부장',audience:'student'});
 const accepted=await fetch(base+'/api/invite/accept?token='+encodeURIComponent(invite.token),{redirect:'manual'});
@@ -62,6 +73,7 @@ const builderCookie=accepted.headers.getSetCookie().map(c=>c.split(';')[0]).join
 const builderReq=(path,method='GET',body)=>fetch(base+path,{method,headers:{cookie:builderCookie,'content-type':'application/json'},body:body?JSON.stringify(body):undefined});
 check((await builderReq('/api/draft')).status===200,'부장 링크로 문항 작업 진입');
 check((await builderReq('/api/results')).status===401,'일반 부장의 응답 원문·결과 접근 차단');
+check((await builderReq('/api/results','PATCH',metadata)).status===401,'일반 부장의 검토 기록 수정 차단');
 check((await builderReq('/api/draft/items','POST',{items:[{...items[0],id:'forbidden'}]})).status===403,'담당 대상 밖의 문항 추가 차단');
 check((await builderReq('/api/draft/items/student-0','PATCH',{expectedRev:0,patch:{editedQuestion:'허용하지 않은 수정'}})).status===403,'다른 작성자의 문항 수정 차단');
 await school.data('/api/invite','PATCH',{token:invite.token});

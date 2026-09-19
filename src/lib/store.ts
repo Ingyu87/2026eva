@@ -1135,12 +1135,28 @@ export async function updateSurveyResultAnalysis(
   aiAnalysis: SurveyResult["aiAnalysis"],
   expectedUpdatedAt: string
 ): Promise<SurveyResult> {
+  return updateResultRecord(draftId, resultId, expectedUpdatedAt, existing => ({
+    ...existing, aiAnalysis, review: existing.review ? { ...existing.review, checked: [] } : undefined
+  }));
+}
+
+export async function updateSurveyResultReview(
+  draftId: string, resultId: string, expectedUpdatedAt: string,
+  metadata: Pick<SurveyResult, 'label' | 'review'>
+): Promise<SurveyResult> {
+  return updateResultRecord(draftId, resultId, expectedUpdatedAt, existing => ({ ...existing, ...metadata }));
+}
+
+async function updateResultRecord(
+  draftId: string, resultId: string, expectedUpdatedAt: string,
+  patch: (existing: SurveyResult) => SurveyResult
+): Promise<SurveyResult> {
   const db = getFirebaseDb();
   const update = (existing: SurveyResult): SurveyResult => {
     if (resultExpired(existing)) throw new NotFoundError("보관 기간이 지난 결과입니다.");
     if (existing.updatedAt !== expectedUpdatedAt) throw new ConflictError(existing);
     const now = new Date(Math.max(Date.now(), Date.parse(existing.updatedAt) + 1)).toISOString();
-    return { ...existing, aiAnalysis, updatedAt: now };
+    return { ...patch(existing), updatedAt: now };
   };
   if (db) {
     const ref = db.collection(DRAFTS).doc(draftId).collection(RESULTS).doc(resultId);

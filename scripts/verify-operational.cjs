@@ -1,0 +1,11 @@
+require('./load-ts.cjs');
+const assert=require('node:assert/strict');
+const {operationalChecks}=require('../src/lib/operationalChecks.ts');
+assert.ok(operationalChecks({}).every(c=>!c.configured));
+assert.equal(operationalChecks({FIREBASE_SERVICE_ACCOUNT_JSON:'invalid'})[0].configured,false);
+assert.equal(operationalChecks({FIREBASE_PROJECT_ID:'test'})[0].configured,false);
+const env={FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({project_id:'fake-project',client_email:'fake@example.invalid',private_key:'fake-key'}),GOOGLE_CLIENT_ID:'fake-client',GOOGLE_CLIENT_SECRET:'fake-secret',SESSION_SECRET:'x'.repeat(40)};
+const checks=operationalChecks(env);assert.ok(checks.every(c=>c.configured));
+assert.ok(!JSON.stringify(checks).includes('fake-key'));assert.ok(!JSON.stringify(checks).includes('fake-secret'));
+assert.equal(operationalChecks({SESSION_SECRET:'replace-with-a-long-random-string'})[1].configured,false);
+console.log('[PASS] 운영 설정 누락·형식 오류·완전한 설정·비밀값 비노출·기본값 차단');

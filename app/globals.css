@@ -1918,3 +1918,16 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
 }
 
 .ra-editor-fieldset { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.ra-step-nav { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ra-fold { scroll-margin-top: var(--sp-4); }
+.ra-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); cursor: pointer; }
+.ra-fold[open] > summary { margin-bottom: var(--sp-4); }
+.ra-fold > summary::before { content: '+'; color: var(--brand-600); font-weight: 700; }
+.ra-fold[open] > summary::before { content: '−'; }
+.ra-fold > summary .ra-title { flex: 1; }
+.ws-selection-help { margin: var(--sp-3); padding: var(--sp-3); background: var(--bg-subtle); border-radius: var(--r-md); }
+.ws-selection-help summary { cursor: pointer; font-weight: 600; }
+.ws-selection-help ol, .ra-ai-options ol { padding-left: var(--sp-6); line-height: 1.7; }
+.ra-fold .ra-editor-fieldset:disabled { opacity: 0.7; }
+.ra-step-nav { position: sticky; top: 0; z-index: 2; background: var(--bg-card); padding: var(--sp-2); border-radius: var(--r-md); }
+.ra-fold { scroll-margin-top: 64px; }

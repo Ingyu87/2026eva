@@ -334,6 +334,25 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
   }
 
   return {
+    saveReview: async (metadata: { label: string; review: { note: string; checked: string[] } }) => {
+      if (!result || !beginOperation()) return false;
+      setError('');
+      try {
+        const data = await call<{ result: SurveyResult }>('/api/results', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resultId: result.id, expectedUpdatedAt: result.updatedAt, ...metadata })
+        });
+        // 의견 본문이 바뀌지 않았으므로 편집 중인 내용을 재설정하지 않습니다.
+        setResult({ ...data.result, aiAnalysis: result.aiAnalysis });
+        setHistory(prev => prev.map(r => r.id === data.result.id ? data.result : r));
+        return true;
+      } catch (err) {
+        setError(err instanceof ApiError && err.status === 409
+          ? '다른 사용자가 먼저 저장했습니다. 입력한 이름·메모를 복사한 뒤 최신 결과를 불러와 다시 저장하세요.'
+          : err instanceof Error ? err.message : '검토 기록을 저장하지 못했습니다.');
+        return false;
+      } finally { endOperation(); }
+    },
     busy,
     saveConflict,
     loadLatestAnalysis,

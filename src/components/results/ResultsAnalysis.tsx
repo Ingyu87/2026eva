@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ResultReview } from './ResultReview';
 import { useResultsAnalysis } from "@/hooks/useResultsAnalysis";
 import { canExport } from "@/lib/exportGate";
 import { emptyManualAnalysis } from '@/lib/manualAnalysis';
@@ -27,6 +28,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
   const [schoolContext, setSchoolContext] = useState("");
   const [draftAnalysis, setDraftAnalysis] = useState<AiAnalysis | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [reviewDirty, setReviewDirty] = useState(false);
   const [transmissionConfirmed, setTransmissionConfirmed] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
   const [preservedEdit, setPreservedEdit] = useState<{ resultId: string; content: AiAnalysis } | null>(null);
@@ -38,11 +40,11 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
   }, [analysis.result?.id, analysis.result?.aiAnalysis]);
 
   useEffect(() => {
-    if (!dirty && !preservedEdit) return;
+    if (!dirty && !reviewDirty && !preservedEdit) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, preservedEdit]);
+  }, [dirty, reviewDirty, preservedEdit]);
 
   const hasAnyUpload = AUDIENCES.some((audience) => analysis.uploads[audience].status !== "idle");
   const dataIssues = analysis.result ? resultDataIssues(analysis.result) : [];
@@ -55,14 +57,21 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
       <section className="ws-card ra-section">
         <h2 className="ra-title">응답을 집계하고 학교평가서를 작성합니다</h2>
         <p className="ws-hint">파일 올리기 → 문항 연결 → 점수 확인 → 평가 의견 작성 → 보고서 내려받기. AI는 선택 사항입니다.</p>
+
         {analysis.loading ? <p role="status">저장된 작업을 불러오는 중…</p> : null}
         {analysis.history.length > 0 ? <label className="ws-field"><span>저장된 집계 이어하기</span><select disabled={analysis.busy} className="ws-select" value={analysis.result?.id ?? ''} onChange={e => {
-          if (dirty && !window.confirm('저장하지 않은 평가 의견이 있습니다. 다른 집계로 이동할까요?')) return;
+          if ((dirty || reviewDirty) && !window.confirm('저장하지 않은 의견 또는 검토 기록이 있습니다. 다른 집계로 이동할까요?')) return;
           analysis.selectResult(analysis.history.find(r => r.id === e.target.value) ?? null);
-        }}>{analysis.history.map(r => <option key={r.id} value={r.id}>{new Date(r.uploadedAt).toLocaleString('ko-KR')} · {r.mode === 'annual' ? '학년말' : r.mode === 'interim' ? '중간평가' : '시기 확인 필요'}</option>)}</select></label> : null}
+        }}>{analysis.history.map(r => <option key={r.id} value={r.id}>{r.label ? `${r.label} · ` : ''}{new Date(r.uploadedAt).toLocaleString('ko-KR')} · {r.mode === 'annual' ? '학년말' : r.mode === 'interim' ? '중간평가' : '시기 확인 필요'}</option>)}</select></label> : null}
       </section>
-      <section className="ws-card ra-section">
-        <h2 className="ra-title">1. 결과 파일 올리기</h2>
+        <nav className="ra-step-nav" aria-label="결과 작업 단계">
+          {([['upload','1. 파일'], ['mapping','2. 연결'], ['stats','3. 점수'], ['opinion','4. 의견'], ['export','5. 문서'], ['review','검토 기록']] as const).map(([id,label]) => <button type="button" className="ws-btn ws-btn--soft" key={id} disabled={id === 'mapping' ? !hasAnyUpload : id !== 'upload' && !analysis.result} onClick={() => {
+            const target = document.getElementById(`result-${id}`) as HTMLDetailsElement | null;
+            if (target) { target.open = true; target.querySelector('summary')?.focus(); target.scrollIntoView({ block: 'start' }); }
+          }}>{label}</button>)}
+        </nav>
+      <ResultSection step="upload" title="1. 결과 파일 올리기">
+
         <p className="ws-hint">구글폼 응답을 다운로드한 엑셀 파일을 대상별로 올리세요.</p>
         <p className="ws-hint">올리기 전에 이름·연락처·이메일 열을 삭제하세요. 결과는 30일간 조회할 수 있으며, 기간이 지난 자료는 다음 결과 조회 때 정리됩니다. 필요한 보고서는 먼저 내려받아 학교의 보관 기준에 따라 관리하세요.</p>
         <div className="ra-upload-grid">
@@ -76,13 +85,13 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
             />
           ))}
         </div>
-      </section>
+      </ResultSection>
 
       {hasAnyUpload ? (
-        <section className="ws-card ra-section">
-          <h2 className="ra-title">2. 문항 연결 확인</h2>
+        <ResultSection step="mapping" title="2. 문항 연결 확인">
+
           <p className="ws-hint">
-            자동으로 못 찾은 열은 아래에서 문항을 직접 골라 주세요. 그대로 두면 집계에서 빠집니다.
+            자동으로 못 찾은 열은 아래에서 문항을 직접 골라 주세요. 그대로 두면 집계에서 빠집니다. 열 제목이 바뀌어도 실제 질문이 같으면 해당 문항을 선택하세요. 이름·이메일·응답 시각 열은 집계에서 제외하고, 학년 열은 학생용에서만 지정합니다.
           </p>
           {analysis.uploadedAudiences.map((audience) => (
             <ColumnReviewTable
@@ -98,7 +107,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
             <button
               type="button"
               className="ws-btn ws-btn--primary"
-              disabled={analysis.busy || analysis.uploadedAudiences.length === 0}
+              disabled={analysis.busy || reviewDirty || analysis.uploadedAudiences.length === 0}
               onClick={() => { if (!dirty || window.confirm('저장하지 않은 평가 의견이 있습니다. 새 집계로 바꿀까요?')) void analysis.confirmAndAggregate(); }}
             >
               {analysis.aggregating ? "집계 중…" : "3. 연결 확정하고 집계하기"}
@@ -107,31 +116,32 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
               <span className="ra-warn">⚠ 연결 안 된 열이 있습니다. 그대로 진행하면 그 열은 집계에서 빠집니다.</span>
             ) : null}
           </div>
-        </section>
+        </ResultSection>
       ) : null}
 
       {analysis.error ? <div className="ra-error">⚠ {analysis.error}</div> : null}
 
       {analysis.result ? (
-        <section className="ws-card ra-section">
-          <h2 className="ra-title">3. 집계 결과</h2>
+        <ResultSection step="stats" title="3. 집계 결과">
+
           <p className="ws-hint">
             4단계 판정은 반올림 전 원값 기준입니다. 3.96은 표시가 4.0이어도 우수입니다. (가이드북 p.51)
           </p>
           <AreaStatsTable areaStats={analysis.result.areaStats} />
-        </section>
+        </ResultSection>
       ) : null}
-      {hasAnyUpload || analysis.result ? <section className="ws-card ra-section">
-        <h2 className="ra-title">결과 자료 정리</h2>
-        <p className="ws-hint">다운로드한 보고서는 지워지지 않습니다. 앱에 올린 응답 파일과 저장된 집계·평가 의견을 삭제하며, 설문 문항은 유지합니다.</p>
-        <button type="button" className="ws-btn ws-btn--ghost" disabled={analysis.busy} onClick={() => { if (window.confirm('보고서를 내려받았나요? 이 학교의 모든 응답 파일·집계·평가 의견을 삭제합니다. 되돌릴 수 없습니다.')) void analysis.deleteResults(); }}>응답 및 분석 자료 삭제</button>
-      </section> : null}
+
 
       {analysis.result ? (
-        <section className="ws-card ra-section">
-          <h2 className="ra-title">4. 평가 의견 작성</h2>
+        <ResultSection step="opinion" title="4. 평가 의견 작성">
+
           <p className="ws-hint">학교평가위원회에서 확인한 우수한 점과 개선할 점을 작성하세요. 내려받은 DOCX는 한글·Word에서 열어 수정할 수 있습니다. 수정 후 표와 쪽 나눔을 확인하세요.</p>
-          {!draftAnalysis ? <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy} onClick={() => { setDraftAnalysis(emptyManualAnalysis()); setDirty(true); }}>AI 없이 직접 작성</button> : null}
+          <details className="ra-ai-options"><summary>평가 의견 작성 요령과 예시</summary>
+            <p>평가 결과에는 확인한 사실을, 원인에는 근거가 있는 설명을 적습니다. 개선 방안에는 할 일·담당·시기와 다음 연도 교육계획에 반영할 방법을 적으세요. 점수 차이만으로 원인을 단정하지 마세요.</p>
+            <p><strong>가상 예시 — 실제 결과로 복사하지 마세요.</strong> 안내 방식 개선이 필요한 경우, 설문과 안내 기록을 대조하고 → 확인된 원인 또는 추가 확인할 사항을 적고 → 담당 부서가 다음 학기 안내 일정과 전달 방법을 교육계획에 반영하도록 작성할 수 있습니다.</p>
+            <p>우수한 점은 계속할 활동과 근거를, 개선할 점은 바꿀 활동과 확인 방법을 구체적으로 적으세요.</p>
+          </details>
+          {!draftAnalysis ? <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || reviewDirty} onClick={() => { setDraftAnalysis(emptyManualAnalysis()); setDirty(true); }}>AI 없이 직접 작성</button> : null}
           <details className="ra-ai-options"><summary>AI 초안 도움받기 (선택)</summary>
           <p className="ws-hint">Google Gemini에 학교명, 문항, 계산된 점수와 아래 학교 활동을 보냅니다. 서술형 응답 원문은 보내지 않습니다. 이름·연락처 등 개인정보를 학교 활동에 넣지 마세요. AI 의견은 근거와 실제 운영 내용을 확인한 뒤 사용하세요.</p>
           <label className="ws-field">
@@ -149,7 +159,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
             <button
               type="button"
               className="ws-btn ws-btn--primary"
-              disabled={analysis.busy || analysis.saveConflict || !transmissionConfirmed}
+              disabled={analysis.busy || reviewDirty || analysis.saveConflict || !transmissionConfirmed}
               onClick={() => { if (!draftAnalysis || window.confirm('AI 초안으로 현재 평가 의견을 바꿀까요? 저장할 내용은 먼저 저장하세요.')) void analysis.runAnalysis(schoolContext); }}
             >
               {analysis.analyzing ? "해석 중… (수십 초 걸릴 수 있음)" : "AI 해석 실행"}
@@ -157,7 +167,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
           </div>
           </details>
 
-          {draftAnalysis ? (<fieldset className="ra-editor-fieldset" disabled={analysis.busy}>
+          {draftAnalysis ? (<fieldset className="ra-editor-fieldset" disabled={analysis.busy || reviewDirty}>
             <AiAnalysisEditor
               analysis={draftAnalysis}
               onChange={next => { setDraftAnalysis(next); setDirty(true); setSaveNotice(''); }}
@@ -188,16 +198,19 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
           </details> : null}
           {dirty ? <p className="ra-warn" role="status">작성한 의견을 저장해 주세요. 보고서에는 저장된 내용이 들어갑니다.</p> : null}
           {saveNotice ? <p role="status">{saveNotice}</p> : null}
-        </section>
+        </ResultSection>
       ) : null}
 
       {analysis.result ? (
-        <section className="ws-card ra-section">
-          <h2 className="ra-title">5. 보고서 내려받기</h2>
+        <ResultSection step="export" title="5. 보고서 내려받기">
+
           {reportReadiness(analysis.result).length ? <div className="ra-warn"><strong>제출 전 확인할 내용</strong><ul>{reportReadiness(analysis.result).map(issue => <li key={issue}>{issue}</li>)}</ul></div> : <p role="status">필수 대상·영역과 평가 의견이 갖춰졌습니다. 학교평가위원회 검토 후 제출하세요.</p>}
           <p className="ws-hint">DOCX는 편집 가능한 초안입니다. 제출 전 대상별 전 영역의 결과, 평가 의견, 학교명·학년도 및 서식3-1·3-2를 학교평가위원회에서 확인하세요. 문항별 점수는 보관용에만 포함됩니다.</p>
           {!analysis.result.aiAnalysis ? <p className="ra-warn">평가 의견을 아직 저장하지 않았습니다. DOCX의 빈칸을 한글·Word에서 작성하거나 위에서 직접 작성하세요.</p> : null}
           {!canExport('report-docx', draft, analysis.result).allowed ? <p className="ra-warn">{canExport('report-docx', draft, analysis.result).reason}</p> : null}
+          <details className="ra-ai-options"><summary>한글·Word에서 이어 작성하는 방법</summary>
+            <ol><li>작성용 DOCX를 내려받아 원본을 보관하세요.</li><li>한글·Word에서 열어 다른 이름으로 저장한 뒤 빈칸을 작성하세요.</li><li>학교명·학년도와 반복 머리글, 쪽 경계의 표, 마지막 문항까지 확인하세요.</li><li>문서에서 수정한 내용은 앱에 자동 반영되지 않습니다. 앱에서 다시 내려받으면 문서에서 수정한 부분이 포함되지 않으므로, 최종 파일은 학교에서 별도로 관리하세요.</li></ol>
+          </details>
           <div className="ra-actions">
             <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || dirty || !canExport('report-docx', draft, analysis.result).allowed} onClick={() => void analysis.downloadReportDocx('draft')}>한글·Word에서 이어 쓸 작성용 (DOCX)</button>
             <button type="button" className="ws-btn ws-btn--soft" disabled={analysis.busy || dirty} onClick={() => void analysis.downloadResultHtml()}>
@@ -236,10 +249,28 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
               학교평가서 보관용 (DOCX)
             </button>
           </div>
-        </section>
+        </ResultSection>
       ) : null}
+      {analysis.result ? <ResultSection step="review" title="학교 내부 검토 기록" initiallyOpen={false}>
+        {dirty ? <p className="ra-warn">평가 의견을 먼저 저장한 뒤 검토 기록을 작성하세요.</p> : null}
+        <ResultReview key={analysis.result.id} result={analysis.result} disabled={analysis.busy || dirty} onDirty={setReviewDirty} onSave={analysis.saveReview} />
+        <button type="button" className="ws-btn ws-btn--ghost" disabled={analysis.busy || dirty || reviewDirty} onClick={() => void analysis.loadLatestAnalysis()}>다른 사용자가 저장한 최신 결과 불러오기</button>
+        {reviewDirty ? <p className="ws-hint">저장 충돌이 나면 입력 내용을 복사해 보관한 뒤 다른 집계를 선택하거나 새로고침하여 최신 내용을 불러오세요.</p> : null}
+      </ResultSection> : null}
+      {hasAnyUpload || analysis.result ? <ResultSection step="cleanup" title="결과 자료 정리" initiallyOpen={false}>
+
+        <p className="ws-hint">다운로드한 보고서는 지워지지 않습니다. 앱에 올린 응답 파일과 저장된 집계·평가 의견을 삭제하며, 설문 문항은 유지합니다.</p>
+        <button type="button" className="ws-btn ws-btn--ghost" disabled={analysis.busy || dirty || reviewDirty} onClick={() => { if (window.confirm('보고서를 내려받았나요? 이 학교의 모든 응답 파일·집계·평가 의견을 삭제합니다. 되돌릴 수 없습니다.')) void analysis.deleteResults(); }}>응답 및 분석 자료 삭제</button>
+      </ResultSection> : null}
     </div>
   );
+}
+
+function ResultSection({ step, title, children, initiallyOpen = true }: { step: string; title: string; children: ReactNode; initiallyOpen?: boolean }) {
+  return <details id={`result-${step}`} className="ws-card ra-fold" open={initiallyOpen}>
+    <summary><h2 className="ra-title">{title}</h2><span className="ws-hint">펼치기 / 접기</span></summary>
+    <div className="ra-section">{children}</div>
+  </details>;
 }
 
 function UploadSlot({

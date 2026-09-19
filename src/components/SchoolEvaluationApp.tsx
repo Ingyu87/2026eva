@@ -1,6 +1,7 @@
 "use client";
 
 import { IndicatorTemplateAdmin } from "./IndicatorTemplateAdmin";
+import { OperationalReadiness } from "./OperationalReadiness";
 
 import { useEffect, useState } from "react";
 import { Workspace } from "@/components/workspace/Workspace";
@@ -410,7 +411,8 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
               </button>
             </div>
 
-            <IndicatorTemplateAdmin />
+              <OperationalReadiness />
+              <IndicatorTemplateAdmin />
             <table className="gate-table">
               <thead>
                 <tr>

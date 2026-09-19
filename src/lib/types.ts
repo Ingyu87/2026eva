@@ -404,6 +404,8 @@ export type AiAnalysis = {
 
 /** `surveyDrafts/{draftId}/results/{resultId}` — 결과 파일 업로드 1회의 집계 결과. */
 export type SurveyResult = {
+  label?: string;
+  review?: { note: string; checked: string[] };
   uploadMappings?: Record<string, ResultColumnMapping[]>;
   mode?: SurveyMode;
   uploadIds?: string[];
