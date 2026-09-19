@@ -37,7 +37,20 @@ globalThis.__schoolEvalMemoryState = memoryState;
 declare global {
   // eslint-disable-next-line no-var
   var __schoolEvalMemoryState: MemoryState | undefined;
+  // eslint-disable-next-line no-var
+  var __schoolEvalIndicatorTemplate: StoredIndicatorTemplate | null | undefined;
 }
+
+/**
+ * 평가지표 및 현황 XLSX 템플릿 원본. 학교마다 다른 게 아니라 앱 전체가 공유하는
+ * 값이라 학교 문서가 아니라 `adminSettings` 싱글턴 문서에 둡니다(spec.md 7.1 "템플릿 등록 화면").
+ * 파일이 수십 KB 수준이라 별도 스토리지 없이 Firestore 문서에 base64로 둡니다.
+ */
+export type StoredIndicatorTemplate = {
+  filename: string;
+  base64: string;
+  uploadedAt: string;
+};
 
 export function normalizeSchoolName(name: string): string {
   return name.replace(/\s+/g, "").trim().toLocaleLowerCase("ko-KR");
@@ -303,6 +316,8 @@ const ITEMS = "items";
 const PRESENCE = "presence";
 const RESULTS = "results";
 const RESULT_UPLOADS = "resultUploads";
+const ADMIN_SETTINGS = "adminSettings";
+const INDICATOR_TEMPLATE_DOC = "indicatorTemplate";
 
 /** presence 하트비트가 이 시간 이상 끊기면 접속이 끝난 것으로 봅니다. */
 const PRESENCE_TTL_MS = 30_000;
@@ -1050,6 +1065,33 @@ export async function listSurveyResults(draftId: string): Promise<SurveyResult[]
     : Array.from(memoryStateFor(draftId).results.values());
 
   return results.slice().sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
+}
+
+/** 관리자가 올린 평가지표 및 현황 템플릿을 저장합니다(8-1). 새로 올리면 이전 것을 덮어씁니다. */
+export async function saveIndicatorTemplate(filename: string, buffer: Buffer): Promise<StoredIndicatorTemplate> {
+  const template: StoredIndicatorTemplate = {
+    filename,
+    base64: buffer.toString("base64"),
+    uploadedAt: nowIso()
+  };
+
+  const db = getFirebaseDb();
+  if (db) {
+    await db.collection(ADMIN_SETTINGS).doc(INDICATOR_TEMPLATE_DOC).set(template);
+    return template;
+  }
+
+  globalThis.__schoolEvalIndicatorTemplate = template;
+  return template;
+}
+
+export async function getIndicatorTemplate(): Promise<StoredIndicatorTemplate | null> {
+  const db = getFirebaseDb();
+  if (db) {
+    const doc = await db.collection(ADMIN_SETTINGS).doc(INDICATOR_TEMPLATE_DOC).get();
+    return doc.exists ? (plain(doc.data()) as StoredIndicatorTemplate) : null;
+  }
+  return globalThis.__schoolEvalIndicatorTemplate ?? null;
 }
 
 export async function logAdminAction(action: string, targetSchoolId?: string): Promise<void> {

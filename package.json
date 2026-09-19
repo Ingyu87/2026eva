@@ -13,6 +13,7 @@
     "verify:concurrent": "bash scripts/verify-concurrent-editing.sh",
     "verify:results": "bash scripts/verify-results.sh",
     "verify:ai": "bash scripts/verify-ai-analysis.sh",
+    "verify:indicator": "bash scripts/verify-indicator-xlsx.sh",
     "verify:design": "node scripts/verify-design-rules.mjs",
     "verify:bank": "node scripts/verify-question-bank.mjs",
     "verify:scoring": "node scripts/verify-scoring.mjs",
