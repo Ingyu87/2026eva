@@ -5,6 +5,7 @@ import { getFirebaseDb } from "./firebaseAdmin";
 import {
   AUDIENCES,
   type Audience,
+  type BuilderInvite,
   type DraftBundle,
   type GoogleFormInfo,
   type GoogleFormsByAudience,
@@ -1117,6 +1118,82 @@ export async function getIndicatorTemplate(): Promise<StoredIndicatorTemplate | 
     return doc.exists ? (plain(doc.data()) as StoredIndicatorTemplate) : null;
   }
   return globalThis.__schoolEvalIndicatorTemplate ?? null;
+}
+
+const INVITES = "builderInvites";
+
+const memoryInvites: Map<string, BuilderInvite> =
+  globalThis.__schoolEvalInvites ?? new Map<string, BuilderInvite>();
+
+globalThis.__schoolEvalInvites = memoryInvites;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __schoolEvalInvites: Map<string, BuilderInvite> | undefined;
+}
+
+export async function createBuilderInvite(input: {
+  schoolId: string;
+  schoolName: string;
+  draftId: string;
+  label: string;
+  audience?: Audience;
+}): Promise<BuilderInvite> {
+  const invite: BuilderInvite = {
+    token: randomUUID(),
+    schoolId: input.schoolId,
+    schoolName: input.schoolName,
+    draftId: input.draftId,
+    label: input.label.trim(),
+    audience: input.audience,
+    revoked: false,
+    createdAt: nowIso()
+  };
+
+  const db = getFirebaseDb();
+  if (db) {
+    await db.collection(INVITES).doc(invite.token).set(invite);
+    return invite;
+  }
+  memoryInvites.set(invite.token, invite);
+  return invite;
+}
+
+export async function listBuilderInvites(schoolId: string): Promise<BuilderInvite[]> {
+  const db = getFirebaseDb();
+  const rows = db
+    ? (await db.collection(INVITES).where("schoolId", "==", schoolId).get()).docs.map(
+        (doc) => plain(doc.data()) as BuilderInvite
+      )
+    : Array.from(memoryInvites.values()).filter((invite) => invite.schoolId === schoolId);
+
+  return rows
+    .filter((invite) => !invite.revoked)
+    .slice()
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+export async function getBuilderInvite(token: string): Promise<BuilderInvite | null> {
+  const db = getFirebaseDb();
+  if (db) {
+    const doc = await db.collection(INVITES).doc(token).get();
+    return doc.exists ? (plain(doc.data()) as BuilderInvite) : null;
+  }
+  return memoryInvites.get(token) ?? null;
+}
+
+export async function revokeBuilderInvite(schoolId: string, token: string): Promise<void> {
+  const current = await getBuilderInvite(token);
+  if (!current || current.schoolId !== schoolId) {
+    throw new NotFoundError("링크를 찾을 수 없습니다.");
+  }
+  const next = { ...current, revoked: true };
+  const db = getFirebaseDb();
+  if (db) {
+    await db.collection(INVITES).doc(token).set(next);
+    return;
+  }
+  memoryInvites.set(token, next);
 }
 
 export async function logAdminAction(action: string, targetSchoolId?: string): Promise<void> {

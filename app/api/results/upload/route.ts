@@ -15,7 +15,7 @@ function isAudience(value: unknown): value is Audience {
  * 연결에 실패한 열은 `mapping`에 questionId 없이 남아, S4 화면에서 사람이 고릅니다(spec.md 9장).
  */
 export async function POST(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

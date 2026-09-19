@@ -12,7 +12,7 @@ type Body = {
  * 여러 대상(교원/학부모/학생/직원) 파일을 한 번에 넘겨야 영역 평균이 제대로 나옵니다.
  */
 export async function POST(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

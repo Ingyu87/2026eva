@@ -23,6 +23,10 @@ export async function POST(request: Request) {
     return jsonError("추가할 문항이 없습니다.");
   }
 
+  if (context.audience && body.items.some((item) => item.audience !== context.audience)) {
+    return jsonError("이 링크로는 지정된 대상의 문항만 담을 수 있습니다.", 403);
+  }
+
   try {
     const items = await createDraftItems(context.draftId, body.items, body.updatedBy);
     return jsonOk({ items });

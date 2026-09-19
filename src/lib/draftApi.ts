@@ -1,22 +1,37 @@
 import { NextResponse } from "next/server";
-import { jsonError, requireSchoolSession } from "./api";
+import { getDraftAccess, jsonError, requireSchoolSession } from "./api";
 import { ConflictError, getOrCreateDraft, NotFoundError } from "./store";
-import type { ApiResult } from "./types";
+import type { ApiResult, Audience, WorkspaceRole } from "./types";
 
 /**
  * 초안 쓰기 라우트가 공통으로 필요한 것: 세션 확인과 초안 id.
  * 실패하면 그대로 돌려줄 응답을 반환합니다.
  */
-export async function resolveDraftContext(): Promise<
-  | { draftId: string; schoolId: string; schoolName: string }
+export async function resolveDraftContext(options?: { leadOnly?: boolean }): Promise<
+  | { draftId: string; schoolId: string; schoolName: string; role: WorkspaceRole; audience?: Audience }
   | NextResponse<ApiResult<never>>
 > {
-  const session = await requireSchoolSession();
-  if ("status" in session) {
-    return session;
+  if (options?.leadOnly) {
+    const session = await requireSchoolSession();
+    if ("status" in session) {
+      return session;
+    }
+    const draft = await getOrCreateDraft(session.schoolId, session.schoolName);
+    return { draftId: draft.id, schoolId: session.schoolId, schoolName: session.schoolName, role: "lead" };
   }
-  const draft = await getOrCreateDraft(session.schoolId, session.schoolName);
-  return { draftId: draft.id, schoolId: session.schoolId, schoolName: session.schoolName };
+
+  const access = await getDraftAccess();
+  if (!access) {
+    return jsonError("로그인이 필요합니다.", 401);
+  }
+  const draft = await getOrCreateDraft(access.schoolId, access.schoolName);
+  return {
+    draftId: draft.id,
+    schoolId: access.schoolId,
+    schoolName: access.schoolName,
+    role: access.role,
+    audience: access.audience
+  };
 }
 
 /**

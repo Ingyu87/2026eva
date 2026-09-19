@@ -12,6 +12,7 @@ import {
   type SurveyDraftAuthor,
   type SurveyMode
 } from "@/lib/types";
+import { InviteLinks } from "./InviteLinks";
 import { PriorSurveyImport, type PriorSurveyCommit } from "./PriorSurveyImport";
 
 /**
@@ -23,7 +24,7 @@ import { PriorSurveyImport, type PriorSurveyCommit } from "./PriorSurveyImport";
  * 각 항목은 따로 저장되므로 두 사람이 서로 다른 항목을 동시에 고쳐도 부딪히지 않습니다.
  */
 
-type Tab = "survey" | "intro" | "authors" | "account";
+type Tab = "survey" | "intro" | "authors" | "invites" | "account";
 
 export function SettingsModal({
   draft,
@@ -87,6 +88,7 @@ export function SettingsModal({
               ["survey", "설문 정보"],
               ["intro", "안내문"],
               ["authors", "작성 분담"],
+              ["invites", "부장 링크"],
               ["account", "내 표시 이름"]
             ] as Array<[Tab, string]>
           ).map(([key, label]) => (
@@ -333,6 +335,8 @@ export function SettingsModal({
               </button>
             </div>
           ) : null}
+
+          {tab === "invites" ? <InviteLinks /> : null}
 
           {tab === "account" ? (
             <div className="ws-form">

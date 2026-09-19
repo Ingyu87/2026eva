@@ -11,7 +11,7 @@ type Body = {
 
 /** 제목·안내문 등 메타를 항목 단위로 수정합니다. 문항은 건드리지 않습니다. */
 export async function PATCH(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

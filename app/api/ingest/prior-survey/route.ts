@@ -5,7 +5,7 @@ import { extractPriorSurveyPdf } from "@/lib/priorSurvey";
 const MAX_BYTES = 12 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

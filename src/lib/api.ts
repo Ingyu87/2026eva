@@ -2,12 +2,16 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   ADMIN_SESSION_COOKIE,
+  BUILDER_SESSION_COOKIE,
   cookieOptions,
   decodeSignedToken,
   SCHOOL_SESSION_COOKIE,
   type AdminSession,
+  type BuilderSession,
   type SchoolSession
 } from "./session";
+import { getBuilderInvite } from "./store";
+import type { Audience } from "./types";
 import type { ApiResult } from "./types";
 
 export function jsonOk<T>(data: T, init?: ResponseInit): NextResponse<ApiResult<T>> {
@@ -29,6 +33,43 @@ export async function requireSchoolSession(): Promise<SchoolSession | NextRespon
     return jsonError("로그인이 필요합니다.", 401);
   }
   return session;
+}
+
+export async function getBuilderSession(): Promise<BuilderSession | null> {
+  const cookieStore = await cookies();
+  const session = decodeSignedToken<BuilderSession>(cookieStore.get(BUILDER_SESSION_COOKIE)?.value);
+  return session?.role === "builder" ? session : null;
+}
+
+export type DraftAccess = {
+  schoolId: string;
+  schoolName: string;
+  role: "lead" | "builder";
+  label?: string;
+  audience?: Audience;
+};
+
+export async function getDraftAccess(): Promise<DraftAccess | null> {
+  const school = await getSchoolSession();
+  if (school?.role === "school") {
+    return { schoolId: school.schoolId, schoolName: school.schoolName, role: "lead" };
+  }
+  const builder = await getBuilderSession();
+  if (builder?.role === "builder") {
+    // 연구부장이 링크를 끊으면 이미 들어온 사람도 바로 막습니다.
+    const invite = await getBuilderInvite(builder.token);
+    if (!invite || invite.revoked) {
+      return null;
+    }
+    return {
+      schoolId: builder.schoolId,
+      schoolName: builder.schoolName,
+      role: "builder",
+      label: builder.label,
+      audience: builder.audience as Audience | undefined
+    };
+  }
+  return null;
 }
 
 export async function getAdminSession(): Promise<AdminSession | null> {

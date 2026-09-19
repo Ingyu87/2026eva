@@ -1,4 +1,4 @@
-import { jsonOk, requireSchoolSession } from "@/lib/api";
+import { getDraftAccess, jsonError, jsonOk } from "@/lib/api";
 import { getDraftBundle } from "@/lib/store";
 
 /**
@@ -8,11 +8,11 @@ import { getDraftBundle } from "@/lib/store";
  * PUT은 다른 사람의 작업을 지우기 때문에 폐기했습니다.
  */
 export async function GET() {
-  const session = await requireSchoolSession();
-  if ("status" in session) {
-    return session;
+  const access = await getDraftAccess();
+  if (!access) {
+    return jsonError("로그인이 필요합니다.", 401);
   }
 
-  const bundle = await getDraftBundle(session.schoolId, session.schoolName);
+  const bundle = await getDraftBundle(access.schoolId, access.schoolName);
   return jsonOk(bundle);
 }

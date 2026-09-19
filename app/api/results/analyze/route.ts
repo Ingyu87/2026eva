@@ -39,7 +39,7 @@ function collectMaskedFreeText(
 
 /** 7단계: 집계 결과를 Gemini로 해석합니다. 계산은 이미 끝난 상태로 들어갑니다(spec.md 4.9). */
 export async function POST(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

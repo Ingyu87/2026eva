@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Workspace } from "@/components/workspace/Workspace";
-import type { ApiResult, PublicSchool } from "@/lib/types";
+import type { ApiResult, Audience, PublicSchool, WorkspaceRole } from "@/lib/types";
 
 /**
  * 앱의 바깥 껍데기.
@@ -45,6 +45,9 @@ export function SchoolEvaluationApp() {
   const [mode, setMode] = useState<Mode>("user");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [school, setSchool] = useState<PublicSchool | null>(null);
+  const [workspaceRole, setWorkspaceRole] = useState<WorkspaceRole>("lead");
+  const [builderLabel, setBuilderLabel] = useState("");
+  const [builderAudience, setBuilderAudience] = useState<Audience | undefined>(undefined);
   const [schoolName, setSchoolName] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
@@ -56,19 +59,37 @@ export function SchoolEvaluationApp() {
   const [schools, setSchools] = useState<PublicSchool[]>([]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get("invite");
+    if (invite && invite !== "missing" && invite !== "invalid") {
+      window.location.replace(`/api/invite/accept?token=${encodeURIComponent(invite)}`);
+      return;
+    }
+    if (invite === "invalid" || invite === "missing") {
+      setError("링크가 없거나 끊겼습니다.");
+      window.history.replaceState({}, "", "/");
+    }
+
     void (async () => {
       try {
-        const data = await fetchJson<{ school: PublicSchool | null }>("/api/auth/me");
+        const data = await fetchJson<{
+          school: PublicSchool | null;
+          role: WorkspaceRole | null;
+          builderLabel?: string;
+          builderAudience?: Audience | null;
+        }>("/api/auth/me");
         if (data.school) {
           setSchool(data.school);
           setSchoolName(data.school.schoolName);
+          setWorkspaceRole(data.role === "builder" ? "builder" : "lead");
+          setBuilderLabel(data.builderLabel ?? "");
+          setBuilderAudience(data.builderAudience ?? undefined);
         }
       } catch {
         setSchool(null);
       }
     })();
 
-    const params = new URLSearchParams(window.location.search);
     const google = params.get("google");
     if (google === "success") {
       setStatus("대상별 Google Forms 생성이 완료되었습니다.");
@@ -102,6 +123,9 @@ export function SchoolEvaluationApp() {
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     setSchool(null);
+    setWorkspaceRole("lead");
+    setBuilderLabel("");
+    setBuilderAudience(undefined);
     setStatus("로그아웃되었습니다.");
   }
 
@@ -156,7 +180,15 @@ export function SchoolEvaluationApp() {
 
   // 작업 화면은 100dvh를 그대로 써야 해서 바깥 껍데기 없이 그립니다.
   if (mode === "user" && school) {
-    return <Workspace school={school} onLogout={() => void logout()} />;
+    return (
+      <Workspace
+        school={school}
+        role={workspaceRole}
+        builderLabel={builderLabel}
+        builderAudience={builderAudience}
+        onLogout={() => void logout()}
+      />
+    );
   }
 
   return (

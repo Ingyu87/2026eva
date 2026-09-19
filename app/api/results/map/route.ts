@@ -10,7 +10,7 @@ type Body = {
 
 /** S4 수동 연결 화면에서 사람이 고친 열 ↔ 문항 연결표를 확정합니다. */
 export async function POST(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GUIDE_STEPS } from "@/lib/guideSteps";
+import { getGuideSteps, type GuideVariant } from "@/lib/guideSteps";
 
-export function GuideModal({ onClose }: { onClose: () => void }) {
+export function GuideModal({
+  variant = "lead",
+  onClose
+}: {
+  variant?: GuideVariant;
+  onClose: () => void;
+}) {
+  const steps = getGuideSteps(variant);
   const [index, setIndex] = useState(0);
-  const step = GUIDE_STEPS[index];
-  const last = index === GUIDE_STEPS.length - 1;
+  const step = steps[index];
+  const last = index === steps.length - 1;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -14,7 +21,7 @@ export function GuideModal({ onClose }: { onClose: () => void }) {
         onClose();
       }
       if (event.key === "ArrowRight") {
-        setIndex((current) => Math.min(GUIDE_STEPS.length - 1, current + 1));
+        setIndex((current) => Math.min(steps.length - 1, current + 1));
       }
       if (event.key === "ArrowLeft") {
         setIndex((current) => Math.max(0, current - 1));
@@ -22,13 +29,13 @@ export function GuideModal({ onClose }: { onClose: () => void }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, steps.length]);
 
   return (
     <div className="ws-overlay" role="dialog" aria-modal="true" aria-label="도움말">
       <div className="ws-modal guide-modal">
         <div className="ws-modal-head">
-          <h2>도움말</h2>
+          <h2>{variant === "builder" ? "도움말 (문항 작업)" : "도움말 (연구부장)"}</h2>
           <button type="button" className="ws-icon-btn" aria-label="닫기" onClick={onClose}>
             ✕
           </button>
@@ -36,7 +43,7 @@ export function GuideModal({ onClose }: { onClose: () => void }) {
 
         <div className="guide-layout">
           <nav className="guide-toc" aria-label="도움말 목차">
-            {GUIDE_STEPS.map((entry, entryIndex) => (
+            {steps.map((entry, entryIndex) => (
               <button
                 key={entry.id}
                 type="button"
@@ -75,7 +82,7 @@ export function GuideModal({ onClose }: { onClose: () => void }) {
                 이전
               </button>
               <div className="guide-dots" role="tablist" aria-label="장면">
-                {GUIDE_STEPS.map((entry, entryIndex) => (
+                {steps.map((entry, entryIndex) => (
                   <button
                     key={entry.id}
                     type="button"

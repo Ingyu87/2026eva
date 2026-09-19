@@ -10,7 +10,7 @@ type Body = {
 
 /** 사용자가 AI 해석 결과를 직접 고친 내용을 저장합니다(spec.md `/api/results/analysis`). */
 export async function PATCH(request: Request) {
-  const context = await resolveDraftContext();
+  const context = await resolveDraftContext({ leadOnly: true });
   if ("status" in context) {
     return context;
   }

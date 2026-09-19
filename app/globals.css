@@ -1757,3 +1757,31 @@ mark {
     border-bottom: 1px solid var(--line);
   }
 }
+
+.ws-invite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ws-invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f5f6fa;
+}
+
+.ws-invite-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ws-invite-actions {
+  display: flex;
+  gap: 6px;
+}

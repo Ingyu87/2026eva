@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SCHOOL_SESSION_COOKIE = "school_eval_session";
 export const ADMIN_SESSION_COOKIE = "school_eval_admin";
+export const BUILDER_SESSION_COOKIE = "school_eval_builder";
 
 const DEFAULT_MAX_AGE = 60 * 60 * 8;
 
@@ -14,6 +15,16 @@ export type SchoolSession = {
 
 export type AdminSession = {
   role: "admin";
+  exp: number;
+};
+
+export type BuilderSession = {
+  role: "builder";
+  schoolId: string;
+  schoolName: string;
+  token: string;
+  label: string;
+  audience?: string;
   exp: number;
 };
 
@@ -73,6 +84,24 @@ export function createSchoolSession(schoolId: string, schoolName: string): strin
 export function createAdminSession(): string {
   return encodeSignedToken({
     role: "admin",
+    exp: Math.floor(Date.now() / 1000) + DEFAULT_MAX_AGE
+  });
+}
+
+export function createBuilderSession(input: {
+  schoolId: string;
+  schoolName: string;
+  token: string;
+  label: string;
+  audience?: string;
+}): string {
+  return encodeSignedToken({
+    role: "builder",
+    schoolId: input.schoolId,
+    schoolName: input.schoolName,
+    token: input.token,
+    label: input.label,
+    audience: input.audience,
     exp: Math.floor(Date.now() / 1000) + DEFAULT_MAX_AGE
   });
 }

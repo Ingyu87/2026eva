@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 820" fill="none">
+  <rect width="1440" height="820" fill="#EEF0F9"/>
+  <rect x="16" y="16" width="1408" height="56" rx="16" fill="#fff"/>
+  <text x="36" y="50" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="16" font-weight="700">예시초등학교</text>
+  <rect x="158" y="30" width="88" height="28" rx="14" fill="#F5F6FA"/>
+  <text x="170" y="49" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">교무부장</text>
+  <rect x="560" y="28" width="88" height="32" rx="16" fill="#4341C4"/>
+  <text x="574" y="49" fill="#fff" font-family="Malgun Gothic, sans-serif" font-size="13" font-weight="700">문항 구성</text>
+  <rect x="1290" y="28" width="60" height="32" rx="16" fill="#F5F6FA"/>
+  <text x="1303" y="49" fill="#333340" font-family="Malgun Gothic, sans-serif" font-size="13">도움말</text>
+  <text x="1372" y="49" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="16">⤺</text>
+  <rect x="16" y="84" width="1408" height="44" rx="12" fill="#fff"/>
+  <text x="40" y="112" fill="#4341C4" font-family="Malgun Gothic, sans-serif" font-size="14" font-weight="700">교원 1</text>
+  <text x="120" y="112" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="14">학부모 0</text>
+  <text x="210" y="112" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="14">학생 0</text>
+  <text x="280" y="112" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="14">직원 0</text>
+  <rect x="16" y="140" width="340" height="664" rx="16" fill="#fff"/>
+  <text x="36" y="172" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="15" font-weight="700">평가지표</text>
+  <text x="36" y="210" fill="#4341C4" font-family="Malgun Gothic, sans-serif" font-size="13" font-weight="700">I. 협력적 학교자치문화</text>
+  <text x="48" y="240" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="13">I-1. 소통과 협력의 학교자치</text>
+  <text x="60" y="270" fill="#4341C4" font-family="Malgun Gothic, sans-serif" font-size="13">학교 비전 공유 및 실현</text>
+  <text x="60" y="300" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="13">학교자율운영체제 내실화</text>
+  <text x="36" y="340" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="13" font-weight="700">II. 교육과정 운영 및 교수·학습</text>
+  <text x="36" y="380" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="13" font-weight="700">III. 교육 활동 및 교육 성과</text>
+  <rect x="368" y="140" width="560" height="664" rx="16" fill="#fff"/>
+  <rect x="388" y="160" width="520" height="40" rx="12" fill="#F5F6FA"/>
+  <text x="404" y="186" fill="#9AA0B0" font-family="Malgun Gothic, sans-serif" font-size="13">문항 검색 (단축키 /)</text>
+  <rect x="388" y="216" width="520" height="150" rx="12" stroke="#4341C4" stroke-width="2"/>
+  <text x="408" y="244" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">학교 비전 공유 및 실현</text>
+  <text x="408" y="272" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="14">학교 구성원의 소통과 협력을 바탕으로 학교 비전을 공유하고 있다.</text>
+  <rect x="408" y="292" width="48" height="26" rx="13" fill="#4341C4"/>
+  <text x="418" y="310" fill="#fff" font-family="Malgun Gothic, sans-serif" font-size="12">교원</text>
+  <rect x="464" y="292" width="56" height="26" rx="13" fill="#F5F6FA"/>
+  <text x="472" y="310" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">학부모</text>
+  <rect x="528" y="292" width="48" height="26" rx="13" fill="#F5F6FA"/>
+  <text x="538" y="310" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">학생</text>
+  <rect x="584" y="292" width="48" height="26" rx="13" fill="#F5F6FA"/>
+  <text x="594" y="310" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">직원</text>
+  <rect x="388" y="382" width="520" height="110" rx="12" fill="#F5F6FA"/>
+  <text x="408" y="414" fill="#333340" font-family="Malgun Gothic, sans-serif" font-size="14">우리 학교는 교육공동체와 소통하며 교육활동을 운영하고 있다.</text>
+  <rect x="940" y="140" width="484" height="664" rx="16" fill="#fff"/>
+  <text x="960" y="176" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="15" font-weight="700">교원용 1</text>
+  <rect x="960" y="196" width="444" height="120" rx="12" fill="#F5F6FA"/>
+  <text x="980" y="224" fill="#6B7080" font-family="Malgun Gothic, sans-serif" font-size="12">1  학교 비전 공유 및 실현</text>
+  <text x="980" y="252" fill="#16161D" font-family="Malgun Gothic, sans-serif" font-size="14">학교 구성원의 소통과 협력을 바탕으로 학교 비전을 공유하고 있다.</text>
+  <text x="980" y="284" fill="#9AA0B0" font-family="Malgun Gothic, sans-serif" font-size="12">매우 그렇다 · 그렇다 · 보통이다 · 그렇지 않다 · 전혀 그렇지 않다</text>
+</svg>

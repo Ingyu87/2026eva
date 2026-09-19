@@ -423,6 +423,21 @@ export type School = {
 
 export type PublicSchool = Omit<School, "passwordHash">;
 
+/** 연구부장은 학교 계정, 일반 부장은 받은 링크로 들어옵니다. */
+export type WorkspaceRole = "lead" | "builder";
+
+/** 연구부장이 일반 부장에게 주는 문항 작업 링크. 초안은 학교당 하나입니다. */
+export type BuilderInvite = {
+  token: string;
+  schoolId: string;
+  schoolName: string;
+  draftId: string;
+  label: string;
+  audience?: Audience;
+  revoked: boolean;
+  createdAt: string;
+};
+
 export type ApiResult<T> =
   | {
       ok: true;

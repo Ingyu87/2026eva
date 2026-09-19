@@ -15,7 +15,8 @@ import {
   type ResponseType,
   type PublicSchool,
   type QuestionBankItem,
-  type SelectedQuestion
+  type SelectedQuestion,
+  type WorkspaceRole
 } from "@/lib/types";
 import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorTree";
 import { QuestionFinder } from "./QuestionFinder";
@@ -33,15 +34,22 @@ import { SettingsModal } from "./SettingsModal";
  */
 export function Workspace({
   school,
+  role = "lead",
+  builderLabel,
+  builderAudience,
   onLogout
 }: {
   school: PublicSchool;
+  role?: WorkspaceRole;
+  builderLabel?: string;
+  builderAudience?: Audience;
   onLogout: () => void;
 }) {
+  const isBuilder = role === "builder";
   const workspace = useDraftWorkspace(true);
   const draft = workspace.draft;
 
-  const [activeAudience, setActiveAudience] = useState<Audience>("teacher");
+  const [activeAudience, setActiveAudience] = useState<Audience>(builderAudience ?? "teacher");
   const [activeScreen, setActiveScreen] = useState<"build" | "analyze" | "annual-start">("build");
   const [selection, setSelection] = useState<TreeSelection>(EMPTY_SELECTION);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -63,7 +71,17 @@ export function Workspace({
   }, [notice]);
 
   useEffect(() => {
-    if (!draft || draft.mode !== "annual") {
+    if (isBuilder && builderLabel) {
+      workspace.setDisplayName(builderLabel);
+      setNamePromptDone(true);
+    }
+    if (isBuilder && builderAudience) {
+      setActiveAudience(builderAudience);
+    }
+  }, [isBuilder, builderLabel, builderAudience, workspace.setDisplayName]);
+
+  useEffect(() => {
+    if (isBuilder || !draft || draft.mode !== "annual") {
       return;
     }
     try {
@@ -297,74 +315,96 @@ export function Workspace({
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
-          <button
-            type="button"
-            className={draft.mode === "annual" ? "ws-mode is-annual" : "ws-mode"}
-            title="눌러서 중간평가 / 학년말 학교평가를 바꿉니다."
-            onClick={() => setSettingsOpen(true)}
-          >
-            {SURVEY_MODE_LABELS[draft.mode]}
-          </button>
+          {isBuilder ? (
+            <span className="ws-mode">{builderLabel || "문항 작업"}</span>
+          ) : (
+            <button
+              type="button"
+              className={draft.mode === "annual" ? "ws-mode is-annual" : "ws-mode"}
+              title={
+                draft.mode === "annual"
+                  ? "선택 화면으로 돌아갑니다."
+                  : "중간평가 / 학년말 학교평가를 바꿉니다."
+              }
+              onClick={() => {
+                if (draft.mode === "annual") {
+                  openAnnualStart();
+                  return;
+                }
+                setSettingsOpen(true);
+              }}
+            >
+              {SURVEY_MODE_LABELS[draft.mode]}
+            </button>
+          )}
         </div>
 
         <div className="ws-topbar-center">
-          <div className="ws-screen-tabs" role="tablist" aria-label="화면 전환">
-            <button
-              type="button"
-              className={activeScreen === "build" ? "ws-screen-tab is-active" : "ws-screen-tab"}
-              role="tab"
-              aria-selected={activeScreen === "build"}
-              onClick={() => dismissAnnualStart("build")}
-            >
-              문항 구성
-            </button>
-            <button
-              type="button"
-              className={activeScreen === "analyze" ? "ws-screen-tab is-active" : "ws-screen-tab"}
-              role="tab"
-              aria-selected={activeScreen === "analyze"}
-              onClick={() => dismissAnnualStart("analyze")}
-            >
-              결과 분석
-            </button>
-            <button
-              type="button"
-              className="ws-screen-tab"
-              role="tab"
-              aria-selected={false}
-              title="산출물 내려받기는 결과 분석 아래에 있습니다."
-              onClick={() => dismissAnnualStart("analyze")}
-            >
-              내보내기
-            </button>
-          </div>
+          {isBuilder ? (
+            <span className="ws-screen-tab is-active">문항 구성</span>
+          ) : (
+            <div className="ws-screen-tabs" role="tablist" aria-label="화면 전환">
+              <button
+                type="button"
+                className={activeScreen === "build" ? "ws-screen-tab is-active" : "ws-screen-tab"}
+                role="tab"
+                aria-selected={activeScreen === "build"}
+                onClick={() => dismissAnnualStart("build")}
+              >
+                문항 구성
+              </button>
+              <button
+                type="button"
+                className={activeScreen === "analyze" ? "ws-screen-tab is-active" : "ws-screen-tab"}
+                role="tab"
+                aria-selected={activeScreen === "analyze"}
+                onClick={() => dismissAnnualStart("analyze")}
+              >
+                결과 분석
+              </button>
+              <button
+                type="button"
+                className="ws-screen-tab"
+                role="tab"
+                aria-selected={false}
+                title="산출물 내려받기는 결과 분석 아래에 있습니다."
+                onClick={() => dismissAnnualStart("analyze")}
+              >
+                내보내기
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="ws-topbar-right">
           <SaveStateBadge state={workspace.saveState} onRetry={workspace.retryNow} />
           <PresenceBadge presence={workspace.presence} />
-          <button
-            type="button"
-            className="ws-btn ws-btn--ghost"
-            onClick={() => {
-              if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
-                window.location.href = "/api/export/docx";
-              }
-            }}
-          >
-            설문지 (DOCX)
-          </button>
-          <button
-            type="button"
-            className="ws-btn ws-btn--primary"
-            onClick={() => {
-              if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
-                window.location.href = "/api/google/start";
-              }
-            }}
-          >
-            Google Forms
-          </button>
+          {isBuilder ? null : (
+            <>
+              <button
+                type="button"
+                className="ws-btn ws-btn--ghost"
+                onClick={() => {
+                  if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
+                    window.location.href = "/api/export/docx";
+                  }
+                }}
+              >
+                설문지 (DOCX)
+              </button>
+              <button
+                type="button"
+                className="ws-btn ws-btn--primary"
+                onClick={() => {
+                  if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
+                    window.location.href = "/api/google/start";
+                  }
+                }}
+              >
+                Google Forms
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="ws-btn ws-btn--ghost"
@@ -372,14 +412,16 @@ export function Workspace({
           >
             도움말
           </button>
-          <button
-            type="button"
-            className="ws-icon-btn"
-            aria-label="설문 설정"
-            onClick={() => setSettingsOpen(true)}
-          >
-            ⚙
-          </button>
+          {isBuilder ? null : (
+            <button
+              type="button"
+              className="ws-icon-btn"
+              aria-label="설문 설정"
+              onClick={() => setSettingsOpen(true)}
+            >
+              ⚙
+            </button>
+          )}
           <button type="button" className="ws-icon-btn" aria-label="로그아웃" onClick={onLogout}>
             ⤺
           </button>
@@ -388,7 +430,7 @@ export function Workspace({
 
       {activeScreen === "build" ? (
         <nav className="ws-audience-tabs" aria-label="평가 주체 선택">
-          {AUDIENCES.map((audience) => (
+          {(builderAudience ? [builderAudience] : AUDIENCES).map((audience) => (
             <button
               key={audience}
               type="button"
@@ -400,7 +442,7 @@ export function Workspace({
             </button>
           ))}
           {notice ? <span className="ws-notice">{notice}</span> : null}
-          {workspace.items.length > 0 ? (
+          {!isBuilder && workspace.items.length > 0 ? (
             <button type="button" className="ws-link ws-link--danger ws-audience-reset" onClick={resetAllItems}>
               초기화
             </button>
@@ -445,9 +487,11 @@ export function Workspace({
         </main>
       )}
 
-      {guideOpen ? <GuideModal onClose={() => setGuideOpen(false)} /> : null}
+      {guideOpen ? (
+        <GuideModal variant={isBuilder ? "builder" : "lead"} onClose={() => setGuideOpen(false)} />
+      ) : null}
 
-      {settingsOpen ? (
+      {settingsOpen && !isBuilder ? (
         <SettingsModal
           draft={draft}
           displayName={workspace.displayName}
