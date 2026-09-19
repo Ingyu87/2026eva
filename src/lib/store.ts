@@ -338,6 +338,27 @@ export class ConflictError<T> extends Error {
   }
 }
 
+export class ForbiddenError extends Error {
+  constructor(message = "이 링크로는 할 수 없는 작업입니다.") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
+
+/** 대상이 정해진 부장 링크는 그 대상의 문항만 고치거나 지울 수 있습니다. */
+function assertAudienceAllowed(
+  current: SelectedQuestion,
+  onlyAudience: Audience | undefined,
+  patch?: SelectedQuestionPatch
+): void {
+  if (!onlyAudience) {
+    return;
+  }
+  if (current.audience !== onlyAudience || (patch?.audience && patch.audience !== onlyAudience)) {
+    throw new ForbiddenError("이 링크로는 지정된 대상의 문항만 고칠 수 있습니다.");
+  }
+}
+
 export class NotFoundError extends Error {
   constructor(message = "대상을 찾을 수 없습니다.") {
     super(message);
@@ -708,7 +729,8 @@ export async function patchDraftItem(
   itemId: string,
   expectedRev: number,
   patch: SelectedQuestionPatch,
-  updatedBy?: string
+  updatedBy?: string,
+  onlyAudience?: Audience
 ): Promise<SelectedQuestion> {
   const db = getFirebaseDb();
   const now = nowIso();
@@ -724,6 +746,7 @@ export async function patchDraftItem(
       if (current.deleted) {
         throw new NotFoundError("이미 삭제된 문항입니다.");
       }
+      assertAudienceAllowed(current, onlyAudience, patch);
       if (current.rev !== expectedRev) {
         throw new ConflictError(current);
       }
@@ -743,6 +766,7 @@ export async function patchDraftItem(
   if (!current || current.deleted) {
     throw new NotFoundError("문항을 찾을 수 없습니다.");
   }
+  assertAudienceAllowed(current, onlyAudience, patch);
   if (current.rev !== expectedRev) {
     throw new ConflictError(current);
   }
@@ -764,7 +788,8 @@ export async function deleteDraftItem(
   draftId: string,
   itemId: string,
   expectedRev: number,
-  updatedBy?: string
+  updatedBy?: string,
+  onlyAudience?: Audience
 ): Promise<void> {
   const db = getFirebaseDb();
   const now = nowIso();
@@ -780,6 +805,7 @@ export async function deleteDraftItem(
       if (current.deleted) {
         return;
       }
+      assertAudienceAllowed(current, onlyAudience);
       if (current.rev !== expectedRev) {
         throw new ConflictError(current);
       }
@@ -793,6 +819,7 @@ export async function deleteDraftItem(
   if (!current || current.deleted) {
     return;
   }
+  assertAudienceAllowed(current, onlyAudience);
   if (current.rev !== expectedRev) {
     throw new ConflictError(current);
   }

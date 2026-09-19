@@ -48,7 +48,7 @@ export const LEAD_GUIDE_STEPS: GuideStep[] = [
   {
     id: "invite",
     title: "부장 링크",
-    caption: "톱니(⚙) > 부장 링크에서 역할 이름을 적고 링크 만들기를 누릅니다. 복사된 링크를 그 부장에게만 보내세요. 링크를 받은 사람은 문항 구성만 열립니다. 잘못 보냈으면 끊기를 누릅니다.",
+    caption: "톱니(⚙) > 부장 링크에서 역할 이름을 적고 링크 만들기를 누릅니다. 링크를 그 부장에게만 보내세요. 받은 사람은 문항 구성만 열립니다. 이 브라우저에서 열면 내 계정이 로그아웃되니 확인은 시크릿 창에서 하고, 잘못 보냈으면 끊기를 누릅니다.",
     image: "/guide/05-invite.svg",
     highlight: { top: "20%", left: "44%", width: "7%", height: "4%" }
   },
@@ -62,7 +62,7 @@ export const LEAD_GUIDE_STEPS: GuideStep[] = [
   {
     id: "analyze",
     title: "결과 분석",
-    caption: "가운데 탭에서 결과 분석으로 갑니다. 학년말 응답 엑셀을 대상별로 올립니다. 중간평가 때 받은 파일은 쓰지 마세요.",
+    caption: "가운데 탭의 결과 분석 · 내보내기로 갑니다. 학년말 응답 엑셀을 대상별로 올립니다. 중간평가 때 받은 파일은 쓰지 마세요.",
     image: "/guide/03-analyze.svg",
     highlight: { top: "2%", left: "44%", width: "8%", height: "6%" }
   },
@@ -87,7 +87,7 @@ export const BUILDER_GUIDE_STEPS: GuideStep[] = [
   {
     id: "link",
     title: "링크로 들어오기",
-    caption: "연구부장에게 받은 링크를 열면 로그인 없이 문항 구성 화면이 열립니다. 왼쪽 위에 내 역할 이름이 보입니다. 링크는 다른 사람에게 넘기지 마세요.",
+    caption: "연구부장에게 받은 링크를 열면 로그인 없이 문항 구성 화면이 열립니다. 왼쪽 위에 내 역할 이름이 보입니다. 나가더라도 같은 링크를 다시 열면 이어집니다. 링크는 다른 사람에게 넘기지 마세요.",
     image: "/guide/04-builder-workspace.svg",
     highlight: { top: "2%", left: "10%", width: "8%", height: "6%" }
   },

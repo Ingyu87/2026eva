@@ -41,6 +41,29 @@ async function fetchJson<T>(url: string, init?: RequestInit & { timeoutMs?: numb
   }
 }
 
+const BUILDER_HINT_KEY = "eval-builder-hint";
+
+/** 부장 링크로 들어온 적이 있는 브라우저인지 기억해, 세션이 끝났을 때 안내를 바꿉니다. */
+function rememberBuilder(on: boolean) {
+  try {
+    if (on) {
+      localStorage.setItem(BUILDER_HINT_KEY, "1");
+    } else {
+      localStorage.removeItem(BUILDER_HINT_KEY);
+    }
+  } catch {
+    // 저장이 막혀도 안내만 학교 로그인 화면으로 돌아갑니다.
+  }
+}
+
+function readBuilderHint(): boolean {
+  try {
+    return localStorage.getItem(BUILDER_HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function SchoolEvaluationApp() {
   const [mode, setMode] = useState<Mode>("user");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
@@ -54,6 +77,9 @@ export function SchoolEvaluationApp() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [linkNotice, setLinkNotice] = useState<"ended" | "invalid" | "confirm" | null>(null);
+  const [pendingToken, setPendingToken] = useState("");
+
   const [adminPassword, setAdminPassword] = useState("");
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [schools, setSchools] = useState<PublicSchool[]>([]);
@@ -61,12 +87,9 @@ export function SchoolEvaluationApp() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const invite = params.get("invite");
-    if (invite && invite !== "missing" && invite !== "invalid") {
-      window.location.replace(`/api/invite/accept?token=${encodeURIComponent(invite)}`);
-      return;
-    }
+    const inviteToken = invite && invite !== "missing" && invite !== "invalid" ? invite : "";
     if (invite === "invalid" || invite === "missing") {
-      setError("링크가 없거나 끊겼습니다.");
+      setLinkNotice("invalid");
       window.history.replaceState({}, "", "/");
     }
 
@@ -78,12 +101,27 @@ export function SchoolEvaluationApp() {
           builderLabel?: string;
           builderAudience?: Audience | null;
         }>("/api/auth/me");
+
+        if (inviteToken) {
+          // 연구부장 계정이 열려 있는 브라우저에서 링크를 열면 그 계정이 로그아웃됩니다.
+          if (data.school && data.role === "lead") {
+            setPendingToken(inviteToken);
+            setLinkNotice("confirm");
+            return;
+          }
+          window.location.replace(`/api/invite/accept?token=${encodeURIComponent(inviteToken)}`);
+          return;
+        }
+
         if (data.school) {
           setSchool(data.school);
           setSchoolName(data.school.schoolName);
           setWorkspaceRole(data.role === "builder" ? "builder" : "lead");
           setBuilderLabel(data.builderLabel ?? "");
           setBuilderAudience(data.builderAudience ?? undefined);
+          rememberBuilder(data.role === "builder");
+        } else if (readBuilderHint()) {
+          setLinkNotice("ended");
         }
       } catch {
         setSchool(null);
@@ -112,6 +150,8 @@ export function SchoolEvaluationApp() {
         body: JSON.stringify({ schoolName, password })
       });
       setSchool(data.school);
+      setWorkspaceRole("lead");
+      rememberBuilder(false);
       setPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "처리 중 오류가 발생했습니다.");
@@ -121,8 +161,13 @@ export function SchoolEvaluationApp() {
   }
 
   async function logout() {
+    const wasBuilder = workspaceRole === "builder";
     await fetch("/api/auth/logout", { method: "POST" });
     setSchool(null);
+    if (wasBuilder) {
+      setLinkNotice("ended");
+      return;
+    }
     setWorkspaceRole("lead");
     setBuilderLabel("");
     setBuilderAudience(undefined);
@@ -217,7 +262,58 @@ export function SchoolEvaluationApp() {
         {status ? <div className="gate-msg gate-msg--ok">{status}</div> : null}
         {error ? <div className="gate-msg gate-msg--error">{error}</div> : null}
 
-        {mode === "user" ? (
+        {mode === "user" && linkNotice ? (
+          <section className="gate-card">
+            {linkNotice === "confirm" ? (
+              <>
+                <h1>연구부장 계정으로 로그인되어 있습니다</h1>
+                <p className="gate-lead">
+                  이 링크는 일반 부장용입니다. 지금 열면 이 브라우저에서 연구부장 계정이 로그아웃됩니다.
+                  링크만 확인하려면 시크릿 창에 붙여 넣으세요.
+                </p>
+                <div className="gate-actions">
+                  <button
+                    type="button"
+                    className="ws-btn ws-btn--primary ws-btn--lg"
+                    onClick={() => window.location.replace("/")}
+                  >
+                    취소하고 돌아가기
+                  </button>
+                  <button
+                    type="button"
+                    className="ws-btn ws-btn--ghost"
+                    onClick={() =>
+                      window.location.replace(`/api/invite/accept?token=${encodeURIComponent(pendingToken)}`)
+                    }
+                  >
+                    그래도 열기
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h1>{linkNotice === "invalid" ? "열 수 없는 링크입니다" : "문항 작업 화면에서 나왔습니다"}</h1>
+                <p className="gate-lead">
+                  {linkNotice === "invalid"
+                    ? "링크가 끊겼거나 주소가 잘못되었습니다. 연구부장에게 새 링크를 요청하세요."
+                    : "받은 링크를 다시 열면 이어서 작업할 수 있습니다. 링크가 열리지 않으면 연구부장에게 새 링크를 요청하세요."}
+                </p>
+                <div className="gate-actions">
+                  <button
+                    type="button"
+                    className="ws-btn ws-btn--ghost"
+                    onClick={() => {
+                      rememberBuilder(false);
+                      setLinkNotice(null);
+                    }}
+                  >
+                    연구부장 로그인
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        ) : mode === "user" ? (
           <section className="gate-card">
             <h1>{authMode === "login" ? "학교 로그인" : "학교 등록"}</h1>
             <p className="gate-lead">

@@ -309,6 +309,14 @@ mark {
   background: var(--bg-hover, var(--brand-100));
 }
 
+.ws-mode--static {
+  cursor: default;
+}
+
+.ws-mode--static:hover {
+  background: var(--bg-subtle);
+}
+
 .ws-mode.is-annual {
   background: var(--brand-100);
   color: var(--brand-700);

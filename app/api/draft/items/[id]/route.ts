@@ -41,7 +41,8 @@ export async function PATCH(request: Request, { params }: Params) {
       id,
       expectedRev,
       body.patch,
-      body.updatedBy
+      body.updatedBy,
+      context.audience
     );
     return jsonOk({ item });
   } catch (error) {
@@ -64,7 +65,7 @@ export async function DELETE(request: Request, { params }: Params) {
   }
 
   try {
-    await deleteDraftItem(context.draftId, id, expectedRev, body?.updatedBy);
+    await deleteDraftItem(context.draftId, id, expectedRev, body?.updatedBy, context.audience);
     return jsonOk({ id });
   } catch (error) {
     return draftWriteError(error);

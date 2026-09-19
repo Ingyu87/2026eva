@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDraftAccess, jsonError, requireSchoolSession } from "./api";
-import { ConflictError, getOrCreateDraft, NotFoundError } from "./store";
+import { ConflictError, ForbiddenError, getOrCreateDraft, NotFoundError } from "./store";
 import type { ApiResult, Audience, WorkspaceRole } from "./types";
 
 /**
@@ -51,6 +51,9 @@ export function draftWriteError(error: unknown): NextResponse<ApiResult<never>> 
       },
       { status: 409 }
     );
+  }
+  if (error instanceof ForbiddenError) {
+    return jsonError(error.message, 403);
   }
   if (error instanceof NotFoundError) {
     return jsonError(error.message, 404);

@@ -18,6 +18,7 @@ import {
   type SelectedQuestion,
   type WorkspaceRole
 } from "@/lib/types";
+import { BuilderIntro } from "./BuilderIntro";
 import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorTree";
 import { QuestionFinder } from "./QuestionFinder";
 import { SelectedPanel } from "./SelectedPanel";
@@ -55,6 +56,7 @@ export function Workspace({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [namePromptDone, setNamePromptDone] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   const syncAudience = workspace.setActiveAudience;
@@ -79,6 +81,27 @@ export function Workspace({
       setActiveAudience(builderAudience);
     }
   }, [isBuilder, builderLabel, builderAudience, workspace.setDisplayName]);
+
+  const introKey = draft ? `builder-intro:${draft.id}:${builderLabel ?? ""}` : "";
+  useEffect(() => {
+    if (!isBuilder || !introKey) {
+      return;
+    }
+    try {
+      setIntroOpen(!localStorage.getItem(introKey));
+    } catch {
+      setIntroOpen(true);
+    }
+  }, [isBuilder, introKey]);
+
+  const closeIntro = () => {
+    setIntroOpen(false);
+    try {
+      localStorage.setItem(introKey, "1");
+    } catch {
+      // 저장에 실패하면 다음에 한 번 더 보일 뿐입니다.
+    }
+  };
 
   useEffect(() => {
     if (isBuilder || !draft || draft.mode !== "annual") {
@@ -126,7 +149,8 @@ export function Workspace({
         target?.tagName === "TEXTAREA" ||
         target?.isContentEditable;
 
-      if (event.key === "Tab" && !typing) {
+      // 대상이 정해진 링크는 탭이 하나뿐이라 Tab을 그대로 둡니다.
+      if (event.key === "Tab" && !typing && !builderAudience) {
         event.preventDefault();
         setActiveAudience((current) => {
           const index = AUDIENCES.indexOf(current);
@@ -142,7 +166,7 @@ export function Workspace({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [builderAudience]);
 
   const selectedItems = useMemo(
     () => itemsForAudience(workspace.items, activeAudience),
@@ -316,7 +340,7 @@ export function Workspace({
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
           {isBuilder ? (
-            <span className="ws-mode">{builderLabel || "문항 작업"}</span>
+            <span className="ws-mode ws-mode--static">{builderLabel || "문항 작업"}</span>
           ) : (
             <button
               type="button"
@@ -360,17 +384,7 @@ export function Workspace({
                 aria-selected={activeScreen === "analyze"}
                 onClick={() => dismissAnnualStart("analyze")}
               >
-                결과 분석
-              </button>
-              <button
-                type="button"
-                className="ws-screen-tab"
-                role="tab"
-                aria-selected={false}
-                title="산출물 내려받기는 결과 분석 아래에 있습니다."
-                onClick={() => dismissAnnualStart("analyze")}
-              >
-                내보내기
+                결과 분석 · 내보내기
               </button>
             </div>
           )}
@@ -503,6 +517,19 @@ export function Workspace({
           itemCount={workspace.items.length}
           onResetItems={resetAllItems}
           onImportPrior={importPriorItems}
+        />
+      ) : null}
+
+      {isBuilder && introOpen ? (
+        <BuilderIntro
+          schoolName={draft.schoolName || school.schoolName}
+          label={builderLabel || "일반 부장"}
+          audienceLabel={builderAudience ? AUDIENCE_SHORT_LABELS[builderAudience] : undefined}
+          onStart={closeIntro}
+          onGuide={() => {
+            closeIntro();
+            setGuideOpen(true);
+          }}
         />
       ) : null}
 
