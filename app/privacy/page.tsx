@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "개인정보처리방침 | 학교평가 설문 생성기"
+  title: "개인정보처리방침 | 학교평가 업무 도우미"
 };
 
 export default function PrivacyPage() {
   return (
     <main style={{ maxWidth: 920, margin: "0 auto", padding: "40px 20px", lineHeight: 1.7 }}>
       <h1>개인정보처리방침</h1>
-      <p>학교평가 설문 생성기(이하 "서비스")는 이용자의 개인정보를 소중히 여기며 관련 법령을 준수합니다.</p>
+      <p>학교평가 업무 도우미(이하 "서비스")는 이용자의 개인정보를 소중히 여기며 관련 법령을 준수합니다.</p>
 
       <h2>1. 수집 항목</h2>
       <p>서비스는 학교명, 로그인 비밀번호(해시 처리), 설문 작성 데이터, 부장 링크의 역할명과 작업 기록, 업로드한 응답 파일, 집계 및 평가 의견, Google OAuth 연동 정보를 처리합니다. 이름·연락처·이메일 등 불필요한 개인정보는 결과 파일에서 삭제한 뒤 올려 주세요.</p>

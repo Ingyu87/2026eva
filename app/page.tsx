@@ -14,7 +14,7 @@ export async function generateMetadata({
   if (!invite) {
     return {};
   }
-  const title = "문항 작업 링크가 도착했습니다 · 학교평가 설문 생성기";
+  const title = "문항 작업 링크가 도착했습니다 · 학교평가 업무 도우미";
   const description = "연구부장이 보낸 링크입니다. 열면 로그인 없이 문항을 골라 담고, 다 하면 제출을 누르세요.";
   return {
     title,

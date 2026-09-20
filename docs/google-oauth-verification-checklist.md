@@ -1,10 +1,10 @@
 # Google OAuth 검증 준비 체크리스트
 
-이 문서는 `학교평가 설문 생성기`를 Google OAuth 검증(External / In production)으로 제출할 때 필요한 항목을 정리합니다.
+이 문서는 `학교평가 업무 도우미`를 Google OAuth 검증(External / In production)으로 제출할 때 필요한 항목을 정리합니다.
 
 ## 1) OAuth 동의 화면 기본 설정
 
-- 앱 이름: 학교평가 설문 생성기
+- 앱 이름: 학교평가 업무 도우미
 - 사용자 지원 이메일: 운영자 이메일
 - 앱 홈 URL: `https://2026eva.vercel.app`
 - 개인정보처리방침 URL: `https://2026eva.vercel.app/privacy`

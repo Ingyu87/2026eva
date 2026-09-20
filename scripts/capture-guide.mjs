@@ -377,10 +377,10 @@ async function renderOg(file, { eyebrow, title, body, image }) {
   console.log("저장", `public/${file}`);
 }
 
-await renderOg("og-image.png", {
-  eyebrow: "학교평가 설문 생성기",
-  title: "학교평가 설문을<br>부장님들과 함께",
-  body: "연구부장이 링크를 나눠 주면 부장들이 문항을 담아 제출합니다. 설문지(DOCX)와 Google Forms로 내보내세요.",
+await renderOg("og-school-evaluation.png", {
+  eyebrow: "학교평가 업무 도우미",
+  title: "설문 작성부터<br>학교평가서까지",
+  body: "문항을 함께 작성하고, 설문 결과를 분석해 학교평가서를 준비하세요.",
   image: leadFull
 });
 await renderOg("og-invite.png", {

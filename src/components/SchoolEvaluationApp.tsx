@@ -263,7 +263,7 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
   return (
     <div className="gate">
       <header className="gate-topbar">
-        <span className="gate-brand">학교평가 설문 생성기</span>
+        <span className="gate-brand">학교평가 업무 도우미</span>
         <div className="gate-modes">
           <button
             type="button"

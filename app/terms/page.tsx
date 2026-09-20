@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "이용약관 | 학교평가 설문 생성기"
+  title: "이용약관 | 학교평가 업무 도우미"
 };
 
 export default function TermsPage() {
   return (
     <main style={{ maxWidth: 920, margin: "0 auto", padding: "40px 20px", lineHeight: 1.7 }}>
       <h1>이용약관</h1>
-      <p>본 약관은 학교평가 설문 생성기(이하 "서비스")의 이용 조건과 운영 기준을 정합니다.</p>
+      <p>본 약관은 학교평가 업무 도우미(이하 "서비스")의 이용 조건과 운영 기준을 정합니다.</p>
 
       <h2>1. 서비스 내용</h2>
       <p>서비스는 학교 평가 문항 편집, 설문 초안 저장, DOCX 출력, Google Forms 생성 기능을 제공합니다.</p>
