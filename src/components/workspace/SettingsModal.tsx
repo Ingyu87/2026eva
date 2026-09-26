@@ -200,7 +200,7 @@ export function SettingsModal({
 
               <div className="ws-field">
                 <span>작년 설문을 가져와 수정하기</span>
-                <PriorSurveyImport onCommit={onImportPrior} />
+                <PriorSurveyImport key={draft.id} draftId={draft.id} onCommit={onImportPrior} />
               </div>
 
               <div className="ws-field">

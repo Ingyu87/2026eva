@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { decodeSignedToken, encodeSignedToken } from "./session";
 import {
   AUDIENCES,
@@ -390,7 +391,8 @@ async function createGoogleFormForAudience(
 export async function createGoogleFormsByAudienceFromDraft(
   draft: SurveyDraft,
   allItems: SelectedQuestion[],
-  accessToken: string
+  accessToken: string,
+  onCreated?: (audience: Audience, info: GoogleFormInfo) => Promise<void>
 ): Promise<Partial<Record<Audience, Omit<GoogleFormInfo, "createdAt">>>> {
   const nextForms: Partial<Record<Audience, Omit<GoogleFormInfo, "createdAt">>> = {};
   const byAudience = groupByAudience(allItems);
@@ -399,7 +401,25 @@ export async function createGoogleFormsByAudienceFromDraft(
     if (items.length === 0) {
       continue;
     }
-    nextForms[audience] = await createGoogleFormForAudience(draft, audience, items, accessToken);
+    const sourceFingerprint = createHash("sha256").update(JSON.stringify({
+      title: draft.title, schoolName: draft.schoolName, intro: draft.introByAudience[audience],
+      grades: audience === "student" ? draft.studentGrades : undefined,
+      items: items.slice().sort((a, b) => a.order - b.order).map(item => ({ id: item.id, question: item.editedQuestion || item.originalQuestion, responseType: item.responseType, choices: item.choices }))
+    })).digest("hex");
+    const existing = draft.googleFormsByAudience?.[audience];
+    if (existing?.sourceFingerprint === sourceFingerprint) {
+      nextForms[audience] = existing;
+      continue;
+    }
+    try {
+      const created = await createGoogleFormForAudience(draft, audience, items, accessToken);
+      const info = { ...created, sourceFingerprint, createdAt: new Date().toISOString() };
+      await onCreated?.(audience, info);
+      nextForms[audience] = info;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "생성하지 못했습니다.";
+      throw new Error(`${AUDIENCE_LABELS[audience]} 생성 중 오류: ${message} 완료된 대상은 설문 설정에서 확인하세요. 다시 Google Forms를 누르면 저장된 동일 문항의 폼은 유지하고 나머지를 만듭니다.`);
+    }
   }
   if (Object.keys(nextForms).length === 0) {
     throw new Error("선택한 문항이 없어 Google Forms를 만들 수 없습니다.");

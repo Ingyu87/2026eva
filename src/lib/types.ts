@@ -208,6 +208,7 @@ export type GoogleFormGradeQuestion = {
 };
 
 export type GoogleFormInfo = {
+  sourceFingerprint?: string;
   formId: string;
   editUrl: string;
   responderUrl?: string;

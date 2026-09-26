@@ -16,22 +16,12 @@ export async function GET(request: Request) {
   try {
     const token = await exchangeGoogleCode(code, origin);
     const { draft, items } = await getDraftBundle(state.schoolId, state.schoolName);
-    const formsByAudience = await createGoogleFormsByAudienceFromDraft(draft, items, token.access_token);
-    const createdAt = new Date().toISOString();
-    const normalizedFormsByAudience: GoogleFormsByAudience = {};
-    for (const audience of AUDIENCES) {
-      const info = formsByAudience[audience];
-      if (!info) {
-        continue;
-      }
-      normalizedFormsByAudience[audience] = {
-        ...info,
-        createdAt
-      };
-    }
-    const firstAudience = AUDIENCES.find((audience) => normalizedFormsByAudience[audience]);
-    const firstForm = firstAudience ? normalizedFormsByAudience[firstAudience] : undefined;
-    await attachGoogleForms(draft.id, normalizedFormsByAudience, firstForm);
+    const savedForms: GoogleFormsByAudience = { ...draft.googleFormsByAudience };
+    await createGoogleFormsByAudienceFromDraft(draft, items, token.access_token, async (audience, info) => {
+      savedForms[audience] = info;
+      const firstAudience = AUDIENCES.find(target => savedForms[target]);
+      await attachGoogleForms(draft.id, savedForms, firstAudience ? savedForms[firstAudience] : undefined);
+    });
     return NextResponse.redirect(`${origin}/?google=success`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Forms 생성에 실패했습니다.";

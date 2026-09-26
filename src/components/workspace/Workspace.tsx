@@ -628,6 +628,7 @@ export function Workspace({
       ) : activeScreen === "annual-start" ? (
         <main className="ra-main">
           <AnnualStart
+            draftId={draft.id}
             itemCount={workspace.items.length}
             onReviewItems={() => dismissAnnualStart("build")}
             onStartFresh={resetAllItems}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SetStateAction } from "react";
 import { placementFromSubarea } from "@/lib/evaluationFramework";
 import type { PriorSurveyItem } from "@/lib/priorSurvey";
 import { AUDIENCES, AUDIENCE_SHORT_LABELS, needsChoices, type Audience, type ResponseType } from "@/lib/types";
+import { readPriorReview, writePriorReview } from "@/lib/priorReviewCache";
 import { SubareaField } from "./SubareaField";
 import { ResponseTypeEditor } from "./ResponseTypeEditor";
 
@@ -11,7 +12,7 @@ export type PriorSurveyCommit = Omit<PriorSurveyItem, "responseType"> & { respon
 type ReviewItem = PriorSurveyItem & { included: boolean };
 type Source = { id: string; name: string; items: ReviewItem[]; error?: string; checked: boolean };
 
-export function PriorSurveyImport({ onCommit }: { onCommit: (items: PriorSurveyCommit[]) => void }) {
+export function PriorSurveyImport({ draftId, onCommit }: { draftId: string; onCommit: (items: PriorSurveyCommit[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const request = useRef<AbortController | null>(null);
@@ -19,7 +20,20 @@ export function PriorSurveyImport({ onCommit }: { onCommit: (items: PriorSurveyC
   useEffect(() => () => { cancelled.current = true; request.current?.abort(); }, []);
   const [reading, setReading] = useState("");
   const [error, setError] = useState("");
-  const [sources, setSources] = useState<Source[]>([]);
+  const [sources, setSourceState] = useState<Source[]>([]);
+  const sourcesRef = useRef<Source[]>([]);
+  const [cacheFailed, setCacheFailed] = useState(false);
+  useEffect(() => {
+    const restored = readPriorReview<Source[]>(draftId);
+    sourcesRef.current = restored ?? [];
+    setSourceState(sourcesRef.current);
+  }, [draftId]);
+  function setSources(update: SetStateAction<Source[]>) {
+    const next = typeof update === "function" ? update(sourcesRef.current) : update;
+    sourcesRef.current = next;
+    setCacheFailed(!writePriorReview(draftId, next));
+    setSourceState(next);
+  }
   const [active, setActive] = useState<Audience>("teacher");
   const selected = sources.flatMap(source => source.items.filter(item => item.included));
   const valid = (item: ReviewItem) => Boolean(item.question.trim() && placementFromSubarea(item.subarea) && item.responseType && (!needsChoices(item.responseType) || ((item.choices?.length ?? 0) >= 2 && item.choices?.every(c => c.trim()) && new Set(item.choices.map(c => c.trim())).size === item.choices.length)));
@@ -59,6 +73,7 @@ export function PriorSurveyImport({ onCommit }: { onCommit: (items: PriorSurveyC
 
   return <div className="ws-prior">
     <p className="ws-hint">교원용·직원용·학생용·학부모용 PDF를 함께 선택하세요. 가지고 있는 대상의 파일만 올려도 됩니다. 문항지 내용은 문항 추출을 위해 외부 AI 서비스로 전송됩니다. 응답 결과나 개인정보가 포함된 파일은 올리지 마세요.</p>
+    <p className="ws-hint" role="status">{cacheFailed ? "브라우저 임시저장이 막혀 있습니다. 창을 새로고침하지 말고 검토한 문항을 올해 설문에 담아 주세요." : "검토 중인 내용은 이 탭에 임시저장됩니다. 설정 창을 닫거나 새로고침해도 이어서 확인할 수 있습니다. 탭을 닫기 전에는 올해 설문에 담아 주세요."}</p>
     <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf" className="ra-file-input" onChange={event => { const files = Array.from(event.target.files ?? []); if (files.length) void upload(files); event.target.value = ""; }} />
     <button type="button" className="ws-start-action" disabled={Boolean(reading)} onClick={() => inputRef.current?.click()}><strong>작년 설문지 올리기</strong><span>PDF 최대 4개 · 파일당 12MB</span></button>
     <p className="ws-hint" role="status">{reading ? `${reading} 읽는 중…` : error}</p>
