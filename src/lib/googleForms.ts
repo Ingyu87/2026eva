@@ -319,7 +319,7 @@ async function createGoogleFormForAudience(
   for (const item of items.slice().sort((a, b) => a.order - b.order)) {
     const builtItem = questionItem(
       item.editedQuestion || item.originalQuestion,
-      `${item.area} / ${item.subarea} / ${item.indicator}`,
+      "",
       item.responseType,
       item.choices,
       item.id

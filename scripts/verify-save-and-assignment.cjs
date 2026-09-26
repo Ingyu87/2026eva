@@ -74,5 +74,54 @@ async function check(name, fn) { await fn(); count++; console.log('[PASS]', name
   await store.revokeBuilderInvite('fake-review-school',invite.token);
   await assert.rejects(store.assignDraftItems('fake-review-school',draft.id,invite.token,[{id:'two',rev:1}]),store.ForbiddenError);
  });
+
+ const actor={id:'actor-test',label:'수정자표시검증전용',color:'purple'};
+ const [original]=await store.createDraftItems(draft.id,[{...item('status'),workStatus:{kind:'edited',label:'위조',at:'fake',color:'blue'}}]);
+ await check('가져오기와 배정만으로 검토 완료되지 않음·상태 위조 차단', async()=>{
+  assert.equal(original.workStatus,undefined);
+  const link=await store.createBuilderInvite({schoolId:'fake-review-school',schoolName:'가상',draftId:draft.id,label:'교무부장'});
+  assert.equal(link.color,'purple');
+  const [row]=await store.assignDraftItems('fake-review-school',draft.id,link.token,[{id:'status',rev:0}]);
+  assert.equal(row.workStatus,undefined);
+ });
+ let statusItem;
+ await check('순서 변경은 미확인 유지, 원문 유지 확인은 서버 시각 기록',async()=>{
+  const moved=await store.patchDraftItem(draft.id,'status',1,{order:50},'표시용',undefined,actor);
+  assert.equal(moved.workStatus,undefined);
+  statusItem=await store.patchDraftItem(draft.id,'status',2,{confirmReview:true},'표시용',undefined,actor);
+  assert.equal(statusItem.workStatus.kind,'confirmed');
+  assert.equal(statusItem.editedQuestion,original.editedQuestion);
+  assert.ok(Number.isFinite(Date.parse(statusItem.workStatus.at)));
+ });
+ await check('문항·보기 수정은 수정자로 기록하고 단순 재정렬은 기록 유지',async()=>{
+  statusItem=await store.patchDraftItem(draft.id,'status',3,{editedQuestion:'내보내기검증문항',workStatus:{label:'위조'}},'위조이름',undefined,actor);
+  assert.equal(statusItem.workStatus.label,actor.label);
+  assert.equal(statusItem.workStatus.kind,'edited');
+  assert.equal(statusItem.workStatus.color,'purple');
+  const reordered=await store.patchDraftItem(draft.id,'status',4,{order:51},'다른이름');
+  assert.deepEqual(reordered.workStatus,statusItem.workStatus);
+ });
+ await check('한글 편집용 DOCX에는 작업자·시각·색상·내부지표 제외',async()=>{
+  const {buildSurveyDocx}=require('../src/lib/docxExport.ts');
+  const JSZip=require('jszip');
+  const buffer=await buildSurveyDocx(draft,[{...statusItem,indicator:'내부지표검증전용',ownerLabel:'담당자표시검증전용'}]);
+  const zip=await JSZip.loadAsync(buffer); const xml=await zip.file('word/document.xml').async('string');
+  assert.ok(xml.includes('내보내기검증문항'));
+  for(const marker of [actor.label,'담당자표시검증전용','내부지표검증전용',statusItem.workStatus.at]) assert.ok(!xml.includes(marker));
+ });
+ await check('Google Forms 전송 본문에는 문항·보기만 포함',async()=>{
+  const {createGoogleFormsByAudienceFromDraft}=require('../src/lib/googleForms.ts');
+  const previous=global.fetch; const bodies=[];
+  global.fetch=async(url,options)=>{
+   const body=options?.body?JSON.parse(options.body):null; if(body)bodies.push(body);
+   return new Response(JSON.stringify(body?.requests?{replies:body.requests.map((_,i)=>({createItem:{itemId:'google-'+i}}))}:{formId:'fake-form',responderUri:'https://example.invalid/form'}),{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  try {
+   await createGoogleFormsByAudienceFromDraft(draft,[{...statusItem,indicator:'내부지표검증전용',ownerLabel:'담당자표시검증전용'}],'fake-token');
+   const payload=JSON.stringify(bodies);
+   assert.ok(payload.includes('내보내기검증문항'));
+   for(const marker of [actor.label,'담당자표시검증전용','내부지표검증전용',statusItem.workStatus.at,'workStatus']) assert.ok(!payload.includes(marker));
+  } finally {global.fetch=previous;}
+ });
  console.log('완료:',count,'개 통과 (가상 저장소, 외부 API 호출 없음)');
 })().catch(error=>{console.error(error);process.exitCode=1;});

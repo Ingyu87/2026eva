@@ -608,6 +608,7 @@ export function Workspace({
           />
           </>}
           <SelectedPanel
+            onConfirmReview={(id) => workspace.patchItem(id, { confirmReview: true })}
             assignmentInvites={isBuilder ? undefined : invites}
             onAssign={isBuilder ? undefined : workspace.assignItems}
             showExamples={showExamples}

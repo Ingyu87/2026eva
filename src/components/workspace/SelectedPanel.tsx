@@ -1,5 +1,6 @@
 "use client";
 
+import { workStatusText } from "@/lib/workStatus";
 import { useState } from "react";
 import {
   isCurrentSubarea,
@@ -54,6 +55,7 @@ export function SelectedPanel({
   audience,
   items,
   presence,
+  onConfirmReview,
   onPatch,
   onRemove,
   onMove,
@@ -69,6 +71,7 @@ export function SelectedPanel({
   audience: Audience;
   items: SelectedQuestion[];
   presence: Presence[];
+  onConfirmReview: (id: string) => void;
   onPatch: (id: string, patch: Partial<SelectedQuestion>) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
@@ -130,6 +133,7 @@ export function SelectedPanel({
       </div>
 
       <div className="ws-col-body">
+        <p className="ws-hint">붉은 표시는 수정·확인 기록이 없는 문항입니다. 부장별 색상과 수정자·시각은 작업 화면에만 표시되고 설문지·Google Forms에는 들어가지 않습니다.</p>
         {onAssign && <details>
           <summary>담당 부장 배정</summary>
           <fieldset className="ws-form" disabled={assigning}>
@@ -165,7 +169,7 @@ export function SelectedPanel({
               <div
                 key={item.id}
                 className={
-                  [editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
+                  [item.workStatus ? `work-color-${item.workStatus.color}` : "work-pending", editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
                     .filter(Boolean)
                     .reduce((acc, cls) => `${acc} ${cls}`, "ws-item")
                 }
@@ -216,6 +220,10 @@ export function SelectedPanel({
                   </div>
                 </div>
 
+                <div className="ws-work-status">
+                  <span className="work-badge">{item.workStatus ? workStatusText(item.workStatus) : "미확인 · 수정·검토 기록 없음"}</span>
+                  {mine && !item.workStatus && <button type="button" className="ws-btn ws-btn--soft" onClick={() => onConfirmReview(item.id)}>원문 그대로 확인 완료</button>}
+                </div>
                 {legacy ? <p className="ws-item-legacy">{legacy}</p> : null}
 
                 {editing ? (

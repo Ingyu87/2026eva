@@ -1,6 +1,8 @@
+import { isWorkColor, type WorkColor } from "@/lib/workStatus";
 import { jsonError, jsonOk, requireSchoolSession } from "@/lib/api";
 import { readJson } from "@/lib/draftApi";
 import {
+  setBuilderInviteColor,
   countOwnedItems,
   createBuilderInvite,
   getOrCreateDraft,
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
   if ("status" in session) {
     return session;
   }
-  const body = await readJson<{ label?: string; audience?: Audience }>(request);
+  const body = await readJson<{ label?: string; audience?: Audience; color?: WorkColor }>(request);
   const label = body?.label?.trim();
   if (!label) {
     return jsonError("역할 이름을 적으세요.");
@@ -48,6 +50,7 @@ export async function POST(request: Request) {
     schoolName: session.schoolName,
     draftId: draft.id,
     label,
+    color: isWorkColor(body?.color) ? body.color : undefined,
     audience
   });
   return jsonOk({ invite });
@@ -58,11 +61,16 @@ export async function PATCH(request: Request) {
   if ("status" in session) {
     return session;
   }
-  const body = await readJson<{ token?: string }>(request);
+  const body = await readJson<{ token?: string; color?: unknown }>(request);
   if (!body?.token) {
     return jsonError("링크를 지정하세요.");
   }
   try {
+    if ("color" in body) {
+      if (!isWorkColor(body.color)) return jsonError("표시 색상을 선택하세요.");
+      await setBuilderInviteColor(session.schoolId, body.token, body.color);
+      return jsonOk({ updated: true });
+    }
     await revokeBuilderInvite(session.schoolId, body.token);
     return jsonOk({ revoked: true });
   } catch (error) {

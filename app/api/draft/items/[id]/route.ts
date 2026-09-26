@@ -1,3 +1,4 @@
+import { defaultWorkColor } from "@/lib/workStatus";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
   draftWriteError,
@@ -6,7 +7,7 @@ import {
   resolveDraftContext,
   writeGuardOf
 } from "@/lib/draftApi";
-import { deleteDraftItem, markInviteEdited, patchDraftItem } from "@/lib/store";
+import { getBuilderInvite, deleteDraftItem, markInviteEdited, patchDraftItem } from "@/lib/store";
 import type { SelectedQuestionPatch } from "@/lib/types";
 
 type PatchBody = {
@@ -42,13 +43,16 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   try {
+    const invite = context.builder ? await getBuilderInvite(context.builder.token) : null;
+    const actor = invite ? { id: context.builder!.ownerId, label: invite.label, color: invite.color ?? defaultWorkColor(invite.label) } : { id: `lead:${context.schoolId}`, label: typeof body.updatedBy === "string" && body.updatedBy.trim() ? body.updatedBy.trim().slice(0, 20) : "연구부장", color: "purple" as const };
     const item = await patchDraftItem(
       context.draftId,
       id,
       expectedRev,
       body.patch,
-      body.updatedBy,
-      writeGuardOf(context)
+      actor.label,
+      writeGuardOf(context),
+      actor
     );
     if (context.builder) {
       await markInviteEdited(context.builder.token);

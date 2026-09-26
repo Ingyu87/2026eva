@@ -77,15 +77,7 @@ export function cell(children: Paragraph[], width: number): TableCell {
 }
 
 function questionParagraphs(question: SelectedQuestion): Paragraph[] {
-  const paragraphs = [
-    textParagraph(
-      question.indicator
-        ? `【영역】 ${question.subarea} - ${question.indicator}`
-        : `${question.area} / ${question.subarea}`,
-      true
-    ),
-    textParagraph(question.editedQuestion || question.originalQuestion)
-  ];
+  const paragraphs = [textParagraph(question.editedQuestion || question.originalQuestion)];
 
   if (question.responseType === "likert_5") {
     paragraphs.push(textParagraph(LIKERT_5_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));

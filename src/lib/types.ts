@@ -1,3 +1,4 @@
+import type { WorkColor, WorkStatus } from "./workStatus";
 export const AUDIENCES = ["teacher", "parent", "student", "staff"] as const;
 
 /**
@@ -146,6 +147,8 @@ export type SelectedQuestion = {
   ownerId?: string;
   /** 담은 부장의 역할 이름. 카드에 표시합니다. */
   ownerLabel?: string;
+  /** 문항 검토 표시. 서버가 기록하며 설문 내보내기에서는 제외합니다. */
+  workStatus?: WorkStatus;
 };
 
 /** 문항에 넣을 수 있는 수정 항목. id·rev·createdAt 등은 서버가 관리합니다. */
@@ -162,7 +165,7 @@ export type SelectedQuestionPatch = Partial<
     | "choices"
     | "department"
   >
->;
+> & { confirmReview?: boolean };
 
 /** 새 문항을 만들 때 클라이언트가 보내는 값. */
 export type NewSelectedQuestion = Pick<
@@ -444,6 +447,7 @@ export type BuilderInvite = {
   schoolName: string;
   draftId: string;
   label: string;
+  color?: WorkColor;
   audience?: Audience;
   revoked: boolean;
   createdAt: string;

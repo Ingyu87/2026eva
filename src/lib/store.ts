@@ -1,3 +1,4 @@
+import { nextWorkStatus, defaultWorkColor, type WorkActor, type WorkColor } from "./workStatus";
 import { createHash, randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { isCurrentSubarea, placementFromSubarea } from "./evaluationFramework";
@@ -705,6 +706,8 @@ function applyItemPatch(current: SelectedQuestion, rawPatch: SelectedQuestionPat
     updatedBy: _updatedBy,
     ownerId: _ownerId,
     ownerLabel: _ownerLabel,
+    workStatus: _workStatus,
+    confirmReview: _confirmReview,
     ...patch
   } = rawPatch as SelectedQuestionPatch & Record<string, unknown>;
   const merged = { ...current, ...patch };
@@ -729,7 +732,8 @@ export async function createDraftItems(
   const now = nowIso();
   const prepared: SelectedQuestion[] = items.map((item) => {
     // 담은 사람 표시는 서버만 정합니다. 요청에 실려 온 값은 버립니다.
-    const { ownerId: _ownerId, ownerLabel: _ownerLabel, ...clean } = item as NewSelectedQuestion & {
+    const { ownerId: _ownerId, ownerLabel: _ownerLabel, workStatus: _workStatus, ...clean } = item as NewSelectedQuestion & {
+      workStatus?: unknown;
       ownerId?: string;
       ownerLabel?: string;
     };
@@ -771,7 +775,8 @@ export async function patchDraftItem(
   expectedRev: number,
   patch: SelectedQuestionPatch,
   updatedBy?: string,
-  guard?: WriteGuard
+  guard?: WriteGuard,
+  actor: WorkActor = { id: "lead", label: updatedBy || "연구부장", color: "purple" }
 ): Promise<SelectedQuestion> {
   const db = getFirebaseDb();
   const now = nowIso();
@@ -793,6 +798,7 @@ export async function patchDraftItem(
       }
       const next: SelectedQuestion = {
         ...applyItemPatch(current, patch),
+        workStatus: nextWorkStatus(current, patch, actor, now),
         rev: current.rev + 1,
         updatedAt: now,
         updatedBy
@@ -813,6 +819,7 @@ export async function patchDraftItem(
   }
   const next: SelectedQuestion = {
     ...applyItemPatch(current, patch),
+    workStatus: nextWorkStatus(current, patch, actor, now),
     rev: current.rev + 1,
     updatedAt: now,
     updatedBy
@@ -1250,6 +1257,7 @@ export async function createBuilderInvite(input: {
   schoolName: string;
   draftId: string;
   label: string;
+  color?: WorkColor;
   audience?: Audience;
 }): Promise<BuilderInvite> {
   const invite: BuilderInvite = {
@@ -1258,6 +1266,7 @@ export async function createBuilderInvite(input: {
     schoolName: input.schoolName,
     draftId: input.draftId,
     label: input.label.trim(),
+    color: input.color ?? defaultWorkColor(input.label),
     ...(input.audience ? { audience: input.audience } : {}),
     revoked: false,
     createdAt: nowIso()
@@ -1400,4 +1409,16 @@ export async function assignDraftItems(schoolId: string, draftId: string, token:
   next.forEach(item => state.items.set(item.id, item));
   if (invite) { const { submittedAt: _submitted, ...rest } = invite; memoryInvites.set(token, rest); }
   return next;
+}
+
+/** 색상 변경은 링크 권한·제출 상태를 건드리지 않습니다. */
+export async function setBuilderInviteColor(schoolId: string, token: string, color: WorkColor): Promise<void> {
+  const validate = (invite: BuilderInvite | null) => {
+    if (!invite || invite.schoolId !== schoolId || invite.revoked) throw new ForbiddenError("사용 중인 부장 링크를 선택하세요.");
+  };
+  const db = getFirebaseDb();
+  if (db) {
+    const ref = db.collection(INVITES).doc(token);
+    await db.runTransaction(async tx => { const doc = await tx.get(ref); validate(doc.exists ? plain(doc.data()) as BuilderInvite : null); tx.update(ref, { color }); });
+  } else { const invite = memoryInvites.get(token) ?? null; validate(invite); memoryInvites.set(token, { ...invite!, color }); }
 }

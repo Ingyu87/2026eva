@@ -11,6 +11,13 @@
  */
 
 :root {
+  /* 공동 작업자 구분: 사용자가 요청한 부장별 색상, 미확인은 기존 danger 사용 */
+  --work-purple: #6d28d9;
+  --work-blue: #1d4ed8;
+  --work-teal: #0f766e;
+  --work-amber: #92400e;
+  --work-pink: #be185d;
+  --work-slate: #475569;
   /* ── 브랜드(남보라) ───────────────────────────── */
   --brand-900: #2e2e86;
   --brand-700: #3b3aa8;

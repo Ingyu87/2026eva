@@ -197,7 +197,7 @@ export function useDraftWorkspace(enabled: boolean) {
       knownItemsRef.current.set(item.id, item);
       const mine = next.get(item.id);
       let merged = { ...item };
-      if (mine && editingItemIdRef.current === item.id) merged = { ...mine, rev: item.rev, updatedAt: item.updatedAt, ownerId: item.ownerId, ownerLabel: item.ownerLabel };
+      if (mine && editingItemIdRef.current === item.id) merged = { ...mine, rev: item.rev, updatedAt: item.updatedAt, ownerId: item.ownerId, ownerLabel: item.ownerLabel, workStatus: item.workStatus };
       for (const op of pending) if (op.kind === "patch" && op.itemId === item.id) merged = { ...merged, ...op.patch };
       next.set(item.id, merged);
     }
