@@ -57,6 +57,9 @@ export function Workspace({
 
   const [activeAudience, setActiveAudience] = useState<Audience>(builderAudience ?? "teacher");
   const [activeScreen, setActiveScreen] = useState<"build" | "analyze" | "annual-start">("build");
+  const [showExamplesOverride, setShowExamplesOverride] = useState<boolean | null>(null);
+  const hasPriorItems = workspace.items.some(item => item.sourceQuestionId.startsWith("prior-"));
+  const showExamples = showExamplesOverride ?? !hasPriorItems;
   const [selection, setSelection] = useState<TreeSelection>(EMPTY_SELECTION);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -370,6 +373,7 @@ export function Workspace({
   const resetAllItems = () => {
     const live = workspace.items;
     if (live.length === 0) {
+      setShowExamplesOverride(true);
       setSettingsOpen(false);
       dismissAnnualStart("build");
       return;
@@ -383,6 +387,7 @@ export function Workspace({
     for (const item of live) {
       workspace.removeItem(item.id);
     }
+    setShowExamplesOverride(true);
     setNotice("문항을 모두 비웠습니다.");
     setSettingsOpen(false);
     dismissAnnualStart("build");
@@ -410,7 +415,9 @@ export function Workspace({
         };
       })
     );
-    setNotice(`${rows.length}개를 담았습니다.`);
+    setShowExamplesOverride(false);
+    setActiveAudience(rows[0].audience);
+    setNotice(`${rows.length}개를 담았습니다. 수정할 문항의 ‘수정’을 누르세요.`);
     setSettingsOpen(false);
     dismissAnnualStart("build");
   };
@@ -587,8 +594,8 @@ export function Workspace({
       ) : null}
 
       {activeScreen === "build" ? (
-        <main className="ws-grid">
-          <IndicatorTree bank={questionBank.filter((item) => item.audience === activeAudience)} selection={selection} onSelect={setSelection} />
+        <main className={showExamples ? "ws-grid" : "ws-grid ws-grid--edit"}>
+          {showExamples && <><IndicatorTree bank={questionBank.filter((item) => item.audience === activeAudience)} selection={selection} onSelect={setSelection} />
           <QuestionFinder
             bank={questionBank.filter((item) => item.audience === activeAudience)}
             selection={selection}
@@ -597,7 +604,10 @@ export function Workspace({
             onToggle={toggleQuestion}
             onAddCustom={addCustomQuestion}
           />
+          </>}
           <SelectedPanel
+            showExamples={showExamples}
+            onToggleExamples={() => setShowExamplesOverride(!showExamples)}
             audience={activeAudience}
             items={selectedItems}
             presence={workspace.presence}

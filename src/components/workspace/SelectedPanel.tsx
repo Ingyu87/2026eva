@@ -46,6 +46,8 @@ function legacyNoticeFor(subarea: string): string | null {
 }
 
 export function SelectedPanel({
+  showExamples,
+  onToggleExamples,
   audience,
   items,
   presence,
@@ -57,6 +59,8 @@ export function SelectedPanel({
   canModify,
   ownerTag
 }: {
+  showExamples: boolean;
+  onToggleExamples: () => void;
   audience: Audience;
   items: SelectedQuestion[];
   presence: Presence[];
@@ -101,9 +105,12 @@ export function SelectedPanel({
     <div className="ws-col ws-selected">
       <div className="ws-col-head">
         <h2>
-          {AUDIENCE_LABELS[audience]}
+          우리 학교 {AUDIENCE_LABELS[audience]}
           <span className="ws-count">{items.length}</span>
         </h2>
+        <button type="button" className="ws-btn ws-btn--soft" aria-expanded={showExamples} onClick={onToggleExamples}>
+          {showExamples ? "우리 학교 문항만 보기" : "예시문항에서 추가"}
+        </button>
         {items.length > 0 && onReset ? (
           <button type="button" className="ws-link ws-link--danger" onClick={onReset}>
             모두 비우기
@@ -115,7 +122,7 @@ export function SelectedPanel({
         {items.length === 0 ? (
           <div className="ws-empty">
             <p>담은 문항이 없습니다.</p>
-            <p className="ws-hint">가운데에서 문항을 클릭하면 여기에 담깁니다.</p>
+            <p className="ws-hint">{showExamples ? "가운데에서 문항을 클릭하면 여기에 담깁니다." : "‘예시문항에서 추가’를 누르면 예시를 고르거나 새 문항을 직접 작성할 수 있습니다."}</p>
           </div>
         ) : (
           items.map((item, index) => {
@@ -157,12 +164,13 @@ export function SelectedPanel({
                     </button>
                     <button
                       type="button"
+                      className="ws-item-edit-button"
                       aria-label={editing ? "편집 끝내기" : "수정"}
                       disabled={!mine}
                       title={mine ? undefined : "다른 사람이 담은 문항은 고칠 수 없습니다."}
                       onClick={() => (editing ? stopEdit() : startEdit(item.id))}
                     >
-                      ✎
+                      {editing ? "완료" : "수정"}
                     </button>
                     <button
                       type="button"

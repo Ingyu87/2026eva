@@ -22,7 +22,7 @@ export function AnnualStart({
       <div className="ws-start-card">
         <p className="ws-start-kicker">올해 설문 준비</p>
         <h2>작년 설문으로 시작할까요?</h2>
-        <p className="ws-hint">작년 문항을 가져와 올해 문항을 준비할 수 있습니다. 올해 평가영역에 맞는지 확인한 뒤 필요한 문항을 수정·추가·삭제하세요.</p>
+        <p className="ws-hint">작년 문항을 가져와 올해 문항을 준비할 수 있습니다. 가져온 뒤에는 우리 학교 문항만 보며 수정합니다. 필요한 경우 ‘예시문항에서 추가’를 누르세요.</p>
 
         <div className="ws-start-actions">
           <PriorSurveyImport onCommit={onImportPrior} />
