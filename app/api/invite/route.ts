@@ -1,8 +1,8 @@
-import { isWorkColor, type WorkColor } from "@/lib/workStatus";
+import { randomInt } from "node:crypto";
+import { WORK_COLORS, defaultWorkColor } from "@/lib/workStatus";
 import { jsonError, jsonOk, requireSchoolSession } from "@/lib/api";
 import { readJson } from "@/lib/draftApi";
 import {
-  setBuilderInviteColor,
   countOwnedItems,
   createBuilderInvite,
   getOrCreateDraft,
@@ -38,19 +38,23 @@ export async function POST(request: Request) {
   if ("status" in session) {
     return session;
   }
-  const body = await readJson<{ label?: string; audience?: Audience; color?: WorkColor }>(request);
+  const body = await readJson<{ label?: string; audience?: Audience }>(request);
   const label = body?.label?.trim();
   if (!label) {
     return jsonError("역할 이름을 적으세요.");
   }
   const audience = isAudience(body?.audience) ? body.audience : undefined;
   const draft = await getOrCreateDraft(session.schoolId, session.schoolName);
+  const existing = await listBuilderInvites(session.schoolId);
+  const counts = WORK_COLORS.map(color => existing.filter(invite => (invite.color ?? defaultWorkColor(invite.label)) === color).length);
+  const leastUsed = WORK_COLORS.filter((_, index) => counts[index] === Math.min(...counts));
+  const color = leastUsed[randomInt(leastUsed.length)];
   const invite = await createBuilderInvite({
     schoolId: session.schoolId,
     schoolName: session.schoolName,
     draftId: draft.id,
     label,
-    color: isWorkColor(body?.color) ? body.color : undefined,
+    color,
     audience
   });
   return jsonOk({ invite });
@@ -66,11 +70,7 @@ export async function PATCH(request: Request) {
     return jsonError("링크를 지정하세요.");
   }
   try {
-    if ("color" in body) {
-      if (!isWorkColor(body.color)) return jsonError("표시 색상을 선택하세요.");
-      await setBuilderInviteColor(session.schoolId, body.token, body.color);
-      return jsonOk({ updated: true });
-    }
+    if ("color" in body) return jsonError("표시 색상은 자동으로 배정됩니다.");
     await revokeBuilderInvite(session.schoolId, body.token);
     return jsonOk({ revoked: true });
   } catch (error) {

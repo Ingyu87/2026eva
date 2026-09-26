@@ -1,6 +1,6 @@
 "use client";
 
-import { WORK_COLORS, WORK_COLOR_LABELS, defaultWorkColor, type WorkColor } from "@/lib/workStatus";
+import { defaultWorkColor } from "@/lib/workStatus";
 import { useEffect, useRef, useState } from "react";
 import {
   AUDIENCES,
@@ -23,7 +23,7 @@ function formatTime(iso: string): string {
  * 부장이 담은 문항은 같은 초안에 모이므로 따로 합칠 필요가 없습니다.
  */
 export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInviteSummary[]) => void }) {
-  const [rows, setRows] = useState<{ id: number; label: string; audience: Audience | ""; color?: WorkColor }[]>([0, 1, 2, 3].map(id => ({ id, label: "", audience: "" })));
+  const [rows, setRows] = useState<{ id: number; label: string; audience: Audience | "" }[]>([0, 1, 2, 3].map(id => ({ id, label: "", audience: "" })));
   const nextId = useRef(4);
   const creating = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -59,7 +59,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
       for (const row of pending) {
         const response = await fetch("/api/invite", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ label: row.label.trim(), audience: row.audience || undefined, color: row.color ?? defaultWorkColor(row.label) })
+          body: JSON.stringify({ label: row.label.trim(), audience: row.audience || undefined })
         });
         const payload = await response.json() as ApiEnvelope<{ invite: BuilderInviteSummary }>;
         if (!payload.ok) throw new Error(row.label + ": " + payload.error);
@@ -90,15 +90,6 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
     await reload();
   }
 
-  async function changeColor(invite: BuilderInviteSummary, color: WorkColor) {
-    try {
-      const response = await fetch("/api/invite", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: invite.token, color }) });
-      const payload = await response.json();
-      if (!payload.ok) throw new Error(payload.error);
-      await reload();
-    } catch (err) { setError(err instanceof Error ? err.message : "색상을 바꾸지 못했습니다."); }
-  }
-
   const submitted = invites.filter((invite) => invite.submittedAt).length;
 
   return (
@@ -126,7 +117,6 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
                   </span>
                 </div>
                 <div className="ws-invite-actions">
-                  <select className="ws-select" aria-label={`${invite.label} 이후 수정 표시 색상`} title="이후 수정·확인부터 적용됩니다." value={invite.color ?? defaultWorkColor(invite.label)} onChange={event => void changeColor(invite, event.target.value as WorkColor)}>{WORK_COLORS.map(color => <option key={color} value={color}>{WORK_COLOR_LABELS[color]}</option>)}</select>
                   <button
                     type="button"
                     className="ws-btn ws-btn--soft"
@@ -154,7 +144,6 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
           <label className="ws-field"><span>대상 {index + 1}</span><select className="ws-select" value={row.audience} onChange={event => setRows(previous => previous.map(entry => entry.id === row.id ? { ...entry, audience: event.target.value as Audience | "" } : entry))}>
             <option value="">전체</option>{AUDIENCES.map(entry => <option key={entry} value={entry}>{AUDIENCE_SHORT_LABELS[entry]}</option>)}
           </select></label>
-          <label className="ws-field"><span>표시 색상</span><select className="ws-select" value={row.color ?? defaultWorkColor(row.label)} onChange={event => setRows(previous => previous.map(entry => entry.id === row.id ? { ...entry, color: event.target.value as WorkColor } : entry))}>{WORK_COLORS.map(color => <option key={color} value={color}>{WORK_COLOR_LABELS[color]}</option>)}</select></label>
           <button type="button" className="ws-btn ws-btn--ghost" aria-label={index + 1 + "행 삭제"} disabled={rows.length === 1} onClick={() => setRows(previous => previous.filter(entry => entry.id !== row.id))}>삭제</button>
         </div>)}
         <button type="button" className="ws-btn ws-btn--soft" disabled={rows.length >= 30} onClick={() => setRows(previous => [...previous, { id: nextId.current++, label: "", audience: "" }])}>＋ 부장 추가</button>
