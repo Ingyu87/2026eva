@@ -10,6 +10,7 @@ import {
 import { SubareaField } from "./SubareaField";
 import {
   AUDIENCE_LABELS,
+  type BuilderInviteSummary,
   type Audience,
   type Presence,
   type SelectedQuestion
@@ -46,6 +47,8 @@ function legacyNoticeFor(subarea: string): string | null {
 }
 
 export function SelectedPanel({
+  assignmentInvites,
+  onAssign,
   showExamples,
   onToggleExamples,
   audience,
@@ -59,6 +62,8 @@ export function SelectedPanel({
   canModify,
   ownerTag
 }: {
+  assignmentInvites?: BuilderInviteSummary[];
+  onAssign?: (ids: string[], token: string) => Promise<void>;
   showExamples: boolean;
   onToggleExamples: () => void;
   audience: Audience;
@@ -75,6 +80,12 @@ export function SelectedPanel({
   /** 카드에 붙일 '담은 사람' 표시. */
   ownerTag?: (item: SelectedQuestion) => string | null;
 }) {
+  const [assignmentIds, setAssignmentIds] = useState<string[]>([]);
+  const [assignmentToken, setAssignmentToken] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const [assignmentMessage, setAssignmentMessage] = useState("");
+  const chosen = items.filter(item => assignmentIds.includes(item.id));
+  const eligibleInvites = (assignmentInvites ?? []).filter(invite => !invite.audience || invite.audience === audience);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const startEdit = (id: string) => {
@@ -119,6 +130,25 @@ export function SelectedPanel({
       </div>
 
       <div className="ws-col-body">
+        {onAssign && <details>
+          <summary>담당 부장 배정</summary>
+          <fieldset className="ws-form" disabled={assigning}>
+          <p className="ws-hint">맡길 문항을 선택하세요. 기존 담당자가 있으면 새 담당자로 바뀝니다. 부장 링크가 없으면 상단 ‘부장 링크’에서 만드세요.</p>
+          <label className="ws-check"><input type="checkbox" checked={items.length > 0 && chosen.length === items.length} onChange={event => setAssignmentIds(event.target.checked ? items.map(item => item.id) : [])} />현재 대상 전체 선택</label>
+          <select className="ws-select" aria-label="배정할 부장" value={assignmentToken} onChange={event => setAssignmentToken(event.target.value)}>
+            <option value="">담당 부장 선택</option>
+            {eligibleInvites.map(invite => <option key={invite.token} value={invite.token}>{invite.label}</option>)}
+          </select>
+          <button type="button" className="ws-btn ws-btn--soft" disabled={!chosen.length || chosen.length > 200 || !eligibleInvites.some(invite => invite.token === assignmentToken)} onClick={async () => {
+            setAssigning(true); setAssignmentMessage("");
+            try { await onAssign(chosen.map(item => item.id), assignmentToken); setAssignmentIds([]); setAssignmentMessage("배정했습니다. 담당 부장 화면에 반영됩니다."); }
+            catch (error) { setAssignmentMessage(error instanceof Error ? error.message : "배정하지 못했습니다."); }
+            finally { setAssigning(false); }
+          }}>{assigning ? "배정 중…" : `선택한 ${chosen.length}개 문항 배정`}</button>
+          {chosen.length > 200 && <p>한 번에 200개까지 선택하세요.</p>}
+          <p role="status" className="ws-hint">{assignmentMessage}</p>
+        </fieldset></details>}
+
         {items.length === 0 ? (
           <div className="ws-empty">
             <p>담은 문항이 없습니다.</p>
@@ -141,6 +171,7 @@ export function SelectedPanel({
                 }
               >
                 <div className="ws-item-head">
+                  {onAssign && <input type="checkbox" aria-label={`${index + 1}번 문항 배정 선택`} checked={assignmentIds.includes(item.id)} disabled={assigning} onChange={event => setAssignmentIds(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id))} />}
                   <span className="ws-item-no">{index + 1}</span>
                   <span className="ws-item-meta">{item.indicator}</span>
                   {tag ? <span className="ws-item-owner">{tag}</span> : null}

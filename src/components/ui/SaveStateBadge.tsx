@@ -29,7 +29,7 @@ export function SaveStateBadge({
       state.pending > 0 ? `미전송 ${state.pending}건 · 재시도` : "저장 실패 · 재시도";
     return (
       <button type="button" className="save-state failed" onClick={onRetry} title={state.message}>
-        {label}
+        {label} — {state.message}
       </button>
     );
   }

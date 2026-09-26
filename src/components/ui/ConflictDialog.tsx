@@ -31,13 +31,13 @@ export function ConflictDialog({
   return (
     <div className="conflict-overlay" role="alertdialog" aria-modal="true">
       <div className="conflict-dialog">
-        <h3>이 문항을 다른 사람이 먼저 수정했습니다</h3>
+        <h3>{conflict.op.kind === "meta" ? "설문 설정을 다른 사람이 먼저 수정했습니다" : "이 문항을 다른 사람이 먼저 수정했습니다"}</h3>
         <p className="conflict-meta">
           {editor ? `${editor} 님` : "다른 사용자"}
           {when ? ` · ${when}` : ""}
         </p>
 
-        {theirs ? (
+        {conflict.currentDraft ? <p className="conflict-meta">내가 바꾼 설정을 적용할지, 서버에 저장된 설정을 유지할지 선택하세요.</p> : theirs ? (
           <div className="conflict-compare">
             <div>
               <span className="conflict-label">저장되어 있는 내용</span>

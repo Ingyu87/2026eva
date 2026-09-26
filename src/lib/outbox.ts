@@ -7,11 +7,16 @@ import type { NewSelectedQuestion, SelectedQuestionPatch, SurveyDraftPatch } fro
  * 막히거나 브라우저가 갑자기 닫혀도 작업이 남습니다. 서버가 받았다고 응답하면 그때 지웁니다.
  */
 
-export type DraftOp =
+type DraftOperation =
   | { kind: "meta"; opId: string; patch: SurveyDraftPatch }
   | { kind: "create"; opId: string; items: NewSelectedQuestion[] }
   | { kind: "patch"; opId: string; itemId: string; patch: SelectedQuestionPatch }
   | { kind: "delete"; opId: string; itemId: string };
+
+export type DraftOp = DraftOperation & { rejected?: string };
+const fallback = new Map<string, DraftOp[]>();
+
+export function outboxStorageFailed(draftId: string): boolean { return fallback.has(draftId); }
 
 const PREFIX = "school-eval-outbox";
 
@@ -21,6 +26,8 @@ function key(draftId: string): string {
 
 /** 사생활 보호 모드 등에서 localStorage 접근이 막힐 수 있어 항상 감쌉니다. */
 function safeRead(draftId: string): DraftOp[] {
+  const retained = fallback.get(draftId);
+  if (retained) return retained.slice();
   if (typeof window === "undefined") {
     return [];
   }
@@ -43,11 +50,13 @@ function safeWrite(draftId: string, ops: DraftOp[]): void {
   try {
     if (ops.length === 0) {
       window.localStorage.removeItem(key(draftId));
+      fallback.delete(draftId);
       return;
     }
     window.localStorage.setItem(key(draftId), JSON.stringify(ops));
+    fallback.delete(draftId);
   } catch {
-    /* 저장 공간이 막혀도 화면 동작은 계속되어야 합니다. */
+    fallback.set(draftId, ops.slice());
   }
 }
 
@@ -65,10 +74,10 @@ export function enqueue(draftId: string, op: DraftOp): DraftOp[] {
   const ops = safeRead(draftId);
 
   if (op.kind === "meta") {
-    const index = ops.findIndex((entry) => entry.kind === "meta");
+    const index = ops.findIndex((entry) => entry.kind === "meta" && !entry.rejected);
     if (index >= 0) {
       const previous = ops[index] as Extract<DraftOp, { kind: "meta" }>;
-      ops[index] = { ...previous, patch: { ...previous.patch, ...op.patch } };
+      ops[index] = { ...previous, opId: op.opId, rejected: undefined, patch: { ...previous.patch, ...op.patch } };
       safeWrite(draftId, ops);
       return ops;
     }
@@ -76,11 +85,11 @@ export function enqueue(draftId: string, op: DraftOp): DraftOp[] {
 
   if (op.kind === "patch") {
     const index = ops.findIndex(
-      (entry) => entry.kind === "patch" && entry.itemId === op.itemId
+      (entry) => entry.kind === "patch" && entry.itemId === op.itemId && !entry.rejected
     );
     if (index >= 0) {
       const previous = ops[index] as Extract<DraftOp, { kind: "patch" }>;
-      ops[index] = { ...previous, patch: { ...previous.patch, ...op.patch } };
+      ops[index] = { ...previous, opId: op.opId, rejected: undefined, patch: { ...previous.patch, ...op.patch } };
       safeWrite(draftId, ops);
       return ops;
     }
@@ -118,4 +127,12 @@ export function clearOutbox(draftId: string): void {
 /** 재시도 간격. 계속 실패해도 8초 이상 벌어지지 않게 합니다. */
 export function retryDelay(attempt: number): number {
   return Math.min(8000, 1000 * 2 ** Math.max(0, attempt - 1));
+}
+
+/** 권한 거절 내용은 성공 처리하지 않고 재시도·복사를 위해 보관합니다. */
+export function rejectOperation(draftId: string, opId: string, reason: string): void {
+  safeWrite(draftId, safeRead(draftId).map(op => op.opId === opId ? { ...op, rejected: reason } : op));
+}
+export function retryRejected(draftId: string): void {
+  safeWrite(draftId, safeRead(draftId).map(({ rejected: _reason, ...op }) => op));
 }

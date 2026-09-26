@@ -1368,3 +1368,36 @@ export async function logAdminAction(action: string, targetSchoolId?: string): P
     createdAt: FieldValue.serverTimestamp()
   });
 }
+
+/** 연구부장 전용 배정. 문항 버전과 링크 유효성을 같은 트랜잭션에서 확인합니다. */
+export async function assignDraftItems(schoolId: string, draftId: string, token: string, rows: { id: string; rev: number }[]): Promise<SelectedQuestion[]> {
+  const prepare = (invite: BuilderInvite | null, items: SelectedQuestion[]): SelectedQuestion[] => {
+    if (!invite || invite.revoked || invite.schoolId !== schoolId || invite.draftId !== draftId) throw new ForbiddenError("이 학교의 사용 중인 부장 링크를 선택하세요.");
+    return items.map((item, index) => {
+      if (item.deleted) throw new NotFoundError("삭제된 문항은 배정할 수 없습니다.");
+      if (item.rev !== rows[index].rev) throw new ConflictError(item);
+      if (invite.audience && invite.audience !== item.audience) throw new ForbiddenError("부장 링크의 대상과 문항 대상이 다릅니다.");
+      return { ...item, ownerId: inviteOwnerId(token), ownerLabel: invite.label, rev: item.rev + 1, updatedAt: nowIso() };
+    });
+  };
+  const db = getFirebaseDb();
+  if (db) return db.runTransaction(async tx => {
+    const inviteRef = db.collection(INVITES).doc(token);
+    const inviteDoc = await tx.get(inviteRef);
+    const refs = rows.map(row => db.collection(DRAFTS).doc(draftId).collection(ITEMS).doc(row.id));
+    const docs = await tx.getAll(...refs);
+    if (docs.some(doc => !doc.exists)) throw new NotFoundError("문항을 찾을 수 없습니다.");
+    const next = prepare(inviteDoc.exists ? plain(inviteDoc.data()) as BuilderInvite : null, docs.map(doc => hydrateItem(doc.id, doc.data() ?? {})));
+    next.forEach((item, index) => tx.set(refs[index], item));
+    tx.update(inviteRef, { submittedAt: FieldValue.delete() });
+    return next;
+  });
+  const state = memoryStateFor(draftId);
+  const current = rows.map(row => state.items.get(row.id));
+  if (current.some(item => !item)) throw new NotFoundError("문항을 찾을 수 없습니다.");
+  const invite = memoryInvites.get(token) ?? null;
+  const next = prepare(invite, current as SelectedQuestion[]);
+  next.forEach(item => state.items.set(item.id, item));
+  if (invite) { const { submittedAt: _submitted, ...rest } = invite; memoryInvites.set(token, rest); }
+  return next;
+}

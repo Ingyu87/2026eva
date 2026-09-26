@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { orderForAppend, orderForMove, sortByOrder } from "@/lib/order";
 import {
   acknowledge,
+  outboxStorageFailed,
+  rejectOperation,
+  retryRejected,
   discard,
   enqueue,
   readOutbox,
@@ -45,6 +48,7 @@ export type DraftConflict = {
   op: DraftOp;
   /** 서버에 저장되어 있는 최신 문항. 없으면 이미 삭제된 것입니다. */
   current: SelectedQuestion | null;
+  currentDraft?: SurveyDraft;
   /** 내가 보내려던 값. 나란히 비교할 때 씁니다. */
   mine: SelectedQuestionPatch | null;
 };
@@ -129,6 +133,7 @@ export function useDraftWorkspace(enabled: boolean) {
   const sinceRef = useRef<string | null>(null);
   const draftIdRef = useRef<string | null>(null);
   const itemsRef = useRef<SelectedQuestion[]>([]);
+  const knownItemsRef = useRef(new Map<string, SelectedQuestion>());
   const draftRef = useRef<SurveyDraft | null>(null);
   const flushingRef = useRef(false);
   const attemptRef = useRef(0);
@@ -161,6 +166,7 @@ export function useDraftWorkspace(enabled: boolean) {
     setItems((current) => {
       const map = new Map(current.map((item) => [item.id, item]));
       for (const incoming of changed) {
+        knownItemsRef.current.set(incoming.id, incoming);
         const mine = map.get(incoming.id);
         // 내가 지금 고치고 있는 문항은 덮어쓰지 않습니다. 배지로만 알립니다.
         if (mine && editingItemIdRef.current === incoming.id) {
@@ -183,6 +189,22 @@ export function useDraftWorkspace(enabled: boolean) {
     return count;
   }, []);
 
+  // 서버가 확인한 버전은 즉시 갱신하되 전송 중 추가 입력은 화면에 유지합니다.
+  const acceptWrite = useCallback((incoming: SelectedQuestion[]) => {
+    const pending = draftIdRef.current ? readOutbox(draftIdRef.current) : [];
+    const next = new Map(itemsRef.current.map(item => [item.id, item]));
+    for (const item of incoming) {
+      knownItemsRef.current.set(item.id, item);
+      const mine = next.get(item.id);
+      let merged = { ...item };
+      if (mine && editingItemIdRef.current === item.id) merged = { ...mine, rev: item.rev, updatedAt: item.updatedAt, ownerId: item.ownerId, ownerLabel: item.ownerLabel };
+      for (const op of pending) if (op.kind === "patch" && op.itemId === item.id) merged = { ...merged, ...op.patch };
+      next.set(item.id, merged);
+    }
+    itemsRef.current = Array.from(next.values());
+    setItems(itemsRef.current);
+  }, []);
+
   const sendOp = useCallback(async (op: DraftOp): Promise<void> => {
     if (op.kind === "meta") {
       const current = draftRef.current;
@@ -197,6 +219,7 @@ export function useDraftWorkspace(enabled: boolean) {
           updatedBy: readStored(DISPLAY_NAME_KEY, "local") ?? undefined
         })
       });
+      draftRef.current = data.draft;
       setDraft(data.draft);
       return;
     }
@@ -209,13 +232,13 @@ export function useDraftWorkspace(enabled: boolean) {
           updatedBy: readStored(DISPLAY_NAME_KEY, "local") ?? undefined
         })
       });
-      applyChanges(data.items, []);
+      acceptWrite(data.items);
       return;
     }
 
-    const target = itemsRef.current.find((item) => item.id === op.itemId);
+    const target = itemsRef.current.find((item) => item.id === op.itemId) ?? knownItemsRef.current.get(op.itemId);
     if (!target) {
-      return;
+      throw new Error("문항을 찾을 수 없습니다. 미저장 내용을 보관하고 새로고침하세요.");
     }
 
     if (op.kind === "patch") {
@@ -227,7 +250,7 @@ export function useDraftWorkspace(enabled: boolean) {
           updatedBy: readStored(DISPLAY_NAME_KEY, "local") ?? undefined
         })
       });
-      applyChanges([data.item], []);
+      acceptWrite([data.item]);
       return;
     }
 
@@ -239,7 +262,7 @@ export function useDraftWorkspace(enabled: boolean) {
       })
     });
     applyChanges([], [op.itemId]);
-  }, [applyChanges]);
+  }, [applyChanges, acceptWrite]);
 
   /**
    * 큐를 앞에서부터 하나씩 보냅니다.
@@ -253,28 +276,33 @@ export function useDraftWorkspace(enabled: boolean) {
       return;
     }
 
-    let queue = readOutbox(draftId);
+    let queue = readOutbox(draftId).filter(op => !op.rejected);
     if (queue.length === 0) {
-      setPendingCount(0);
+      const pending = refreshPending(draftId);
+      if (pending) setSaveState({ kind: "error", pending, message: "권한이 없어 저장하지 못한 내용이 있습니다. 미저장 내용 보관 후 연구부장에게 확인하세요." });
       return;
     }
 
     flushingRef.current = true;
-    setSaveState({ kind: "saving" });
+    setSaveState(outboxStorageFailed(draftId)
+      ? { kind: "error", pending: queue.length, message: "브라우저 임시 저장이 막혀 있습니다. 서버 저장이 끝날 때까지 창을 닫지 말고 미저장 내용을 보관하세요." }
+      : { kind: "saving" });
 
     try {
       while (queue.length > 0) {
         const op = queue[0];
         try {
           await sendOp(op);
-          queue = acknowledge(draftId, op.opId);
-          setPendingCount(queue.length);
+          acknowledge(draftId, op.opId);
+          queue = readOutbox(draftId).filter(entry => !entry.rejected);
+          refreshPending(draftId);
         } catch (error) {
           const typed = error as Error & { reason?: string; current?: unknown };
           if (typed.reason === "conflict") {
             const next: DraftConflict = {
               op,
-              current: (typed.current as SelectedQuestion | null) ?? null,
+              current: op.kind === "meta" ? null : (typed.current as SelectedQuestion | null) ?? null,
+              currentDraft: op.kind === "meta" ? typed.current as SurveyDraft : undefined,
               mine: op.kind === "patch" ? op.patch : null
             };
             setConflict(next);
@@ -287,9 +315,9 @@ export function useDraftWorkspace(enabled: boolean) {
             return;
           }
           if ((typed as { status?: number }).status === 403) {
-            // 권한이 없는 편집은 다시 보내도 같은 결과입니다. 큐를 막지 않도록 버립니다.
-            queue = acknowledge(draftId, op.opId);
-            setPendingCount(queue.length);
+            rejectOperation(draftId, op.opId, typed.message);
+            queue = readOutbox(draftId).filter(entry => !entry.rejected);
+            refreshPending(draftId);
             continue;
           }
           throw typed;
@@ -297,14 +325,17 @@ export function useDraftWorkspace(enabled: boolean) {
       }
 
       attemptRef.current = 0;
-      setSaveState({ kind: "idle", savedAt: new Date().toISOString() });
+      const remaining = refreshPending(draftId);
+      setSaveState(remaining
+        ? { kind: "error", pending: remaining, message: "권한이 없어 저장하지 못한 내용이 있습니다. 미저장 내용을 보관하고 연구부장에게 확인하세요." }
+        : { kind: "idle", savedAt: new Date().toISOString() });
     } catch (error) {
       attemptRef.current += 1;
       const pending = refreshPending(draftId);
       setSaveState({
         kind: "error",
         pending,
-        message: error instanceof Error ? error.message : "저장에 실패했습니다."
+        message: outboxStorageFailed(draftId) ? "브라우저에 임시 저장할 수 없습니다. 창을 닫지 말고 미저장 내용을 보관하세요." : error instanceof Error ? error.message : "저장에 실패했습니다."
       });
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
@@ -346,6 +377,9 @@ export function useDraftWorkspace(enabled: boolean) {
         draftIdRef.current = bundle.draft.id;
         sinceRef.current = bundle.since;
         setDraft(bundle.draft);
+        knownItemsRef.current = new Map(bundle.items.map(item => [item.id, item]));
+        itemsRef.current = bundle.items;
+        draftRef.current = bundle.draft;
         setItems(bundle.items);
         // 지난번에 못 보낸 편집이 남아 있으면 자동으로 이어서 보냅니다.
         if (refreshPending(bundle.draft.id) > 0) {
@@ -551,23 +585,22 @@ export function useDraftWorkspace(enabled: boolean) {
         return;
       }
 
-      if (choice === "theirs") {
-        discard(draftId, active.op.opId);
+      const latest = readOutbox(draftId).find(op => active.op.kind === "patch" && op.kind === "patch" ? op.itemId === active.op.itemId : op.kind === active.op.kind && (op.kind === "meta" || op.opId === active.op.opId)) ?? active.op;
+      if (active.op.kind === "meta" && active.currentDraft) {
+        if (choice === "theirs") discard(draftId, latest.opId);
+        draftRef.current = active.currentDraft;
+        setDraft(active.currentDraft);
+      } else if (choice === "theirs") {
+        discard(draftId, latest.opId);
+        editingItemIdRef.current = undefined;
         if (active.current) {
-          applyChanges([active.current], []);
+          acceptWrite([active.current]);
         } else if (active.op.kind !== "meta" && active.op.kind !== "create") {
           applyChanges([], [active.op.itemId]);
         }
       } else if (active.current) {
         // 상대의 최신 rev를 받아들인 뒤 내 수정을 다시 올립니다.
-        applyChanges([active.current], []);
-        if (active.mine) {
-          setItems((current) =>
-            current.map((item) =>
-              item.id === active.current?.id ? { ...item, ...active.mine } : item
-            )
-          );
-        }
+        acceptWrite([active.current]);
       }
 
       setConflict(null);
@@ -576,10 +609,11 @@ export function useDraftWorkspace(enabled: boolean) {
       setPendingCount(readOutbox(draftId).length);
       void flush();
     },
-    [applyChanges, flush]
+    [applyChanges, acceptWrite, flush]
   );
 
   const retryNow = useCallback(() => {
+    if (draftIdRef.current) retryRejected(draftIdRef.current);
     attemptRef.current = 0;
     void flush();
   }, [flush]);
@@ -610,6 +644,38 @@ export function useDraftWorkspace(enabled: boolean) {
     moveItem,
     resolveConflict,
     retryNow,
+    assignItems: async (ids: string[], token: string) => {
+      const draftId = draftIdRef.current;
+      if (!draftId || readOutbox(draftId).length) throw new Error("문항 저장이 끝난 뒤 배정하세요.");
+      const data = await call<{ items: SelectedQuestion[] }>("/api/draft/assign", { method: "POST", body: JSON.stringify({ token, items: ids.map(id => ({ id, rev: itemsRef.current.find(item => item.id === id)?.rev })) }) });
+      acceptWrite(data.items);
+    },
+    discardRejected: async () => {
+      const id = draftIdRef.current;
+      if (!id) return;
+      const rejected = readOutbox(id).filter(op => op.rejected);
+      if (!rejected.length) return;
+      if (!window.confirm("권한 때문에 저장하지 못한 수정 내용을 버리고 서버에 저장된 내용으로 돌아갈까요? 필요한 내용은 먼저 ‘미저장 내용 보관’으로 내려받으세요.")) return;
+      try {
+        const bundle = await call<DraftBundle>("/api/draft");
+        rejected.forEach(op => discard(id, op.opId));
+        editingItemIdRef.current = undefined;
+        acceptWrite(bundle.items);
+        const remaining = refreshPending(id);
+        if (!remaining) setSaveState({ kind: "idle", savedAt: null });
+        else void flush();
+      } catch { setSaveState({ kind: "error", pending: readOutbox(id).length, message: "서버 내용을 확인하지 못해 미저장 내용을 유지했습니다." }); }
+    },
+    rejectedCount: draft ? readOutbox(draft.id).filter(op => op.rejected).length : 0,
+    exportPending: () => {
+      const id = draftIdRef.current;
+      if (!id) return;
+      const ops = readOutbox(id);
+      const text = ops.map(op => JSON.stringify(op, null, 2)).join("\n\n");
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+      const link = document.createElement("a"); link.href = url; link.download = "학교평가-미저장내용.txt"; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
     setActiveAudience,
     setEditingItemId
   };

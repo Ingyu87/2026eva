@@ -502,6 +502,8 @@ export function Workspace({
 
         <div className="ws-topbar-right">
           <SaveStateBadge state={workspace.saveState} onRetry={workspace.retryNow} />
+          {workspace.rejectedCount > 0 && <button type="button" className="ws-btn ws-btn--ghost" onClick={() => void workspace.discardRejected()}>거절된 수정 취소</button>}
+          {workspace.pendingCount > 0 && <button type="button" className="ws-btn ws-btn--soft" onClick={workspace.exportPending}>미저장 내용 보관</button>}
           <PresenceBadge presence={workspace.presence} />
           {isBuilder ? (
             <button
@@ -606,6 +608,8 @@ export function Workspace({
           />
           </>}
           <SelectedPanel
+            assignmentInvites={isBuilder ? undefined : invites}
+            onAssign={isBuilder ? undefined : workspace.assignItems}
             showExamples={showExamples}
             onToggleExamples={() => setShowExamplesOverride(!showExamples)}
             audience={activeAudience}
