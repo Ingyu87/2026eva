@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from "@/components/ui";
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
@@ -22,6 +22,7 @@ import {
 import { BuilderIntro, LeadIntro } from "./BuilderIntro";
 import { EMPTY_SELECTION, IndicatorTree, type TreeSelection } from "./IndicatorTree";
 import { QuestionFinder } from "./QuestionFinder";
+import { ResizableColumns } from "./ResizableColumns";
 import { SelectedPanel } from "./SelectedPanel";
 import { AnnualStart } from "./AnnualStart";
 import type { PriorSurveyCommit } from "./PriorSurveyImport";
@@ -51,6 +52,9 @@ export function Workspace({
   builderAudience?: Audience;
   onLogout: () => void;
 }) {
+  const [fontSize,setFontSize]=useState(14);
+  useEffect(()=>{try{const n=Number(localStorage.getItem("workspace-font"));if(n>=12&&n<=22)setFontSize(n);}catch{}},[]);
+  const changeFont=(n:number)=>{setFontSize(n);try{localStorage.setItem("workspace-font",String(n));}catch{}};
   const isBuilder = role === "builder";
   const workspace = useDraftWorkspace(true);
   const draft = workspace.draft;
@@ -444,7 +448,7 @@ export function Workspace({
   }
 
   return (
-    <div className={activeScreen === "build" ? "ws-root" : "ws-root ws-root--analyze"}>
+    <div className={activeScreen === "build" ? "ws-root" : "ws-root ws-root--analyze"} style={{"--fs-body": `${fontSize}px`, "--fs-small": `${fontSize-1}px`, "--fs-caption": `${fontSize-2}px`, "--fs-group-title": `${fontSize+1}px`, "--fs-section-title": `${fontSize+4}px`} as CSSProperties}>
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
@@ -501,6 +505,7 @@ export function Workspace({
         </div>
 
         <div className="ws-topbar-right">
+          <label className="ws-font-control">글자 <select aria-label="글자 크기" value={fontSize} onChange={e=>changeFont(Number(e.target.value))}>{[12,14,16,18,20,22].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
           <SaveStateBadge state={workspace.saveState} onRetry={workspace.retryNow} />
           {workspace.rejectedCount > 0 && <button type="button" className="ws-btn ws-btn--ghost" onClick={() => void workspace.discardRejected()}>거절된 수정 취소</button>}
           {workspace.pendingCount > 0 && <button type="button" className="ws-btn ws-btn--soft" onClick={workspace.exportPending}>미저장 내용 보관</button>}
@@ -596,8 +601,8 @@ export function Workspace({
       ) : null}
 
       {activeScreen === "build" ? (
-        <main className={showExamples ? "ws-grid" : "ws-grid ws-grid--edit"}>
-          {showExamples && <><IndicatorTree bank={questionBank.filter((item) => item.audience === activeAudience)} selection={selection} onSelect={setSelection} />
+        <ResizableColumns showExamples={showExamples}>
+          <IndicatorTree bank={questionBank.filter((item) => item.audience === activeAudience)} selection={selection} onSelect={setSelection} />
           <QuestionFinder
             bank={questionBank.filter((item) => item.audience === activeAudience)}
             selection={selection}
@@ -606,7 +611,6 @@ export function Workspace({
             onToggle={toggleQuestion}
             onAddCustom={addCustomQuestion}
           />
-          </>}
           <SelectedPanel
             onConfirmReview={(id) => workspace.patchItem(id, { confirmReview: true })}
             assignmentInvites={isBuilder ? undefined : invites}
@@ -624,7 +628,7 @@ export function Workspace({
             canModify={isBuilder ? (item) => item.ownerId === builderOwnerId : undefined}
             ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
           />
-        </main>
+        </ResizableColumns>
       ) : activeScreen === "annual-start" ? (
         <main className="ra-main">
           <AnnualStart

@@ -1,8 +1,10 @@
 "use client";
 
 import { workStatusText } from "@/lib/workStatus";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AREAS,
+  placementFromSubarea,
   isCurrentSubarea,
   missingRequiredAreas,
   REQUIRED_AREA_CODES,
@@ -11,6 +13,11 @@ import {
 import { SubareaField } from "./SubareaField";
 import {
   AUDIENCE_LABELS,
+  RESPONSE_TYPE_LABELS,
+  RESPONSE_TYPES,
+  needsChoices,
+  type ResponseType,
+  type SelectedQuestionPatch,
   type BuilderInviteSummary,
   type Audience,
   type Presence,
@@ -73,7 +80,7 @@ export function SelectedPanel({
   items: SelectedQuestion[];
   presence: Presence[];
   onConfirmReview: (id: string) => void;
-  onPatch: (id: string, patch: Partial<SelectedQuestion>) => void;
+  onPatch: (id: string, patch: SelectedQuestionPatch) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   /** 없으면 '모두 비우기'를 보이지 않습니다. 부장 링크로 들어온 사람에게는 주지 않습니다. */
@@ -84,6 +91,30 @@ export function SelectedPanel({
   /** 카드에 붙일 '담은 사람' 표시. */
   ownerTag?: (item: SelectedQuestion) => string | null;
 }) {
+  const [proposals,setProposals]=useState<Record<string,{subarea:string;responseType:ResponseType;rev:number}>>({});
+  const [aiBusy,setAiBusy]=useState(false);
+  const [aiError,setAiError]=useState("");
+  const attempted=useRef(new Set<string>());
+  const running=useRef(false);
+  const [retry,setRetry]=useState(0);
+  useEffect(()=>{
+    const targets=items.filter(item=>(!canModify||canModify(item))&&!item.workStatus&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
+    if(!targets.length||running.current)return;
+    running.current=true;setAiBusy(true);setAiError("");
+    targets.forEach(item=>attempted.current.add(item.id));
+    void (async()=>{
+      try {
+        for(let offset=0;offset<targets.length;offset+=30){
+          const batch=targets.slice(offset,offset+30);
+          const response=await fetch("/api/ingest/prior-survey/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:batch.map(item=>({question:item.editedQuestion||item.originalQuestion,choices:item.choices,responseType:item.responseType}))}),signal:AbortSignal.timeout(120000)});
+          const payload=await response.json();if(!payload.ok)throw new Error();
+          setProposals(current=>{const next={...current};batch.forEach((item,index)=>{const row=payload.data.items[index];next[item.id]={subarea:placementFromSubarea(row?.subarea??"")?.subarea??"",responseType:RESPONSE_TYPES.includes(row?.responseType)?row.responseType:item.responseType,rev:item.rev};});return next;});
+        }
+      }catch{setAiError("AI 추천 연결 실패");}
+      finally{running.current=false;setAiBusy(false);}
+    })();
+  },[items,retry,canModify,aiBusy]);
+
   const [assignmentIds, setAssignmentIds] = useState<string[]>([]);
   const [assignmentToken, setAssignmentToken] = useState("");
   const [assigning, setAssigning] = useState(false);
@@ -134,7 +165,8 @@ export function SelectedPanel({
       </div>
 
       <div className="ws-col-body">
-        <p className="ws-hint">붉은 표시는 수정·확인 기록이 없는 문항입니다. 부장별 색상과 수정자·시각은 작업 화면에만 표시되고 설문지·Google Forms에는 들어가지 않습니다.</p>
+        {aiBusy && <p className="ws-hint" role="status">AI가 2026 분류·응답 유형을 추천하고 있습니다…</p>}
+        {aiError && <p className="ws-hint" role="alert">{aiError} <button className="ws-btn ws-btn--soft" onClick={()=>{attempted.current.clear();setRetry(v=>v+1);}}>다시 추천</button></p>}
         {onAssign && <details>
           <summary>담당 부장 배정</summary>
           <fieldset className="ws-form" disabled={assigning}>
@@ -164,6 +196,7 @@ export function SelectedPanel({
             const editor = editorOf(item.id);
             const editing = editingId === item.id;
             const legacy = legacyNoticeFor(item.subarea);
+            const proposal = proposals[item.id]?.rev === item.rev ? proposals[item.id] : undefined;
             const mine = canModify ? canModify(item) : true;
             const tag = ownerTag ? ownerTag(item) : null;
             return (
@@ -222,11 +255,18 @@ export function SelectedPanel({
                 </div>
 
                 <div className="ws-work-status">
-                  <span className="work-badge">{item.workStatus ? workStatusText(item.workStatus) : "미확인 · 수정·검토 기록 없음"}</span>
-                  {mine && !item.workStatus && <button type="button" className="ws-btn ws-btn--soft" onClick={() => onConfirmReview(item.id)}>원문 그대로 확인 완료</button>}
+                  <span className="work-badge" title={item.workStatus ? workStatusText(item.workStatus) : undefined}>{item.workStatus ? workStatusText(item.workStatus) : "검토 전"}</span>
+                  {mine && !item.workStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
                 </div>
-                {!item.subarea && <p className="ws-hint">{item.responseType === "likert_5" ? "분류 확인 필요 · 평가서 제출 전 세부영역을 선택하세요." : "미분류 · 평가영역 집계 제외 · 필요하면 수정에서 분류하세요."}</p>}
-                {legacy ? <p className="ws-item-legacy">{legacy}</p> : null}
+                {proposal && mine && !item.workStatus ? <div className="ws-review-proposal">
+                  <span className="ws-hint">AI 추천</span>
+                  <select className="ws-select" aria-label={`${index+1}번 추천 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
+                    <option value="">평가영역 집계 제외</option>
+                    {AREAS.map(area=><optgroup key={area.code} label={area.name}>{area.subareas.map(name=><option key={name}>{name}</option>)}</optgroup>)}
+                  </select>
+                  <select className="ws-select" aria-label={`${index+1}번 추천 응답 유형`} value={proposal.responseType} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,responseType:e.target.value as ResponseType}}))}>{RESPONSE_TYPES.map(type=><option key={type} value={type}>{RESPONSE_TYPE_LABELS[type]}</option>)}</select>
+                  <button type="button" className="ws-btn ws-btn--primary" disabled={needsChoices(proposal.responseType) && (new Set(item.choices?.map(c=>c.trim()).filter(Boolean)).size < 2)} title={needsChoices(proposal.responseType) && (new Set(item.choices?.map(c=>c.trim()).filter(Boolean)).size < 2) ? "수정에서 보기를 먼저 입력하세요" : undefined} onClick={()=>onPatch(item.id,{...(placementFromSubarea(proposal.subarea)??{area:"",subarea:""}),responseType:proposal.responseType,confirmReview:true})}>완료</button>
+                </div> : null}
 
                 {editing ? (
                   /*
@@ -272,7 +312,7 @@ export function SelectedPanel({
                       onChange={(event) => onPatch(item.id, { department: event.target.value })}
                     />
 
-                    <button type="button" className="ws-btn ws-btn--primary" onClick={stopEdit}>
+                    <button type="button" className="ws-btn ws-btn--primary" onClick={()=>{onConfirmReview(item.id);stopEdit();}}>
                       완료
                     </button>
                   </div>
@@ -310,7 +350,7 @@ export function SelectedPanel({
           ) : null}
           {legacyCount > 0 ? (
             <p className="ws-coverage-warn">
-              2025 분류 문항 {legacyCount}개가 있습니다. 2026 체계로 다시 담아 주세요.
+              분류 검토 {legacyCount}개
             </p>
           ) : null}
         </div>

@@ -25,6 +25,13 @@ assert.deepEqual(await prior.recommendPriorSubareas(['협력','자유 의견']),
 delete process.env.GEMINI_API_KEY;process.env.UPSTAGE_API_KEY='fake';
 global.fetch=async(url,opt)=>{const body=JSON.parse(opt.body);assert.ok(JSON.stringify(body).includes(legal));return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({items:[{index:0,subarea:legal}]})}}]}));};
 assert.deepEqual(await prior.recommendPriorSubareas(['협력']),[legal]);
-global.fetch=previous;delete process.env.UPSTAGE_API_KEY;
+delete process.env.UPSTAGE_API_KEY;process.env.GEMINI_API_KEY='fake';
+const scale=['매우 그렇다','그렇다','보통이다','그렇지 않다','전혀 그렇지 않다'];
+global.fetch=async()=>new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify({items:[{index:0,subarea:legal,responseType:'likert_5'},{index:1,subarea:legal,responseType:'likert_5'}]})}]}}]}));
+const rec=await prior.recommendPriorQuestions([{question:'평가',responseType:'text',choices:scale},{question:'의견',responseType:'text'}]);
+assert.equal(rec[0].responseType,'likert_5');assert.equal(rec[1].responseType,null);
+assert.equal((await store.getDraftBundle('unclassified-test','가상학교')).items[0].responseType,'text');
+console.log('[PASS] 응답 유형 추천·근거 없는 척도 차단·추천만으로 원본 미변경');
+global.fetch=previous;delete process.env.GEMINI_API_KEY;
 console.log('[PASS] Gemini·Upstage 추천 매핑 및 허용 목록 밖 응답 제외 (모의 API)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
