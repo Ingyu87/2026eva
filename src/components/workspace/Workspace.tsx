@@ -52,9 +52,9 @@ export function Workspace({
   builderAudience?: Audience;
   onLogout: () => void;
 }) {
-  const [fontSize,setFontSize]=useState(14);
-  useEffect(()=>{try{const n=Number(localStorage.getItem("workspace-font"));if(n>=12&&n<=22)setFontSize(n);}catch{}},[]);
-  const changeFont=(n:number)=>{setFontSize(n);try{localStorage.setItem("workspace-font",String(n));}catch{}};
+  const [fontSize,setFontSize]=useState(22);
+  useEffect(()=>{try{const n=Number(localStorage.getItem("workspace-font-v2"));if(n>=12&&n<=28)setFontSize(n);}catch{}},[]);
+  const changeFont=(n:number)=>{const size=Math.max(12,Math.min(28,n));setFontSize(size);try{localStorage.setItem("workspace-font-v2",String(size));}catch{}};
   const isBuilder = role === "builder";
   const workspace = useDraftWorkspace(true);
   const draft = workspace.draft;
@@ -505,7 +505,11 @@ export function Workspace({
         </div>
 
         <div className="ws-topbar-right">
-          <label className="ws-font-control">글자 <select aria-label="글자 크기" value={fontSize} onChange={e=>changeFont(Number(e.target.value))}>{[12,14,16,18,20,22].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+          <div className="ws-font-control" role="group" aria-label="글자 크기">
+            <span>글자</span>
+            <button type="button" className="ws-icon-btn" aria-label="글자 작게" title="글자 작게" disabled={fontSize<=12} onClick={()=>changeFont(fontSize-2)}>−</button>
+            <button type="button" className="ws-icon-btn" aria-label="글자 크게" title="글자 크게" disabled={fontSize>=28} onClick={()=>changeFont(fontSize+2)}>+</button>
+          </div>
           <SaveStateBadge state={workspace.saveState} onRetry={workspace.retryNow} />
           {workspace.rejectedCount > 0 && <button type="button" className="ws-btn ws-btn--ghost" onClick={() => void workspace.discardRejected()}>거절된 수정 취소</button>}
           {workspace.pendingCount > 0 && <button type="button" className="ws-btn ws-btn--soft" onClick={workspace.exportPending}>미저장 내용 보관</button>}
