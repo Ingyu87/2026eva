@@ -32,6 +32,7 @@ import { previewOptions, ResponseTypeEditor } from "./ResponseTypeEditor";
  * 엉뚱한 세부영역에 들어갑니다. 사람이 다시 고르게 하는 것이 안전합니다.
  */
 function legacyNoticeFor(subarea: string): string | null {
+  if (!subarea) return null;
   if (isCurrentSubarea(subarea)) {
     return null;
   }
@@ -224,6 +225,7 @@ export function SelectedPanel({
                   <span className="work-badge">{item.workStatus ? workStatusText(item.workStatus) : "미확인 · 수정·검토 기록 없음"}</span>
                   {mine && !item.workStatus && <button type="button" className="ws-btn ws-btn--soft" onClick={() => onConfirmReview(item.id)}>원문 그대로 확인 완료</button>}
                 </div>
+                {!item.subarea && <p className="ws-hint">{item.responseType === "likert_5" ? "분류 확인 필요 · 평가서 제출 전 세부영역을 선택하세요." : "미분류 · 평가영역 집계 제외 · 필요하면 수정에서 분류하세요."}</p>}
                 {legacy ? <p className="ws-item-legacy">{legacy}</p> : null}
 
                 {editing ? (

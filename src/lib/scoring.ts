@@ -133,7 +133,7 @@ export function computeAreaStats(items: AreaMeanItem[], questionStats: QuestionS
   const groups = new Map<string, { area: string; audience: Audience; distributions: Distribution5[] }>();
 
   for (const item of items) {
-    if (!countsTowardAreaMean(item.responseType)) {
+    if (!item.area || !countsTowardAreaMean(item.responseType)) {
       continue;
     }
     const stat = statByQuestionId.get(item.questionId);

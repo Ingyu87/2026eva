@@ -66,6 +66,7 @@ export function resultDataIssues(result: SurveyResult): string[] {
   }
   for (const item of result.itemsSnapshot ?? []) {
     if (item.deleted || item.responseType !== 'likert_5') continue;
+    if (!isCurrentSubarea(item.subarea)) issues.push(`5점 척도 문항 ‘${item.editedQuestion || item.originalQuestion}’의 세부영역을 확인하세요.`);
     if (!result.questionStats.some(s => s.questionId === item.id && s.audience === item.audience && s.grade === undefined && s.responseCount > 0)) issues.push(`${AUDIENCE_SHORT_LABELS[item.audience]} 문항 ‘${item.editedQuestion || item.originalQuestion}’의 유효 응답이 없습니다. 연결 상태와 응답 파일을 확인하세요.`);
   }
   return issues;

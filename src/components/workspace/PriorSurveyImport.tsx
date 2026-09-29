@@ -36,8 +36,29 @@ export function PriorSurveyImport({ draftId, onCommit }: { draftId: string; onCo
   }
   const [active, setActive] = useState<Audience>("teacher");
   const selected = sources.flatMap(source => source.items.filter(item => item.included));
-  const valid = (item: ReviewItem) => Boolean(item.question.trim() && placementFromSubarea(item.subarea) && item.responseType && (!needsChoices(item.responseType) || ((item.choices?.length ?? 0) >= 2 && item.choices?.every(c => c.trim()) && new Set(item.choices.map(c => c.trim())).size === item.choices.length)));
-  const ready = selected.length > 0 && selected.every(valid) && sources.every(s => !s.error && s.checked);
+  const valid = (item: ReviewItem) => Boolean(item.question.trim() && item.responseType && (!needsChoices(item.responseType) || ((item.choices?.length ?? 0) >= 2 && item.choices?.every(c => c.trim()) && new Set(item.choices.map(c => c.trim())).size === item.choices.length)));
+  const ready = selected.length > 0 && selected.every(valid);
+
+  const [recommending, setRecommending] = useState(false);
+  async function recommend() {
+    const targets = sources.flatMap(source => source.items.map((item, index) => ({ sourceId: source.id, index, item }))).filter(row => row.item.included && !placementFromSubarea(row.item.subarea));
+    if (!targets.length || recommending) return;
+    setRecommending(true); setError("");
+    try {
+      for (let offset = 0; offset < targets.length; offset += 100) {
+        const batch = targets.slice(offset, offset + 100);
+        const response = await fetch("/api/ingest/prior-survey/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questions: batch.map(row => row.item.question) }), signal: AbortSignal.timeout(120000) });
+        const payload = await response.json();
+        if (!payload.ok) throw new Error(payload.error);
+        setSources(current => current.map(source => ({ ...source, items: source.items.map((item, index) => {
+          const at = batch.findIndex(row => row.sourceId === source.id && row.index === index && row.item.question === item.question);
+          const placement = at >= 0 ? placementFromSubarea(payload.data.subareas[at] ?? "") : null;
+          return placement && !placementFromSubarea(item.subarea) ? { ...item, ...placement } : item;
+        }) })));
+      }
+    } catch { setError("AI 추천을 완료하지 못했습니다. 분류 없이 가져온 뒤 수정할 수 있습니다."); }
+    finally { setRecommending(false); }
+  }
 
   async function upload(files: File[]) {
     if (busy.current) return;
@@ -79,7 +100,8 @@ export function PriorSurveyImport({ draftId, onCommit }: { draftId: string; onCo
     <p className="ws-hint" role="status">{reading ? `${reading} 읽는 중…` : error}</p>
     {reading && <button type="button" className="ws-btn ws-btn--soft" onClick={() => { cancelled.current = true; request.current?.abort(); setError("읽기를 중단했습니다. 완료된 파일은 아래에 유지됩니다."); }}>읽기 중단</button>}
     {sources.length > 0 && <>
-      <fieldset disabled={Boolean(reading)} className="ws-prior-controls">
+      <button type="button" className="ws-btn ws-btn--soft" disabled={Boolean(reading) || recommending} onClick={() => void recommend()}>{recommending ? "세부영역 추천 중…" : "미분류 문항 AI 추천"}</button>
+      <fieldset disabled={Boolean(reading) || recommending} className="ws-prior-controls">
         {sources.map(source => <div className="ws-prior-item" key={source.id}>
           <strong className="ws-prior-filename">{source.name}</strong>
           {source.error ? <p role="alert" className="ws-custom-error">{source.error} 파일을 지운 뒤 다시 올려 주세요.</p> : <>
@@ -99,13 +121,13 @@ export function PriorSurveyImport({ draftId, onCommit }: { draftId: string; onCo
             <label className="ws-field"><span>대상</span><select className="ws-select" value={item.audience} onChange={e => update(source.id, index, { audience: e.target.value as Audience })}>{AUDIENCES.map(a => <option key={a} value={a}>{AUDIENCE_SHORT_LABELS[a]}</option>)}</select></label>
             <SubareaField subarea={item.subarea} indicator={item.indicator} onChange={patch => update(source.id, index, patch)} />
             {item.responseType ? <ResponseTypeEditor responseType={item.responseType} choices={item.choices} onChange={patch => update(source.id, index, patch)} /> : <label className="ws-field"><span>응답 유형을 확인하세요</span><select className="ws-select" value="" onChange={e => update(source.id, index, { responseType: e.target.value as ResponseType })}><option value="" disabled>유형 선택</option><option value="likert_5">5점 척도</option><option value="likert_3">3점 척도</option><option value="yes_no">예 / 아니오</option><option value="choice_single">하나 선택</option><option value="checklist">여러 개 선택</option><option value="text">서술형</option></select></label>}
-            {item.included && !valid(item) && <p className="ws-custom-error">문항, 올해 세부영역, 응답 유형과 선택형 보기(서로 다른 2개 이상)를 확인하세요.</p>}
+            {item.included && !valid(item) && <p className="ws-custom-error">문항, 응답 유형과 선택형 보기(서로 다른 2개 이상)를 확인하세요.</p>}
           </div>))}
         </div>
       </fieldset>
       <p className="ws-hint">학년군별 표는 행마다 문항을 나누고 대안 입력 칸은 서술형으로 추가합니다. 원본의 모든 행과 보기, 선택 개수 안내가 있는지 대조하세요. 선택 개수 제한과 조건부 분기는 자동 설정되지 않습니다.</p>
-      <p className="ws-hint">올해 세부영역과 원본 대조를 모두 확인하면 담을 수 있습니다. 기존 문항은 유지하고 선택한 {selected.length}개를 추가합니다.</p>
-      <button type="button" className="ws-btn ws-btn--primary" disabled={!ready || Boolean(reading)} onClick={() => { if (busy.current || !ready) return; busy.current = true; onCommit(selected.map(item => ({ ...placementFromSubarea(item.subarea)!, audience: item.audience, indicator: item.indicator.trim() || "학교 자체 문항", question: item.question.trim(), responseType: item.responseType!, choices: item.responseType && needsChoices(item.responseType) ? item.choices?.map(c => c.trim()) : undefined }))); setSources([]); busy.current = false; }}>확인한 문항으로 올해 설문 시작하기</button>
+      <p className="ws-hint">세부영역과 원본 대조는 가져온 뒤에도 수정할 수 있습니다. AI 추천은 검토 후 확정하세요. 기존 문항은 유지하고 선택한 {selected.length}개를 추가합니다.</p>
+      <button type="button" className="ws-btn ws-btn--primary" disabled={!ready || Boolean(reading) || recommending} onClick={() => { if (busy.current || !ready) return; busy.current = true; onCommit(selected.map(item => ({ ...(placementFromSubarea(item.subarea) ?? { area: "", subarea: "" }), audience: item.audience, indicator: item.indicator.trim() || "학교 자체 문항", question: item.question.trim(), responseType: item.responseType!, choices: item.responseType && needsChoices(item.responseType) ? item.choices?.map(c => c.trim()) : undefined }))); setSources([]); busy.current = false; }}>문항 가져와서 수정하기</button>
     </>}
   </div>;
 }

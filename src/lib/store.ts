@@ -687,6 +687,7 @@ export async function patchDraftMeta(
 
 /** 문항을 한 번에 여러 개 추가합니다. 새 문서라 충돌이 발생하지 않습니다. */
 function withLegalPlacement<T extends { area: string; subarea: string }>(item: T): T {
+  if (item.subarea === "") return { ...item, area: "", subarea: "" };
   const placement = placementFromSubarea(item.subarea);
   if (!placement) {
     throw new Error("2026 세부영역을 선택하세요. 영역·세부영역은 학교가 바꿀 수 없습니다.");

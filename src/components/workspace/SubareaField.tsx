@@ -26,13 +26,10 @@ export function SubareaField({
           value={valid?.subarea ?? ""}
           onChange={(event) => {
             const next = placementFromSubarea(event.target.value);
-            if (!next) {
-              return;
-            }
-            onChange({ ...next, indicator });
+            onChange({ ...(next ?? { area: "", subarea: "" }), indicator });
           }}
         >
-          {!valid ? <option value="">세부영역을 고르세요</option> : null}
+          <option value="">미분류 · 평가영역 집계 제외</option>
           {AREAS.map((area) => (
             <optgroup key={area.code} label={area.name}>
               {area.subareas.map((name) => (
@@ -52,10 +49,7 @@ export function SubareaField({
           placeholder="평가지표 이름"
           onChange={(event) => {
             const next = placementFromSubarea(subarea);
-            if (!next) {
-              return;
-            }
-            onChange({ ...next, indicator: event.target.value });
+            onChange({ ...(next ?? { area: "", subarea: "" }), indicator: event.target.value });
           }}
         />
       </label>
