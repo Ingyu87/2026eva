@@ -1665,13 +1665,13 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
 
 /* 도움말 — 장면 한 장 + 짧은 설명 */
 .guide-modal {
-  width: min(1040px, 100%);
+  width: min(1440px, 100%);
   max-height: 92dvh;
 }
 
 .guide-layout {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: minmax(160px, 20%) minmax(0, 1fr);
   min-height: 0;
   flex: 1;
 }
@@ -1720,7 +1720,14 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--bg-subtle);
+  padding: 0;
+  flex-shrink: 0;
+  cursor: zoom-in;
 }
+
+.guide-zoom { position: fixed; inset: var(--sp-2); z-index: 100; background: var(--bg-card); display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-2); overflow: auto; }
+.guide-zoom img { max-width: 100%; min-height: 0; object-fit: contain; }
+.guide-zoom button { align-self: flex-end; flex-shrink: 0; }
 
 /* 글이 먼저 보이도록 그림은 높이를 제한합니다. 세로가 짧은 노트북에서도 설명과 버튼이 화면 안에 들어옵니다. */
 .guide-image {

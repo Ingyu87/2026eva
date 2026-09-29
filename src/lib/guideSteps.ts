@@ -3,7 +3,7 @@ export type GuideStep = {
   title: string;
   /** 줄바꿈(\n)은 그대로 보입니다. */
   caption: string;
-  /** 실제 화면 캡처. 없으면 글만 보입니다. `npm run guide:capture`로 다시 뽑습니다. */
+  /** 실제 화면 캡처. 화면이 바뀌면 가상 학교로 다시 캡처합니다. */
   image?: string;
 };
 
@@ -11,13 +11,15 @@ export type GuideVariant = "lead" | "builder";
 
 /**
  * 연구부장용 도움말.
- * 그림은 실제 화면을 잘라 강조 표시를 붙인 것입니다. 화면이 바뀌면 캡처를 다시 뽑으세요.
+ * 그림은 가상 학교로 실제 작업 화면을 캡처한 것입니다. 화면이 바뀌면 캡처를 다시 뽑으세요.
  */
 export const LEAD_GUIDE_STEPS: GuideStep[] = [
+  { id: "display", title: "화면 크기 조절", caption: "상단 ‘글자’ 옆 − / +로 글씨를 조절하세요. 평가지표·문항 검색·우리 학교 사이 경계를 끌면 열 너비가 바뀝니다. 경계를 두 번 누르면 기본 비율로 돌아갑니다." },
+  { id: "intro", title: "안내문 수정", caption: "상단 톱니바퀴 ‘설문 설정’을 열고 ‘안내문’을 누르세요. 교원용·학부모용·학생용·직원용 중 대상을 고른 뒤 내용을 수정합니다. 창을 닫은 뒤 상단 ‘저장됨’을 확인하세요." },
   {
     id: "prior-survey",
     title: "작년 설문으로 시작하기",
-    caption: "첫 시작 화면 또는 설문 설정에서 ‘작년 설문지 올리기’를 누르세요. 교원용·직원용·학생용·학부모용 PDF를 최대 4개 함께 선택할 수 있습니다. 대상별 탭에서 문항·보기·응답 유형과 올해 세부영역을 확인하세요. 쓰지 않을 문항은 체크를 해제합니다. 파일마다 원본 대조 확인을 체크하고 ‘확인한 문항으로 올해 설문 시작하기’를 누르면 기존 문항에 추가됩니다. 읽지 못한 파일은 제외한 뒤 다시 올릴 수 있습니다."
+    caption: "① ‘작년 설문지 올리기’를 누르고 가진 대상의 PDF를 함께 선택하세요(최대 4개).\n② 추출된 문항·보기·유형을 원본과 대조하고 쓰지 않을 문항의 체크를 해제하세요.\n③ ‘확인한 문항으로 올해 설문 시작하기’를 누르세요. 가져온 뒤에도 수정할 수 있습니다. 응답 결과나 개인정보가 든 파일은 올리지 마세요."
   },
   {
     id: "flow",
@@ -29,7 +31,7 @@ export const LEAD_GUIDE_STEPS: GuideStep[] = [
     id: "mode",
     title: "평가 시기",
     caption:
-      "왼쪽 위 배지가 지금의 평가 시기입니다. 눌러서 중간평가와 학년말을 바꿉니다. 학년말 배지를 다시 누르면 중간평가 문항을 이어 쓸지 고르는 화면으로 돌아갑니다."
+      "상단 톱니바퀴 ‘설문 설정’에서 ‘설문 정보’를 여세요.\n‘평가 시기’에서 중간평가 또는 학년말 학교평가를 선택합니다. 학생용 설문을 만들 때는 같은 화면에서 학생 설문 학년도 고르세요."
   },
   {
     id: "find",
@@ -46,7 +48,7 @@ export const LEAD_GUIDE_STEPS: GuideStep[] = [
     id: "edit",
     title: "고치기",
     caption:
-      "오른쪽 목록에서 연필(✎)을 눌러 문장·응답 유형·세부영역·담당부서를 고치고 완료를 누릅니다. 저장은 자동입니다."
+      "오른쪽 문항의 ‘수정’을 누르세요. 문장·응답 유형·세부영역을 고친 뒤 ‘완료’를 누릅니다.\nAI 추천이 표시되면 분류와 유형을 확인하거나 바꾸고 ‘완료’를 누르세요. 상단 ‘저장됨’을 확인한 뒤 나가세요."
   },
   {
     id: "coverage",
@@ -64,7 +66,7 @@ export const LEAD_GUIDE_STEPS: GuideStep[] = [
     id: "export",
     title: "설문 내보내기",
     caption:
-      "부장들이 제출하면 내보냅니다. 설문지(DOCX)는 인쇄용, Google Forms는 응답용입니다. 학생용 폼은 설문 설정에서 학년을 먼저 고릅니다. Google Forms를 누르고 사용할 계정으로 연결한 뒤 생성된 폼에서 첫 학년 문항과 선택형·서술형 문항을 확인하세요. 연결 설정 오류가 나오면 학교 담당자가 관리자에게 Google OAuth 설정 확인을 요청해야 합니다. 응답자에게 보내기 전 편집용 주소와 응답용 주소를 구분하세요."
+      "부장들이 제출하면 내보냅니다. 상단 ‘설문지(DOCX)’는 한글·Word에서 편집하거나 인쇄할 파일입니다. ‘Google Forms’는 온라인 응답을 받을 설문을 만듭니다. 학생용 폼은 설문 설정에서 학년을 먼저 고릅니다. Google Forms를 누르고 사용할 계정으로 연결한 뒤 생성된 폼에서 첫 학년 문항과 선택형·서술형 문항을 확인하세요. 연결 설정 오류가 나오면 학교 담당자가 관리자에게 Google OAuth 설정 확인을 요청해야 합니다. 응답자에게 보내기 전 편집용 주소와 응답용 주소를 구분하세요."
   },
   {
     id: "analyze",
@@ -126,12 +128,12 @@ export const BUILDER_GUIDE_STEPS: GuideStep[] = [
     id: "owners",
     title: "내 문항과 남의 문항",
     caption:
-      "오른쪽 카드 위의 이름이 그 문항을 담은 사람입니다. 내가 담은 문항만 고치고 지우고 옮길 수 있고, 다른 사람이 담은 문항(회색)은 잠겨 있습니다. 바꾸고 싶으면 연구부장에게 요청하세요."
+      "오른쪽 카드 위의 이름이 그 문항을 담은 사람입니다. 내가 담거나 연구부장이 배정한 문항을 고치고 지우고 옮길 수 있고, 다른 사람이 담은 문항(회색)은 잠겨 있습니다. 바꾸고 싶으면 연구부장에게 요청하세요."
   },
   {
     id: "edit",
     title: "고치기",
-    caption: "내 문항의 연필(✎)을 눌러 문장·응답 유형을 고치고 완료를 누릅니다. 저장은 자동입니다."
+    caption: "내 문항의 ‘수정’을 눌러 문장·응답 유형을 고치고 완료를 누릅니다. 저장은 자동입니다."
   },
   {
     id: "submit",
@@ -148,5 +150,15 @@ export const BUILDER_GUIDE_STEPS: GuideStep[] = [
 ];
 
 export function getGuideSteps(variant: GuideVariant): GuideStep[] {
-  return variant === "builder" ? BUILDER_GUIDE_STEPS : LEAD_GUIDE_STEPS;
+  const images: Record<string, string> = variant === "builder" ? {
+    link: "builder-work", find: "builder-find", add: "builder-find", owners: "builder-work",
+    edit: "builder-edit", submit: "builder-submit", stuck: "builder-work"
+  } : {
+    "prior-survey": "prior", flow: "workspace", mode: "settings", find: "find", add: "find",
+    edit: "edit", coverage: "workspace", invite: "invite", export: "workspace", analyze: "results",
+    mapping: "mapping", write: "opinion", review: "review", hwp: "docs", docs: "docs", stuck: "workspace",
+    intro: "intro", display: "workspace"
+  };
+  return (variant === "builder" ? BUILDER_GUIDE_STEPS : LEAD_GUIDE_STEPS)
+    .map(step => ({ ...step, image: `/guide/current-${images[step.id]}.png` }));
 }

@@ -12,24 +12,25 @@ export function GuideModal({
 }) {
   const steps = getGuideSteps(variant);
   const [index, setIndex] = useState(0);
+  const [zoom, setZoom] = useState(false);
   const step = steps[index];
   const last = index === steps.length - 1;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        if (zoom) setZoom(false); else onClose();
       }
-      if (event.key === "ArrowRight") {
+      if (!zoom && event.key === "ArrowRight") {
         setIndex((current) => Math.min(steps.length - 1, current + 1));
       }
-      if (event.key === "ArrowLeft") {
+      if (!zoom && event.key === "ArrowLeft") {
         setIndex((current) => Math.max(0, current - 1));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, steps.length]);
+  }, [onClose, steps.length, zoom]);
 
   return (
     <div className="ws-overlay" role="dialog" aria-modal="true" aria-label="도움말">
@@ -56,15 +57,16 @@ export function GuideModal({
           </nav>
 
           <div className="guide-main">
+            <p className="ws-hint">예시학교 화면입니다. 사진을 누르면 크게 볼 수 있습니다.</p>
+            {step.image ? (
+              <button type="button" className="guide-frame" aria-label={`${step.title} 사진 크게 보기`} onClick={() => setZoom(true)}>
+                <img src={step.image} alt={`${step.title} 실제 작업 화면`} className="guide-image" />
+              </button>
+            ) : null}
             <p className="guide-caption">
               <strong>{step.title}</strong>
               {step.caption}
             </p>
-            {step.image ? (
-              <div className="guide-frame">
-                <img src={step.image} alt={step.title} className="guide-image" />
-              </div>
-            ) : null}
             <div className="guide-nav">
               <button
                 type="button"
@@ -104,6 +106,10 @@ export function GuideModal({
           </div>
         </div>
       </div>
+      {zoom && step.image ? <div className="guide-zoom" role="dialog" aria-modal="true" aria-label="사진 크게 보기">
+        <button type="button" className="ws-btn ws-btn--primary" autoFocus onClick={()=>setZoom(false)}>사진 닫기</button>
+        <img src={step.image} alt={`${step.title} 실제 작업 화면 확대`} />
+      </div> : null}
     </div>
   );
 }
