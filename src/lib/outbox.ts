@@ -1,4 +1,4 @@
-import type { NewSelectedQuestion, SelectedQuestionPatch, SurveyDraftPatch } from "./types";
+import type { NewSelectedQuestion, SelectedQuestionPatch, SurveyDraft, SurveyDraftPatch } from "./types";
 
 /**
  * 보내지 못한 편집을 브라우저에 쌓아 두는 큐.
@@ -62,6 +62,13 @@ function safeWrite(draftId: string, ops: DraftOp[]): void {
 
 export function readOutbox(draftId: string): DraftOp[] {
   return safeRead(draftId);
+}
+
+/** 서버 응답 위에 아직 저장되지 않은 내 입력만 유지합니다. 서버의 rev는 보존합니다. */
+export function overlayPendingMeta(draft: SurveyDraft, ops: DraftOp[], acknowledgedId?: string): SurveyDraft {
+  return ops.reduce((current, op) => op.kind === "meta" && op.opId !== acknowledgedId
+    ? { ...current, ...op.patch }
+    : current, draft);
 }
 
 /**

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { orderForAppend, orderForMove, sortByOrder } from "@/lib/order";
 import {
   acknowledge,
+  overlayPendingMeta,
   outboxStorageFailed,
   rejectOperation,
   retryRejected,
@@ -219,8 +220,9 @@ export function useDraftWorkspace(enabled: boolean) {
           updatedBy: readStored(DISPLAY_NAME_KEY, "local") ?? undefined
         })
       });
-      draftRef.current = data.draft;
-      setDraft(data.draft);
+      const next = overlayPendingMeta(data.draft, readOutbox(data.draft.id), op.opId);
+      draftRef.current = next;
+      setDraft(next);
       return;
     }
 
@@ -376,10 +378,11 @@ export function useDraftWorkspace(enabled: boolean) {
         }
         draftIdRef.current = bundle.draft.id;
         sinceRef.current = bundle.since;
-        setDraft(bundle.draft);
+        const restoredDraft = overlayPendingMeta(bundle.draft, readOutbox(bundle.draft.id));
+        setDraft(restoredDraft);
         knownItemsRef.current = new Map(bundle.items.map(item => [item.id, item]));
         itemsRef.current = bundle.items;
-        draftRef.current = bundle.draft;
+        draftRef.current = restoredDraft;
         setItems(bundle.items);
         // 지난번에 못 보낸 편집이 남아 있으면 자동으로 이어서 보냅니다.
         if (refreshPending(bundle.draft.id) > 0) {
@@ -426,9 +429,12 @@ export function useDraftWorkspace(enabled: boolean) {
         }
         sinceRef.current = data.nextSince;
         if (data.draft) {
-          setDraft((current) =>
-            current && data.draft && data.draft.rev >= current.rev ? data.draft : current
-          );
+          const current = draftRef.current;
+          if (current && data.draft.rev >= current.rev) {
+            const next = overlayPendingMeta(data.draft, readOutbox(current.id));
+            draftRef.current = next;
+            setDraft(next);
+          }
         }
         applyChanges(data.changed, data.deleted);
         setPresence(data.presence);
@@ -502,7 +508,10 @@ export function useDraftWorkspace(enabled: boolean) {
 
   const setMeta = useCallback(
     (patch: SurveyDraftPatch) => {
-      setDraft((current) => (current ? { ...current, ...patch } : current));
+      if (draftRef.current) {
+        draftRef.current = { ...draftRef.current, ...patch };
+        setDraft(draftRef.current);
+      }
       push({ kind: "meta", opId: newOpId(), patch });
     },
     [push]

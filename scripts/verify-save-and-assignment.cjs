@@ -25,6 +25,18 @@ async function check(name, fn) { await fn(); count++; console.log('[PASS]', name
   q.enqueue('meta',{kind:'meta',opId:'b',patch:{schoolName:'last'}});
   assert.equal(q.acknowledge('meta','a')[0].patch.schoolName,'last');
  });
+ await check('안내문 저장 응답·동기화·복원에서 최신 입력과 서버 버전 유지', () => {
+  const server={id:'intro',rev:2,title:'서버 제목',introByAudience:{teacher:'안녕'}};
+  const pending=[{kind:'meta',opId:'new',patch:{introByAudience:{teacher:'안녕하세요\n2026. 9.'}}}];
+  for(const acknowledged of ['old',undefined]) {
+   const shown=q.overlayPendingMeta(server,pending,acknowledged);
+   assert.equal(shown.introByAudience.teacher,'안녕하세요\n2026. 9.');
+   assert.equal(shown.rev,2);
+   assert.equal(shown.title,'서버 제목');
+  }
+  assert.deepEqual(q.overlayPendingMeta(server,pending,'new'),server);
+  assert.equal(server.introByAudience.teacher,'안녕');
+ });
  await check('브라우저 저장 실패 시 메모리에 보관하고 서버 전송 가능', () => {
   blocked=true;
   q.enqueue('quota',{kind:'patch',opId:'a',itemId:'x',patch:{editedQuestion:'retained'}});
