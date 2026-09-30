@@ -121,7 +121,7 @@ export const BUILDER_GUIDE_STEPS: GuideStep[] = [
   {
     id: "find",
     title: "문항 찾기",
-    caption: "왼쪽에서 영역·지표를 고르거나, 가운데 위 검색창에 단어를 넣으면 문항이 좁혀집니다."
+    caption: "검색창에 담당 업무와 관련된 단어를 입력하세요. 원하는 문항이 없으면 ‘직접 문항 작성’을 누르세요. 영역 분류는 연구부장이 정합니다."
   },
   {
     id: "add",

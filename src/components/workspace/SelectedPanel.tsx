@@ -56,6 +56,7 @@ function legacyNoticeFor(subarea: string): string | null {
 }
 
 export function SelectedPanel({
+  classificationEnabled = true,
   assignmentInvites,
   onAssign,
   showExamples,
@@ -72,6 +73,7 @@ export function SelectedPanel({
   canModify,
   ownerTag
 }: {
+  classificationEnabled?: boolean;
   assignmentInvites?: BuilderInviteSummary[];
   onAssign?: (ids: string[], token: string) => Promise<void>;
   showExamples: boolean;
@@ -101,7 +103,8 @@ export function SelectedPanel({
   const running=useRef(false);
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
-    const targets=items.filter(item=>(!canModify||canModify(item))&&(!item.workStatus||Boolean(legacyNoticeFor(item.subarea)))&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
+    if(!classificationEnabled)return;
+    const targets=items.filter(item=>(!canModify||canModify(item))&&(!item.workStatus||!item.subarea||Boolean(legacyNoticeFor(item.subarea)))&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
     if(!targets.length||running.current)return;
     running.current=true;setAiBusy(true);setAiError("");
     targets.forEach(item=>attempted.current.add(item.id));
@@ -116,7 +119,7 @@ export function SelectedPanel({
       }catch{setAiError("AI 추천 연결 실패");}
       finally{running.current=false;setAiBusy(false);}
     })();
-  },[items,retry,canModify,aiBusy]);
+  },[items,retry,canModify,aiBusy,classificationEnabled]);
 
   const [assignmentIds, setAssignmentIds] = useState<string[]>([]);
   const [assignmentToken, setAssignmentToken] = useState("");
@@ -204,7 +207,7 @@ export function SelectedPanel({
           items.map((item, index) => {
             const editor = editorOf(item.id);
             const editing = editingId === item.id;
-            const legacy = legacyNoticeFor(item.subarea);
+            const legacy = classificationEnabled ? legacyNoticeFor(item.subarea) : null;
             if(reviewOnly && !legacy && !editing) return null;
             const proposal = proposals[item.id]?.rev === item.rev ? proposals[item.id] : undefined;
             const mine = canModify ? canModify(item) : true;
@@ -221,7 +224,7 @@ export function SelectedPanel({
                 <div className="ws-item-head">
                   {onAssign && <input type="checkbox" aria-label={`${index + 1}번 문항 배정 선택`} checked={assignmentIds.includes(item.id)} disabled={assigning} onChange={event => setAssignmentIds(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id))} />}
                   <span className="ws-item-no">{index + 1}</span>
-                  <span className="ws-item-meta">{item.indicator}</span>
+                  {classificationEnabled && <span className="ws-item-meta">{item.indicator}</span>}
                   {tag ? <span className="ws-item-owner">{tag}</span> : null}
                   {editor ? <span className="ws-item-editor">{editor} 편집 중</span> : null}
                   <div className="ws-item-actions">
@@ -278,7 +281,7 @@ export function SelectedPanel({
                   </select>
                   <button type="button" className="ws-btn ws-btn--primary" disabled={!(classificationDrafts[item.id] ?? proposal?.subarea)} onClick={()=>onPatch(item.id,placementFromSubarea(classificationDrafts[item.id] ?? proposal?.subarea ?? "")??{area:"",subarea:""})}>분류 적용</button>
                 </div> : null}
-                {!reviewOnly && proposal && mine && (!item.workStatus || legacy) ? <div className="ws-review-proposal">
+                {!reviewOnly && proposal && mine && (!item.workStatus || !item.subarea || legacy) ? <div className="ws-review-proposal">
                   <span className="ws-hint">AI 추천</span>
                   <select className="ws-select" aria-label={`${index+1}번 추천 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
                     <option value="">평가영역 집계 제외</option>
@@ -312,11 +315,11 @@ export function SelectedPanel({
                       }
                     />
 
-                    <SubareaField
+                    {classificationEnabled && <SubareaField
                       subarea={item.subarea}
                       indicator={item.indicator}
                       onChange={(next) => onPatch(item.id, next)}
-                    />
+                    />}
 
                     <ResponseTypeEditor
                       responseType={item.responseType}
@@ -350,7 +353,7 @@ export function SelectedPanel({
         )}
       </div>
 
-      <div className="ws-col-foot">
+      {classificationEnabled && <div className="ws-col-foot">
         <div className={showWarning ? "ws-coverage has-warning" : "ws-coverage"}>
           <div className="ws-coverage-row">
             {REQUIRED_AREA_CODES.map((roman) => (
@@ -374,7 +377,7 @@ export function SelectedPanel({
             </button>
           ) : null}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

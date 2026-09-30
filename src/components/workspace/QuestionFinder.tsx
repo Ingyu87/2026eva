@@ -49,6 +49,7 @@ function highlight(text: string, terms: string[]): ReactNode {
 }
 
 export function QuestionFinder({
+  classificationEnabled = true,
   bank,
   selection,
   activeAudience,
@@ -56,6 +57,7 @@ export function QuestionFinder({
   onToggle,
   onAddCustom
 }: {
+  classificationEnabled?: boolean;
   bank: QuestionBankItem[];
   selection: TreeSelection;
   activeAudience: Audience;
@@ -163,7 +165,7 @@ export function QuestionFinder({
     const indicator = customIndicator.trim() || "학교 자체 문항";
     onAddCustom(text, customType, needsChoices(customType) ? filled : undefined, {
       area: "",
-      subarea: customSubarea,
+      subarea: classificationEnabled ? customSubarea : "",
       indicator
     });
     setCustomText("");
@@ -212,9 +214,9 @@ export function QuestionFinder({
             <li>올해 교육목표·중점 활동과 담당 업무를 확인하고 관련 지표를 고르세요.</li>
             <li>응답자가 직접 경험하거나 알 수 있는 내용인지 확인하세요. 학생에게 내부 행정 절차를 묻는 문항은 적합하지 않을 수 있습니다.</li>
             <li>같은 내용을 반복하는 문항은 대표 문항으로 줄이고, 한 문항에 여러 질문이 섞이지 않도록 수정하세요.</li>
-            <li>문항을 담은 뒤 오른쪽에서 내용과 척도를 확인하세요. 학생·학부모·교원은 세 영역 모두를 평가해야 하며, 직원은 학교 상황에 맞게 구성합니다.</li>
+            <li>문항을 담은 뒤 오른쪽에서 내용과 척도를 확인하세요. {classificationEnabled ? "학생·학부모·교원은 세 영역 모두를 평가해야 하며, 직원은 학교 상황에 맞게 구성합니다." : "영역 분류는 연구부장이 정합니다."}</li>
           </ol>
-          <p className="ws-hint">예시문항을 모두 사용할 필요는 없습니다. 영역·세부영역은 유지하고 평가지표와 문항은 학교 상황에 맞게 정하세요.</p>
+          <p className="ws-hint">{classificationEnabled ? "예시문항을 모두 사용할 필요는 없습니다. 영역·세부영역은 유지하고 평가지표와 문항은 학교 상황에 맞게 정하세요." : "담당 업무에 맞는 문항만 고르거나 직접 작성하세요."}</p>
         </details>
         {results.length === 0 ? (
           <div className="ws-empty">
@@ -239,7 +241,7 @@ export function QuestionFinder({
                       : "ws-card"
                 }
               >
-                <div className="ws-card-meta">{highlight(question.indicator, terms)}</div>
+                {classificationEnabled && <div className="ws-card-meta">{highlight(question.indicator, terms)}</div>}
                 <button
                   type="button"
                   className="ws-card-body"
@@ -301,7 +303,7 @@ export function QuestionFinder({
             />
 
             {/* 담기 전에 유형을 정합니다. 담고 나서 찾아 들어가지 않아도 되게 합니다. */}
-            <SubareaField
+            {classificationEnabled && <SubareaField
               subarea={customSubarea}
               indicator={customIndicator}
               onChange={(next) => {
@@ -309,7 +311,7 @@ export function QuestionFinder({
                 setCustomIndicator(next.indicator);
                 setCustomError("");
               }}
-            />
+            />}
 
             <ResponseTypeEditor
               responseType={customType}

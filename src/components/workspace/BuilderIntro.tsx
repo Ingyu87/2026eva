@@ -27,7 +27,7 @@ export function BuilderIntro({
           {schoolName} 설문에 들어갈 문항을 담는 곳입니다. 설문 시기, 결과 분석, 제출 서류는
           연구부장이 맡습니다.
         </p>
-        <p className="conflict-meta">1. 왼쪽에서 영역·지표를 고르고, 문항 카드의 대상 칩을 눌러 담습니다.</p>
+        <p className="conflict-meta">1. 문항을 검색해 담거나 직접 작성하세요. 영역 분류는 연구부장이 정합니다.</p>
         <p className="conflict-meta">2. 오른쪽 목록에서 문장을 고칠 수 있습니다. 저장은 자동입니다.</p>
         <p className="conflict-meta">3. 다 했으면 오른쪽 위 ‘제출’을 누르세요.</p>
         <p className="conflict-meta">

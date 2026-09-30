@@ -1,6 +1,6 @@
 "use client";
 import {useEffect, useRef, useState, type ReactNode} from "react";
-export function ResizableColumns({showExamples, children}: {showExamples: boolean; children: ReactNode[]}) {
+export function ResizableColumns({showExamples, children, hideIndicators = false}: {showExamples: boolean; children: ReactNode[]; hideIndicators?: boolean}) {
  const [widths,setWidths]=useState([22,44,34]);
  const drag=useRef<{x:number; width:number; values:number[]}|null>(null);
  useEffect(()=>{try {const v=JSON.parse(localStorage.getItem("workspace-columns")??"null");if(Array.isArray(v)&&v.length===3&&v.every(n=>Number.isFinite(n)&&n>=12)&&Math.abs(v.reduce((a,b)=>a+b,0)-100)<1)setWidths(v);}catch{}},[]);
@@ -11,7 +11,7 @@ export function ResizableColumns({showExamples, children}: {showExamples: boolea
  onPointerMove={e=>{if(drag.current)resize(index,(e.clientX-drag.current.x)/drag.current.width*100,drag.current.values);}}
  onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}}
  onKeyDown={e=>{if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();resize(index,e.key==="ArrowLeft"?-2:2);}}} onDoubleClick={()=>save([22,44,34])}/>;
- return <main className={showExamples?"ws-grid ws-grid--resizable":"ws-grid ws-grid--edit"} style={showExamples?{gridTemplateColumns:`minmax(0, ${widths[0]}fr) 8px minmax(0, ${widths[1]}fr) 8px minmax(0, ${widths[2]}fr)`}:undefined}>
- {showExamples?<>{children[0]}{separator(0)}{children[1]}{separator(1)}{children[2]}</>:children[2]}
+ return <main className={showExamples?"ws-grid ws-grid--resizable":"ws-grid ws-grid--edit"} style={showExamples?{gridTemplateColumns:hideIndicators ? `minmax(0, ${widths[1]}fr) 8px minmax(0, ${widths[2]}fr)` : `minmax(0, ${widths[0]}fr) 8px minmax(0, ${widths[1]}fr) 8px minmax(0, ${widths[2]}fr)`}:undefined}>
+ {showExamples?<>{!hideIndicators && <>{children[0]}{separator(0)}</>}{children[1]}{separator(1)}{children[2]}</>:children[2]}
  </main>;
 }

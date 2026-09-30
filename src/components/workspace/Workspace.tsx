@@ -335,7 +335,7 @@ export function Workspace({
     placement: { area: string; subarea: string; indicator: string }
   ) => {
     const legal = placementFromSubarea(placement.subarea);
-    if (!legal) {
+    if (!legal && !isBuilder) {
       setNotice("2026 세부영역을 먼저 고르세요.");
       return;
     }
@@ -346,8 +346,8 @@ export function Workspace({
         groupId: id,
         audience: activeAudience,
         sourceRow: 0,
-        area: legal.area,
-        subarea: legal.subarea,
+        area: legal?.area ?? "",
+        subarea: legal?.subarea ?? "",
         indicator: placement.indicator.trim() || "학교 자체 문항",
         originalQuestion: text,
         editedQuestion: text,
@@ -605,9 +605,10 @@ export function Workspace({
       ) : null}
 
       {activeScreen === "build" ? (
-        <ResizableColumns showExamples={showExamples}>
+        <ResizableColumns showExamples={showExamples} hideIndicators={isBuilder}>
           <IndicatorTree bank={questionBank.filter((item) => item.audience === activeAudience)} selection={selection} onSelect={setSelection} />
           <QuestionFinder
+            classificationEnabled={!isBuilder}
             bank={questionBank.filter((item) => item.audience === activeAudience)}
             selection={selection}
             activeAudience={activeAudience}
@@ -616,6 +617,7 @@ export function Workspace({
             onAddCustom={addCustomQuestion}
           />
           <SelectedPanel
+            classificationEnabled={!isBuilder}
             onConfirmReview={(id) => workspace.patchItem(id, { confirmReview: true })}
             assignmentInvites={isBuilder ? undefined : invites}
             onAssign={isBuilder ? undefined : workspace.assignItems}
