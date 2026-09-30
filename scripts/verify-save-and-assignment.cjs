@@ -10,6 +10,12 @@ global.window = { localStorage: {
  removeItem: key => { if (blocked) throw Error('SecurityError'); memory.delete(key); }
 }};
 const q = require('../src/lib/outbox.ts');
+const {similarQuestion}=require('../src/lib/questionDuplicates.ts');
+assert.equal(similarQuestion('우리 학교는 독서 교육을 운영한다.', '우리학교는 독서교육을 운영한다'),true);
+assert.equal(similarQuestion('우리 학교는 학생 참여 중심 수업을 운영한다.', '우리 학교는 학생 참여 중심 수업을 운영하고 있다.'),true);
+assert.equal(similarQuestion('급식에 만족한다', '학교 시설이 안전하다'),false);
+assert.equal(similarQuestion('', ''),false);
+console.log('[PASS] 동일·유사 문항 후보와 다른 문항 구분');
 const {nextWorkStatus}=require('../src/lib/workStatus.ts');
 assert.equal(nextWorkStatus({subarea:'옛 분류'},{area:'새 영역',subarea:'새 분류'},{id:'lead',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
 const previousStatus={kind:'edited',label:'교무부장'};
@@ -76,10 +82,11 @@ async function check(name, fn) { await fn(); count++; console.log('[PASS]', name
   assert.equal(assigned[0].ownerId,store.inviteOwnerId(invite.token));
   assert.equal((await store.getBuilderInvite(invite.token)).submittedAt,undefined);
  });
- await check('배정받은 부장 수정 허용, 다른 부장 수정 차단', async () => {
-  await assert.rejects(store.patchDraftItem(draft.id,'one',1,{editedQuestion:'차단'},undefined,{ownerId:'other'}),store.ForbiddenError);
-  const saved=await store.patchDraftItem(draft.id,'one',1,{editedQuestion:'담당자 수정'},undefined,{ownerId:store.inviteOwnerId(invite.token)});
+ await check('다른 부장 문항 공동 편집 허용·대상 제한·버전 충돌 유지', async () => {
+  await assert.rejects(store.patchDraftItem(draft.id,'one',1,{editedQuestion:'차단'},undefined,{ownerId:'other',audience:'parent'}),store.ForbiddenError);
+  const saved=await store.patchDraftItem(draft.id,'one',1,{editedQuestion:'담당자 수정'},undefined,{ownerId:'other',audience:'teacher'});
   assert.equal(saved.editedQuestion,'담당자 수정');
+  await assert.rejects(store.patchDraftItem(draft.id,'one',1,{editedQuestion:'덮어쓰기'},undefined,{ownerId:'another',audience:'teacher'}),store.ConflictError);
  });
  await check('일괄 배정 중 충돌은 전체 배정 취소', async () => {
   await assert.rejects(store.assignDraftItems('fake-review-school',draft.id,invite.token,[{id:'two',rev:0},{id:'one',rev:0}]),store.ConflictError);

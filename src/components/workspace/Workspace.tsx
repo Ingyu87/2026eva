@@ -1,5 +1,7 @@
 "use client";
 
+import { similarQuestion } from "@/lib/questionDuplicates";
+
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from "@/components/ui";
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
@@ -180,7 +182,7 @@ export function Workspace({
     setSettingsOpen(true);
   };
 
-  const myItemCount = workspace.items.filter((item) => item.ownerId === builderOwnerId).length;
+  const myItemCount = workspace.items.filter((item) => (item.ownerId === builderOwnerId || item.workStatus?.actorId === builderOwnerId)).length;
 
   const submitWork = async () => {
     if (myItemCount === 0) {
@@ -295,6 +297,11 @@ export function Workspace({
    * 대상에 맞는 용어로 다르게 서술하라고 하므로, 하나로 묶으면 문장을 따로 다듬을 수 없습니다.
    * 대신 `groupId`로 묶어 두어 서식3-2의 평가주체 열을 만들 때 모읍니다.
    */
+  const confirmDuplicate = (text: string, audience: Audience) => {
+    const matches = workspace.items.filter(item => item.audience === audience && similarQuestion(text, item.editedQuestion));
+    return !matches.length || window.confirm(`비슷한 기존 문항이 ${matches.length}개 있습니다.\n\n${matches.slice(0,3).map(item=>item.editedQuestion).join("\n\n")}\n\n별도 문항으로 추가할까요? 취소하면 기존 문항을 확인할 수 있습니다.`);
+  };
+
   const toggleQuestion = (question: QuestionBankItem, audience: Audience) => {
     if (question.audience !== audience || (builderAudience && builderAudience !== audience)) return;
     const existing = workspace.items.find(
@@ -302,15 +309,12 @@ export function Workspace({
     );
 
     if (existing) {
-      if (isBuilder && existing.ownerId !== builderOwnerId) {
-        setNotice("다른 사람이 담은 문항이라 뺄 수 없습니다. 연구부장에게 요청하세요.");
-        return;
-      }
       workspace.removeItem(existing.id);
       setNotice(`${AUDIENCE_SHORT_LABELS[audience]}에서 뺐습니다.`);
       return;
     }
 
+    if (!confirmDuplicate(question.question, audience)) return;
     workspace.addItems([
       {
         sourceQuestionId: question.id,
@@ -337,8 +341,9 @@ export function Workspace({
     const legal = placementFromSubarea(placement.subarea);
     if (!legal && !isBuilder) {
       setNotice("2026 세부영역을 먼저 고르세요.");
-      return;
+      return false;
     }
+    if (!confirmDuplicate(text, activeAudience)) return false;
     const id = `custom-${crypto.randomUUID()}`;
     workspace.addItems([
       {
@@ -356,6 +361,7 @@ export function Workspace({
       }
     ]);
     setNotice("문항을 추가했습니다.");
+    return true;
   };
 
   const resetAudience = () => {
@@ -619,8 +625,6 @@ export function Workspace({
           <SelectedPanel
             classificationEnabled={!isBuilder}
             onConfirmReview={(id) => workspace.patchItem(id, { confirmReview: true })}
-            assignmentInvites={isBuilder ? undefined : invites}
-            onAssign={isBuilder ? undefined : workspace.assignItems}
             showExamples={showExamples}
             onToggleExamples={() => setShowExamplesOverride(!showExamples)}
             audience={activeAudience}
@@ -631,7 +635,7 @@ export function Workspace({
             onMove={workspace.moveItem}
             onReset={isBuilder ? undefined : resetAudience}
             onEditingChange={workspace.setEditingItemId}
-            canModify={isBuilder ? (item) => item.ownerId === builderOwnerId : undefined}
+            canModify={isBuilder && builderAudience ? (item) => item.audience === builderAudience : undefined}
             ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
           />
         </ResizableColumns>

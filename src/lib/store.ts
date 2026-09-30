@@ -358,7 +358,7 @@ export class ForbiddenError extends Error {
   }
 }
 
-/** 부장 링크로 쓰는 쓰기의 제한. 자기가 담은 문항만, 지정된 대상 안에서만 고칠 수 있습니다. */
+/** 부장 링크는 같은 학교의 지정된 응답 대상 안에서 공동 편집합니다. */
 export type WriteGuard = { ownerId: string; audience?: Audience };
 
 /** 링크 토큰은 비밀이라 문항에 싣지 않고, 되돌릴 수 없는 짧은 식별자만 싣습니다. */
@@ -373,9 +373,6 @@ function assertWriteAllowed(
 ): void {
   if (!guard) {
     return;
-  }
-  if (current.ownerId !== guard.ownerId) {
-    throw new ForbiddenError("다른 사람이 담은 문항은 고칠 수 없습니다.");
   }
   if (guard.audience && (current.audience !== guard.audience || (patch?.audience && patch.audience !== guard.audience))) {
     throw new ForbiddenError("이 링크로는 지정된 대상의 문항만 고칠 수 있습니다.");
@@ -1345,10 +1342,11 @@ export async function countOwnedItems(draftId: string): Promise<Record<string, n
     : Array.from(memoryStateFor(draftId).items.values());
   const counts: Record<string, number> = {};
   for (const item of items) {
-    if (item.deleted || !item.ownerId) {
+    if (item.deleted) {
       continue;
     }
-    counts[item.ownerId] = (counts[item.ownerId] ?? 0) + 1;
+    const contributors = new Set([item.ownerId, item.workStatus?.actorId].filter((id): id is string => Boolean(id) && !id!.startsWith("lead:")));
+    for (const id of contributors) counts[id] = (counts[id] ?? 0) + 1;
   }
   return counts;
 }

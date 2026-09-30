@@ -69,7 +69,7 @@ export function QuestionFinder({
     responseType: ResponseType,
     choices: string[] | undefined,
     placement: { area: string; subarea: string; indicator: string }
-  ) => void;
+  ) => boolean;
 }) {
   const [keyword, setKeyword] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -163,11 +163,12 @@ export function QuestionFinder({
       return;
     }
     const indicator = customIndicator.trim() || "학교 자체 문항";
-    onAddCustom(text, customType, needsChoices(customType) ? filled : undefined, {
+    const added = onAddCustom(text, customType, needsChoices(customType) ? filled : undefined, {
       area: "",
       subarea: classificationEnabled ? customSubarea : "",
       indicator
     });
+    if (!added) return;
     setCustomText("");
     setCustomType("likert_5");
     setCustomChoices(undefined);
