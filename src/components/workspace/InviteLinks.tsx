@@ -29,6 +29,8 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
   const [busy, setBusy] = useState(false);
   const [invites, setInvites] = useState<BuilderInviteSummary[]>([]);
   const [error, setError] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
+  const [copyFallback, setCopyFallback] = useState("");
 
   async function reload() {
     const response = await fetch("/api/invite");
@@ -47,6 +49,24 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
   }, []);
 
   const linkOf = (token: string) => `${window.location.origin}/?invite=${token}`;
+
+  async function copyLinks(text: string, message: string) {
+    setCopyMessage(""); setCopyFallback("");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMessage(message);
+    } catch {
+      setCopyFallback(text);
+      setCopyMessage("아래 내용을 선택해 복사하세요.");
+    }
+  }
+
+  function copyAllLinks() {
+    const text = ["학교평가 문항 작성 링크", "본인 부장 이름의 링크로 들어가 문항을 작성한 뒤 제출해 주세요.", "",
+      ...invites.map(invite => `${invite.label} (${invite.audience ? AUDIENCE_SHORT_LABELS[invite.audience] : "전체 대상"})\n${linkOf(invite.token)}`)
+    ].join("\n\n");
+    void copyLinks(text, `${invites.length}명 링크를 복사했습니다. 메신저에 붙여넣으세요.`);
+  }
 
   async function createLink() {
     if (creating.current) return;
@@ -95,7 +115,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
   return (
     <div className="ws-form">
       <p className="ws-hint">
-        부장에게 링크를 하나씩 보내세요. 부장이 담은 문항은 이 설문에 바로 모이고, 제출을 누르면 아래에
+        전체 링크를 복사해 메신저로 안내하세요. 부장이 담은 문항은 이 설문에 바로 모이고, 제출을 누르면 아래에
         표시됩니다. 연구부장도 같은 화면에서 직접 문항을 담을 수 있습니다.
       </p>
 
@@ -104,6 +124,9 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
           <p className="ws-invite-summary">
             제출 {submitted} / {invites.length}
           </p>
+          <button type="button" className="ws-btn ws-btn--primary" disabled={busy} onClick={copyAllLinks}>전체 링크 복사</button>
+          {copyMessage && <p className="ws-hint" role="status">{copyMessage}</p>}
+          {copyFallback && <textarea className="ws-textarea" aria-label="복사할 링크" readOnly rows={6} value={copyFallback} onFocus={event=>event.currentTarget.select()} />}
           <div className="ws-invite-list">
             {invites.map((invite) => (
               <div key={invite.token} className="ws-invite-row">
@@ -120,7 +143,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
                   <button
                     type="button"
                     className="ws-btn ws-btn--soft"
-                    onClick={() => void navigator.clipboard.writeText(linkOf(invite.token))}
+                    onClick={() => void copyLinks(linkOf(invite.token), `${invite.label} 링크를 복사했습니다.`)}
                   >
                     복사
                   </button>
@@ -137,7 +160,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
       <p className="ws-hint">
         이 브라우저에서 링크를 열면 지금 계정이 로그아웃됩니다. 확인은 시크릿 창에서 하세요.
       </p>
-      <p className="ws-hint">부장 이름과 응답 대상을 여러 줄로 입력한 뒤 한 번에 만드세요. 이름이 빈 줄은 건너뜁니다. 만든 링크는 위 목록에서 부장별로 복사하세요.</p>
+      <p className="ws-hint">부장 이름과 응답 대상을 입력한 뒤 링크를 만드세요. 이름이 빈 줄은 건너뜁니다. 전체 또는 부장별로 복사할 수 있습니다.</p>
       <fieldset className="ra-editor-fieldset ws-form" disabled={busy}>
         {rows.map((row, index) => <div className="ws-invite-batch-row" key={row.id}>
           <label className="ws-field"><span>부장 이름 {index + 1}</span><input className="ws-input" value={row.label} placeholder={index === 0 ? "예: 교무부장" : "부장 이름"} maxLength={60} onChange={event => setRows(previous => previous.map(entry => entry.id === row.id ? { ...entry, label: event.target.value } : entry))} /></label>
