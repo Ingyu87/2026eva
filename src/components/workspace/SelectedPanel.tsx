@@ -116,7 +116,7 @@ export function SelectedPanel({
           const payload=await response.json();if(!payload.ok)throw new Error();
           setProposals(current=>{const next={...current};batch.forEach((item,index)=>{const row=payload.data.items[index];next[item.id]={subarea:placementFromSubarea(row?.subarea??"")?.subarea??"",responseType:RESPONSE_TYPES.includes(row?.responseType)?row.responseType:item.responseType,rev:item.rev};});return next;});
         }
-      }catch{setAiError("AI 추천 연결 실패");}
+      }catch{setAiError("자동 분류 연결 실패");}
       finally{running.current=false;setAiBusy(false);}
     })();
   },[items,retry,canModify,aiBusy,classificationEnabled]);
@@ -177,7 +177,7 @@ export function SelectedPanel({
           <button type="button" className="ws-btn ws-btn--soft" onClick={()=>setReviewOnly(false)}>전체 문항 보기</button>
           {legacyCount===0 && <p>분류 확인을 마쳤습니다.</p>}
         </div>}
-        {aiBusy && <p className="ws-hint" role="status">AI가 2026 분류·응답 유형을 추천하고 있습니다…</p>}
+        {aiBusy && <p className="ws-hint" role="status">분류 정리 중…</p>}
         {aiError && <p className="ws-hint" role="alert">{aiError} <button className="ws-btn ws-btn--soft" onClick={()=>{attempted.current.clear();setRetry(v=>v+1);}}>다시 추천</button></p>}
         {onAssign && <details>
           <summary>담당 부장 배정</summary>
@@ -274,7 +274,7 @@ export function SelectedPanel({
                   {mine && !item.workStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
                 </div>
                 {reviewOnly && legacy && mine ? <div className="ws-review-proposal">
-                  <span className="ws-hint">{proposal ? "AI 추천 세부영역" : "2026 세부영역"}</span>
+                  <span className="ws-hint">세부영역</span>
                   <select className="ws-select" aria-label={`${index+1}번 분류 설정`} value={classificationDrafts[item.id] ?? proposal?.subarea ?? ""} onChange={e=>setClassificationDrafts(current=>({...current,[item.id]:e.target.value}))}>
                     <option value="">세부영역을 선택하세요</option>
                     <option value="excluded">평가영역 집계 제외</option>
@@ -283,12 +283,11 @@ export function SelectedPanel({
                   <button type="button" className="ws-btn ws-btn--primary" disabled={!(classificationDrafts[item.id] ?? proposal?.subarea)} onClick={()=>onPatch(item.id,placementFromSubarea(classificationDrafts[item.id] ?? proposal?.subarea ?? "")??{area:"",subarea:""})}>분류 적용</button>
                 </div> : null}
                 {!reviewOnly && proposal && mine && (!item.workStatus || !item.subarea || legacy) ? <div className="ws-review-proposal">
-                  <span className="ws-hint">AI 추천</span>
-                  <select className="ws-select" aria-label={`${index+1}번 추천 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
+                  <select className="ws-select" aria-label={`${index+1}번 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
                     <option value="">평가영역 집계 제외</option>
                     {AREAS.map(area=><optgroup key={area.code} label={area.name}>{area.subareas.map(name=><option key={name}>{name}</option>)}</optgroup>)}
                   </select>
-                  <select className="ws-select" aria-label={`${index+1}번 추천 응답 유형`} value={proposal.responseType} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,responseType:e.target.value as ResponseType}}))}>{RESPONSE_TYPES.map(type=><option key={type} value={type}>{RESPONSE_TYPE_LABELS[type]}</option>)}</select>
+                  <select className="ws-select" aria-label={`${index+1}번 응답 유형`} value={proposal.responseType} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,responseType:e.target.value as ResponseType}}))}>{RESPONSE_TYPES.map(type=><option key={type} value={type}>{RESPONSE_TYPE_LABELS[type]}</option>)}</select>
                   <button type="button" className="ws-btn ws-btn--primary" disabled={needsChoices(proposal.responseType) && (new Set(item.choices?.map(c=>c.trim()).filter(Boolean)).size < 2)} title={needsChoices(proposal.responseType) && (new Set(item.choices?.map(c=>c.trim()).filter(Boolean)).size < 2) ? "수정에서 보기를 먼저 입력하세요" : undefined} onClick={()=>onPatch(item.id,{...(placementFromSubarea(proposal.subarea)??{area:"",subarea:""}),responseType:proposal.responseType,confirmReview:true})}>완료</button>
                 </div> : null}
 
