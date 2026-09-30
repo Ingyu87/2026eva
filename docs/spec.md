@@ -42,6 +42,8 @@ PDF/XLSX  ──Upstage──▶  구조화 JSON  ──프로그램──▶  �
 
 ### 1.2 Upstage API 사용 원칙
 
+2026-09-30 모델 변경: 문항 분류는 `gemini-3.5-flash-lite`, Gemini PDF 추출과 결과 해석은 `gemini-3.8-flash`를 기본으로 사용합니다. 전년도 PDF는 Upstage 설정이 있으면 기존처럼 Upstage로 추출합니다. 작업별 재설정은 `.env.example`의 `GEMINI_CLASSIFICATION_MODEL`, `GEMINI_EXTRACTION_MODEL`, `GEMINI_ANALYSIS_MODEL`을 사용합니다. 이전 공통 `GEMINI_MODEL`은 적용하지 않으며, 오류 시 Pro로 자동 전환하지 않습니다. 모델 변경은 점수 계산이나 원본 검토 절차를 바꾸지 않습니다.
+
 - **`extract_information`(필드 추출)을 우선** 씁니다. `parse_document`(전문 파싱)는 구조를 모를 때만.
   전문 파싱은 결과물이 크고, 결국 우리가 원하는 필드만 골라야 하므로 두 번 일입니다.
 - 추출 결과는 **항상 파일로 저장**합니다. 메모리나 대화로 흘리지 않습니다.

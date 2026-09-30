@@ -4,9 +4,18 @@
  */
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-// "gemini-2.5-pro"는 신규 키에 더 이상 제공되지 않습니다(2026-09-19 확인). 별칭을 쓰면
-// 구글이 안정판을 바꿔도 코드를 고치지 않아도 됩니다. 고정하려면 GEMINI_MODEL 환경변수를 쓰세요.
-const DEFAULT_MODEL = "gemini-pro-latest";
+type GeminiTask = "classification" | "extraction" | "analysis";
+const TASK_MODELS: Record<GeminiTask, { env: string; model: string }> = {
+  classification: { env: "GEMINI_CLASSIFICATION_MODEL", model: "gemini-3.5-flash-lite" },
+  extraction: { env: "GEMINI_EXTRACTION_MODEL", model: "gemini-3.8-flash" },
+  analysis: { env: "GEMINI_ANALYSIS_MODEL", model: "gemini-3.8-flash" }
+};
+
+export function resolveGeminiModel(task: GeminiTask = "analysis"): string {
+  const setting = TASK_MODELS[task];
+  // 이전 공통 GEMINI_MODEL 값이 모든 작업을 Pro로 되돌리지 않도록 작업별 설정만 사용합니다.
+  return process.env[setting.env]?.trim() || setting.model;
+}
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -19,6 +28,7 @@ function requiredEnv(name: string): string {
 export type GeminiSchema = Record<string, unknown>;
 
 export type GeminiCallOptions = {
+  task?: GeminiTask;
   model?: string;
   responseSchema?: GeminiSchema;
   temperature?: number;
@@ -36,7 +46,7 @@ async function generateContent(
   options: GeminiCallOptions
 ): Promise<string> {
   const apiKey = requiredEnv("GEMINI_API_KEY");
-  const model = options.model ?? process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
+  const model = options.model ?? resolveGeminiModel(options.task);
 
   const response = await fetch(`${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
@@ -80,7 +90,7 @@ export async function callGeminiWithPdf(
       { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
       { text: prompt }
     ],
-    options
+    { ...options, task: options.task ?? "extraction" }
   );
 }
 
