@@ -14,6 +14,11 @@ export type GuideVariant = "lead" | "builder";
  * 그림은 가상 학교로 실제 작업 화면을 캡처한 것입니다. 화면이 바뀌면 캡처를 다시 뽑으세요.
  */
 export const LEAD_GUIDE_STEPS: GuideStep[] = [
+  {
+    id: "roles",
+    title: "부장에게 접속 안내하기",
+    caption: "① 연구부장은 학교 계정으로 로그인합니다. 일반 부장에게는 ‘부장 링크’에서 만든 각자의 링크를 보내세요. 학교 계정의 비밀번호를 함께 보내지 마세요.\n② 일반 부장은 받은 링크로 들어가 문항 작성·수정·제출을 합니다. 설문지(DOCX), Google Forms, 결과 분석·내보내기, 설문 설정은 연구부장 화면에만 있습니다. 도움말도 역할별로 다릅니다.\n③ 사진처럼 부장 이름과 ‘제출’ 버튼이 보이면 부장 화면입니다. 설문지나 Google Forms 버튼이 보인다면 학교 계정으로 접속한 상태인지 확인하세요. 연구부장이 부장 화면을 확인할 때는 시크릿 창에서 링크를 여세요."
+  },
   { id: "display", title: "화면 크기 조절", caption: "상단 ‘글자’ 옆 − / +로 글씨를 조절하세요. 평가지표·문항 검색·우리 학교 사이 경계를 끌면 열 너비가 바뀝니다. 경계를 두 번 누르면 기본 비율로 돌아갑니다." },
   { id: "intro", title: "안내문 수정", caption: "상단 톱니바퀴 ‘설문 설정’을 열고 ‘안내문’을 누르세요. 교원용·학부모용·학생용·직원용 중 대상을 고른 뒤 내용을 수정합니다. 창을 닫은 뒤 상단 ‘저장됨’을 확인하세요." },
   {
@@ -154,7 +159,7 @@ export function getGuideSteps(variant: GuideVariant): GuideStep[] {
     link: "builder-work", find: "builder-find", add: "builder-find", owners: "builder-work",
     edit: "builder-edit", submit: "builder-submit", stuck: "builder-work"
   } : {
-    "prior-survey": "prior", flow: "workspace", mode: "settings", find: "find", add: "find",
+    roles: "builder-work", "prior-survey": "prior", flow: "workspace", mode: "settings", find: "find", add: "find",
     edit: "edit", coverage: "workspace", invite: "invite", export: "workspace", analyze: "results",
     mapping: "mapping", write: "opinion", review: "review", hwp: "docs", docs: "docs", stuck: "workspace",
     intro: "intro", display: "workspace"
