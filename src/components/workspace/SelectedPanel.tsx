@@ -92,13 +92,15 @@ export function SelectedPanel({
   ownerTag?: (item: SelectedQuestion) => string | null;
 }) {
   const [proposals,setProposals]=useState<Record<string,{subarea:string;responseType:ResponseType;rev:number}>>({});
+  const [reviewOnly,setReviewOnly]=useState(false);
+  const bodyRef=useRef<HTMLDivElement>(null);
   const [aiBusy,setAiBusy]=useState(false);
   const [aiError,setAiError]=useState("");
   const attempted=useRef(new Set<string>());
   const running=useRef(false);
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
-    const targets=items.filter(item=>(!canModify||canModify(item))&&!item.workStatus&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
+    const targets=items.filter(item=>(!canModify||canModify(item))&&(!item.workStatus||Boolean(legacyNoticeFor(item.subarea)))&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
     if(!targets.length||running.current)return;
     running.current=true;setAiBusy(true);setAiError("");
     targets.forEach(item=>attempted.current.add(item.id));
@@ -164,7 +166,13 @@ export function SelectedPanel({
         ) : null}
       </div>
 
-      <div className="ws-col-body">
+      <div className="ws-col-body" ref={bodyRef}>
+        {reviewOnly && <div className="ws-form" role="status">
+          <strong>2026 세부영역 확인 · 남은 {legacyCount}개</strong>
+          <p className="ws-hint">아래 문항은 현재 분류가 2026 기준과 맞지 않습니다. AI 추천을 확인하고 ‘완료’를 누르세요. 직접 고치려면 ‘수정’에서 세부영역을 선택하세요.</p>
+          <button type="button" className="ws-btn ws-btn--soft" onClick={()=>setReviewOnly(false)}>전체 문항 보기</button>
+          {legacyCount===0 && <p>분류 확인을 마쳤습니다.</p>}
+        </div>}
         {aiBusy && <p className="ws-hint" role="status">AI가 2026 분류·응답 유형을 추천하고 있습니다…</p>}
         {aiError && <p className="ws-hint" role="alert">{aiError} <button className="ws-btn ws-btn--soft" onClick={()=>{attempted.current.clear();setRetry(v=>v+1);}}>다시 추천</button></p>}
         {onAssign && <details>
@@ -196,6 +204,7 @@ export function SelectedPanel({
             const editor = editorOf(item.id);
             const editing = editingId === item.id;
             const legacy = legacyNoticeFor(item.subarea);
+            if(reviewOnly && !legacy && !editing) return null;
             const proposal = proposals[item.id]?.rev === item.rev ? proposals[item.id] : undefined;
             const mine = canModify ? canModify(item) : true;
             const tag = ownerTag ? ownerTag(item) : null;
@@ -255,10 +264,11 @@ export function SelectedPanel({
                 </div>
 
                 <div className="ws-work-status">
+                  {reviewOnly && !mine && <span className="ws-hint">연구부장에게 이 문항의 분류 수정을 요청하세요.</span>}
                   <span className="work-badge" title={item.workStatus ? workStatusText(item.workStatus) : undefined}>{item.workStatus ? workStatusText(item.workStatus) : "검토 전"}</span>
                   {mine && !item.workStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
                 </div>
-                {proposal && mine && !item.workStatus ? <div className="ws-review-proposal">
+                {proposal && mine && (!item.workStatus || legacy) ? <div className="ws-review-proposal">
                   <span className="ws-hint">AI 추천</span>
                   <select className="ws-select" aria-label={`${index+1}번 추천 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
                     <option value="">평가영역 집계 제외</option>
@@ -349,9 +359,9 @@ export function SelectedPanel({
             </p>
           ) : null}
           {legacyCount > 0 ? (
-            <p className="ws-coverage-warn">
-              분류 검토 {legacyCount}개
-            </p>
+            <button type="button" className="ws-btn ws-btn--soft" aria-pressed={reviewOnly} onClick={()=>{setReviewOnly(true);bodyRef.current?.scrollTo({top:0});}}>
+              분류 검토 {legacyCount}개 · 확인하기
+            </button>
           ) : null}
         </div>
       </div>
