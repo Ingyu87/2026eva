@@ -13,6 +13,8 @@ export function defaultWorkColor(label: string): WorkColor {
 }
 const CONTENT_FIELDS = ["editedQuestion", "responseType", "choices", "audience"] as const;
 export function nextWorkStatus(current: SelectedQuestion, patch: SelectedQuestionPatch, actor: WorkActor, at: string): WorkStatus | undefined {
+  // 연구부장의 전체 검토는 부장별 작성 기록을 대체하지 않습니다.
+  if (actor.id.startsWith("lead:")) return current.workStatus;
   const changed = CONTENT_FIELDS.some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
   if (!changed && patch.confirmReview !== true) return current.workStatus;
   return { kind: changed ? "edited" : "confirmed", actorId: actor.id, label: actor.label, color: actor.color, at };

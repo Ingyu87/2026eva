@@ -212,11 +212,12 @@ export function SelectedPanel({
             const proposal = proposals[item.id]?.rev === item.rev ? proposals[item.id] : undefined;
             const mine = canModify ? canModify(item) : true;
             const tag = ownerTag ? ownerTag(item) : null;
+            const visibleStatus = item.workStatus?.actorId.startsWith("lead:") ? undefined : item.workStatus;
             return (
               <div
                 key={item.id}
                 className={
-                  [item.workStatus ? `work-color-${item.workStatus.color}` : "work-pending", editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
+                  [visibleStatus ? `work-color-${visibleStatus.color}` : item.workStatus ? "" : "work-pending", editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
                     .filter(Boolean)
                     .reduce((acc, cls) => `${acc} ${cls}`, "ws-item")
                 }
@@ -269,7 +270,7 @@ export function SelectedPanel({
 
                 <div className="ws-work-status">
                   {reviewOnly && !mine && <span className="ws-hint">연구부장에게 이 문항의 분류 수정을 요청하세요.</span>}
-                  <span className="work-badge" title={item.workStatus ? workStatusText(item.workStatus) : undefined}>{item.workStatus ? workStatusText(item.workStatus) : "검토 전"}</span>
+                  {visibleStatus ? <span className="work-badge" title={workStatusText(visibleStatus)}>{workStatusText(visibleStatus)}</span> : !item.workStatus ? <span className="work-badge">검토 전</span> : null}
                   {mine && !item.workStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
                 </div>
                 {reviewOnly && legacy && mine ? <div className="ws-review-proposal">
