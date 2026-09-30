@@ -11,7 +11,7 @@ export function defaultWorkColor(label: string): WorkColor {
   let hash = 0; for (const char of label) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return WORK_COLORS[hash % WORK_COLORS.length];
 }
-const CONTENT_FIELDS = ["editedQuestion", "responseType", "choices", "subarea", "indicator", "audience", "department"] as const;
+const CONTENT_FIELDS = ["editedQuestion", "responseType", "choices", "audience"] as const;
 export function nextWorkStatus(current: SelectedQuestion, patch: SelectedQuestionPatch, actor: WorkActor, at: string): WorkStatus | undefined {
   const changed = CONTENT_FIELDS.some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
   if (!changed && patch.confirmReview !== true) return current.workStatus;

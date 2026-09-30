@@ -93,6 +93,7 @@ export function SelectedPanel({
 }) {
   const [proposals,setProposals]=useState<Record<string,{subarea:string;responseType:ResponseType;rev:number}>>({});
   const [reviewOnly,setReviewOnly]=useState(false);
+  const [classificationDrafts,setClassificationDrafts]=useState<Record<string,string>>({});
   const bodyRef=useRef<HTMLDivElement>(null);
   const [aiBusy,setAiBusy]=useState(false);
   const [aiError,setAiError]=useState("");
@@ -169,7 +170,7 @@ export function SelectedPanel({
       <div className="ws-col-body" ref={bodyRef}>
         {reviewOnly && <div className="ws-form" role="status">
           <strong>2026 세부영역 확인 · 남은 {legacyCount}개</strong>
-          <p className="ws-hint">아래 문항은 현재 분류가 2026 기준과 맞지 않습니다. AI 추천을 확인하고 ‘완료’를 누르세요. 직접 고치려면 ‘수정’에서 세부영역을 선택하세요.</p>
+          <p className="ws-hint">문항에 맞는 2026 세부영역을 고르고 ‘분류 적용’을 누르세요. 문항 내용과 응답 유형은 바뀌지 않습니다.</p>
           <button type="button" className="ws-btn ws-btn--soft" onClick={()=>setReviewOnly(false)}>전체 문항 보기</button>
           {legacyCount===0 && <p>분류 확인을 마쳤습니다.</p>}
         </div>}
@@ -268,7 +269,16 @@ export function SelectedPanel({
                   <span className="work-badge" title={item.workStatus ? workStatusText(item.workStatus) : undefined}>{item.workStatus ? workStatusText(item.workStatus) : "검토 전"}</span>
                   {mine && !item.workStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
                 </div>
-                {proposal && mine && (!item.workStatus || legacy) ? <div className="ws-review-proposal">
+                {reviewOnly && legacy && mine ? <div className="ws-review-proposal">
+                  <span className="ws-hint">{proposal ? "AI 추천 세부영역" : "2026 세부영역"}</span>
+                  <select className="ws-select" aria-label={`${index+1}번 분류 설정`} value={classificationDrafts[item.id] ?? proposal?.subarea ?? ""} onChange={e=>setClassificationDrafts(current=>({...current,[item.id]:e.target.value}))}>
+                    <option value="">세부영역을 선택하세요</option>
+                    <option value="excluded">평가영역 집계 제외</option>
+                    {AREAS.map(area=><optgroup key={area.code} label={area.name}>{area.subareas.map(name=><option key={name}>{name}</option>)}</optgroup>)}
+                  </select>
+                  <button type="button" className="ws-btn ws-btn--primary" disabled={!(classificationDrafts[item.id] ?? proposal?.subarea)} onClick={()=>onPatch(item.id,placementFromSubarea(classificationDrafts[item.id] ?? proposal?.subarea ?? "")??{area:"",subarea:""})}>분류 적용</button>
+                </div> : null}
+                {!reviewOnly && proposal && mine && (!item.workStatus || legacy) ? <div className="ws-review-proposal">
                   <span className="ws-hint">AI 추천</span>
                   <select className="ws-select" aria-label={`${index+1}번 추천 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
                     <option value="">평가영역 집계 제외</option>

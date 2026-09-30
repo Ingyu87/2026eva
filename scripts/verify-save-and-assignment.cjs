@@ -10,6 +10,11 @@ global.window = { localStorage: {
  removeItem: key => { if (blocked) throw Error('SecurityError'); memory.delete(key); }
 }};
 const q = require('../src/lib/outbox.ts');
+const {nextWorkStatus}=require('../src/lib/workStatus.ts');
+assert.equal(nextWorkStatus({subarea:'옛 분류'},{area:'새 영역',subarea:'새 분류'},{id:'lead',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
+const previousStatus={kind:'edited',label:'교무부장'};
+assert.equal(nextWorkStatus({subarea:'옛 분류',workStatus:previousStatus},{subarea:'새 분류'},{id:'lead',label:'연구부장',color:'purple'},new Date().toISOString()),previousStatus);
+console.log('[PASS] 분류만 변경하면 문항 수정·확인 상태 유지');
 let count = 0;
 async function check(name, fn) { await fn(); count++; console.log('[PASS]', name); }
 (async () => {
