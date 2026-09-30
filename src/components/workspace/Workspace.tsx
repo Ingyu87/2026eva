@@ -151,6 +151,7 @@ export function Workspace({
   useEffect(() => {
     let alive = true;
     const load = async () => {
+      if (document.visibilityState === "hidden") return;
       try {
         if (isBuilder) {
           const response = await fetch("/api/invite/submit");
@@ -170,7 +171,7 @@ export function Workspace({
       }
     };
     void load();
-    const timer = setInterval(() => void load(), 15000);
+    const timer = setInterval(() => void load(), 60000);
     return () => {
       alive = false;
       clearInterval(timer);
@@ -623,6 +624,7 @@ export function Workspace({
             onAddCustom={addCustomQuestion}
           />
           <SelectedPanel
+            draftId={draft.id}
             classificationEnabled={!isBuilder}
             onConfirmReview={(id) => workspace.patchItem(id, { confirmReview: true })}
             showExamples={showExamples}

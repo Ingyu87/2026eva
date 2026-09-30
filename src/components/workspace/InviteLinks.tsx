@@ -43,7 +43,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
 
   useEffect(() => {
     void reload();
-    const timer = setInterval(() => void reload(), 20000);
+    const timer = setInterval(() => { if(document.visibilityState !== "hidden") void reload(); }, 60000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

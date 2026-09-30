@@ -1,5 +1,7 @@
 "use client";
 
+import { cachedRecommendations } from "@/lib/recommendationCache";
+
 import { workStatusText } from "@/lib/workStatus";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -56,6 +58,7 @@ function legacyNoticeFor(subarea: string): string | null {
 }
 
 export function SelectedPanel({
+  draftId,
   classificationEnabled = true,
   assignmentInvites,
   onAssign,
@@ -73,6 +76,7 @@ export function SelectedPanel({
   canModify,
   ownerTag
 }: {
+  draftId: string;
   classificationEnabled?: boolean;
   assignmentInvites?: BuilderInviteSummary[];
   onAssign?: (ids: string[], token: string) => Promise<void>;
@@ -112,14 +116,13 @@ export function SelectedPanel({
       try {
         for(let offset=0;offset<targets.length;offset+=30){
           const batch=targets.slice(offset,offset+30);
-          const response=await fetch("/api/ingest/prior-survey/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:batch.map(item=>({question:item.editedQuestion||item.originalQuestion,choices:item.choices,responseType:item.responseType}))}),signal:AbortSignal.timeout(120000)});
-          const payload=await response.json();if(!payload.ok)throw new Error();
-          setProposals(current=>{const next={...current};batch.forEach((item,index)=>{const row=payload.data.items[index];next[item.id]={subarea:placementFromSubarea(row?.subarea??"")?.subarea??"",responseType:RESPONSE_TYPES.includes(row?.responseType)?row.responseType:item.responseType,rev:item.rev};});return next;});
+          const recommended = await cachedRecommendations(draftId, batch.map(item=>({question:item.editedQuestion||item.originalQuestion,choices:item.choices,responseType:item.responseType})));
+          setProposals(current=>{const next={...current};batch.forEach((item,index)=>{const row=recommended[index];next[item.id]={subarea:placementFromSubarea(row?.subarea??"")?.subarea??"",responseType:RESPONSE_TYPES.find(type=>type===row?.responseType)??item.responseType,rev:item.rev};});return next;});
         }
       }catch{setAiError("자동 분류 연결 실패");}
       finally{running.current=false;setAiBusy(false);}
     })();
-  },[items,retry,canModify,aiBusy,classificationEnabled]);
+  },[items,retry,canModify,aiBusy,classificationEnabled,draftId]);
 
   const [assignmentIds, setAssignmentIds] = useState<string[]>([]);
   const [assignmentToken, setAssignmentToken] = useState("");

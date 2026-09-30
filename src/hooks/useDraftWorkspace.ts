@@ -31,12 +31,12 @@ import type {
  *
  * 세 가지를 동시에 해냅니다.
  * 1. 편집을 로컬 큐에 먼저 적어 두고 순서대로 서버에 보냅니다. (유실 방지)
- * 2. 3초마다 남의 변경을 받아 화면에 반영합니다. (동시 작업)
+ * 2. 10초마다 남의 변경을 받아 화면에 반영합니다. (동시 작업)
  * 3. 같은 문항이 겹치면 조용히 덮어쓰지 않고 사용자에게 선택을 받습니다.
  */
 
-const SYNC_INTERVAL_ACTIVE_MS = 3_000;
-const SYNC_INTERVAL_HIDDEN_MS = 15_000;
+const SYNC_INTERVAL_ACTIVE_MS = 10_000;
+const SYNC_INTERVAL_HIDDEN_MS = 60_000;
 const DISPLAY_NAME_KEY = "school-eval-display-name";
 const SESSION_ID_KEY = "school-eval-session-id";
 
@@ -137,6 +137,7 @@ export function useDraftWorkspace(enabled: boolean) {
   const knownItemsRef = useRef(new Map<string, SelectedQuestion>());
   const draftRef = useRef<SurveyDraft | null>(null);
   const flushingRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionIdRef = useRef<string>("");
@@ -292,6 +293,8 @@ export function useDraftWorkspace(enabled: boolean) {
 
     try {
       while (queue.length > 0) {
+        // 전송 중 새 입력이 생기면 해당 입력의 지연 타이머에 다음 전송을 맡깁니다.
+        if (saveTimerRef.current) return;
         const op = queue[0];
         try {
           await sendOp(op);
@@ -348,7 +351,7 @@ export function useDraftWorkspace(enabled: boolean) {
     }
   }, [refreshPending, sendOp]);
 
-  /** 편집을 큐에 넣고 곧바로 전송을 시도합니다. */
+  /** 편집은 즉시 큐에 보관하고 입력이 600ms 멈추면 전송합니다. */
   const push = useCallback(
     (op: DraftOp) => {
       const draftId = draftIdRef.current;
@@ -357,10 +360,13 @@ export function useDraftWorkspace(enabled: boolean) {
       }
       const queue = enqueue(draftId, op);
       setPendingCount(queue.length);
-      void flush();
+      setSaveState({kind:"saving"});
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => { saveTimerRef.current = null; void flush(); }, 600);
     },
     [flush]
   );
+  useEffect(() => () => { if(saveTimerRef.current) clearTimeout(saveTimerRef.current); }, []);
 
   /* ---------------- 최초 적재 ---------------- */
 
@@ -412,13 +418,16 @@ export function useDraftWorkspace(enabled: boolean) {
     }
 
     let stopped = false;
+    let syncing = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const tick = async () => {
-      if (stopped) {
+      if (stopped || syncing) {
         return;
       }
+      syncing = true;
       try {
+        if (document.visibilityState === "hidden") return;
         const params = new URLSearchParams({ sessionId: sessionIdRef.current });
         if (sinceRef.current) {
           params.set("since", sinceRef.current);
@@ -451,6 +460,7 @@ export function useDraftWorkspace(enabled: boolean) {
       } catch {
         /* 동기화 실패는 조용히 넘깁니다. 저장 상태는 아웃박스가 따로 알립니다. */
       } finally {
+        syncing = false;
         if (!stopped) {
           const delay =
             typeof document !== "undefined" && document.visibilityState === "hidden"
@@ -462,14 +472,21 @@ export function useDraftWorkspace(enabled: boolean) {
     };
 
     timer = setTimeout(() => void tick(), SYNC_INTERVAL_ACTIVE_MS);
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || syncing) return;
+      if (timer) clearTimeout(timer);
+      void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
       stopped = true;
       if (timer) {
         clearTimeout(timer);
       }
     };
-  }, [applyChanges, draft, enabled]);
+  }, [applyChanges, draft?.id, enabled]);
 
   /* ---------------- 네트워크 복귀 · 이탈 경고 ---------------- */
 
