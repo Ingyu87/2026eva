@@ -147,7 +147,8 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
           <button type="button" className="ws-btn ws-btn--ghost" aria-label={index + 1 + "행 삭제"} disabled={rows.length === 1} onClick={() => setRows(previous => previous.filter(entry => entry.id !== row.id))}>삭제</button>
         </div>)}
         <button type="button" className="ws-btn ws-btn--soft" disabled={rows.length >= 30} onClick={() => setRows(previous => [...previous, { id: nextId.current++, label: "", audience: "" }])}>＋ 부장 추가</button>
-        <button type="button" className="ws-btn ws-btn--primary" disabled={busy || !rows.some(row => row.label.trim())} onClick={() => void createLink()}>{busy ? "링크 만드는 중…" : "입력한 " + rows.filter(row => row.label.trim()).length + "명 링크 한 번에 만들기"}</button>
+        <button type="button" className="ws-btn ws-btn--primary" disabled={busy || !rows.some(row => row.label.trim())} onClick={() => void createLink()}>{busy ? "링크 만드는 중…" : "링크 만들기"}</button>
+        {!rows.some(row => row.label.trim()) && <span className="ws-hint">부장 이름을 입력하세요.</span>}
       </fieldset>
       {error ? <p className="ws-custom-error">{error}</p> : null}
     </div>
