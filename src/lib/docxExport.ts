@@ -9,6 +9,8 @@ import {
   Table,
   TableCell,
   TableRow,
+  TableLayoutType,
+  VerticalAlign,
   TextRun,
   WidthType,
   type IFontAttributesProperties,
@@ -97,7 +99,6 @@ function questionParagraphs(question: SelectedQuestion): Paragraph[] {
   } else {
     paragraphs.push(textParagraph("답변:"));
     paragraphs.push(textParagraph("                                                                 "));
-    paragraphs.push(textParagraph("                                                                 "));
   }
 
   return paragraphs;
@@ -112,35 +113,57 @@ function sectionForAudience(
     return [];
   }
 
-  const tableRows = [
-    new TableRow({
+  // Explicit grid and cell widths prevent Word/LibreOffice from making equal columns.
+  const width = 9920;
+  const numberWidth = 600;
+  const scaleWidth = 900;
+  const surveyCell = (paragraphs: Paragraph[], size: number) => new TableCell({
+    width: { size, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 80, bottom: 80, left: 80, right: 80 },
+    children: paragraphs
+  });
+  const centered = (text: string, bold = false) => koreanParagraph({
+    alignment: AlignmentType.CENTER,
+    children: [new TextRun({ text, bold, ...KOREAN_RUN_DEFAULTS, size: 18 })],
+    spacing: { after: 0 }
+  });
+  const tables: FileChild[] = [];
+  const ordered = audienceItems.slice().sort((a, b) => a.order - b.order);
+  let start = 0;
+  while (start < ordered.length) {
+    const scale = ordered[start].responseType === "likert_5";
+    let end = start + 1;
+    while (end < ordered.length && (ordered[end].responseType === "likert_5") === scale) end++;
+    const widths = scale
+      ? [numberWidth, width - numberWidth - 5 * scaleWidth, ...Array(5).fill(scaleWidth)]
+      : [numberWidth, width - numberWidth];
+    const headings = scale ? ["번호", "문항", ...LIKERT_5_OPTIONS] : ["번호", "문항 및 응답"];
+    const rows = [new TableRow({
       tableHeader: true,
-      children: [
-        cell([textParagraph("번호", true)], 10),
-        cell([textParagraph("문항", true)], 90)
-      ]
-    }),
-    ...audienceItems
-      .slice()
-      .sort((a, b) => a.order - b.order)
-      .map(
-        (question, index) =>
-          new TableRow({
-            children: [
-              cell(
-                [
-                  koreanParagraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [koreanRun(String(index + 1))]
-                  })
-                ],
-                10
-              ),
-              cell(questionParagraphs(question), 90)
-            ]
-          })
-      )
-  ];
+      cantSplit: true,
+      children: headings.map((heading, index) => surveyCell([centered(heading, true)], widths[index]))
+    })];
+    for (let index = start; index < end; index++) {
+      const question = ordered[index];
+      rows.push(new TableRow({
+        cantSplit: true,
+        children: [
+          surveyCell([centered(String(index + 1))], widths[0]),
+          surveyCell(scale ? [textParagraph(question.editedQuestion || question.originalQuestion)] : questionParagraphs(question), widths[1]),
+          ...(scale ? LIKERT_5_OPTIONS.map(() => surveyCell([centered("")], scaleWidth)) : [])
+        ]
+      }));
+    }
+    tables.push(new Table({
+      width: { size: width, type: WidthType.DXA },
+      columnWidths: widths,
+      layout: TableLayoutType.FIXED,
+      rows
+    }));
+    if (end < ordered.length) tables.push(koreanParagraph({ children: [], spacing: { after: 80 } }));
+    start = end;
+  }
 
   return [
     koreanParagraph({
@@ -159,10 +182,7 @@ function sectionForAudience(
       ]
     }),
     koreanParagraph({ children: [koreanRun("")], spacing: { after: 160 } }),
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: tableRows
-    }),
+    ...tables,
     koreanParagraph({
       children: [koreanRun("※ 정성껏 응답해 주셔서 고맙습니다.")],
       spacing: { before: 240, after: 360 }
@@ -183,7 +203,8 @@ export async function buildSurveyDocx(
     styles: {
       default: {
         document: {
-          run: KOREAN_RUN_DEFAULTS
+          run: { ...KOREAN_RUN_DEFAULTS, size: 20 },
+          paragraph: { spacing: { line: 264, after: 80 } }
         },
         heading1: {
           run: KOREAN_RUN_DEFAULTS
@@ -195,7 +216,10 @@ export async function buildSurveyDocx(
     },
     sections: [
       {
-        properties: {},
+        properties: { page: {
+          size: { width: 11906, height: 16838 },
+          margin: { top: 1000, bottom: 1000, left: 993, right: 993 }
+        } },
         children:
           children.length > 0
             ? children
