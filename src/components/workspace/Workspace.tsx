@@ -555,6 +555,18 @@ export function Workspace({
               </button>
               <button
                 type="button"
+                className="ws-btn ws-btn--ghost"
+                title="표와 응답 칸을 유지한 한글 편집용 파일을 내려받습니다."
+                onClick={() => {
+                  if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
+                    window.location.href = "/api/export/hwpx";
+                  }
+                }}
+              >
+                한글 (HWPX)
+              </button>
+              <button
+                type="button"
                 className="ws-btn ws-btn--primary"
                 onClick={() => {
                   if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
