@@ -59,7 +59,9 @@ export function koreanParagraph(options: IParagraphOptions): Paragraph {
 
 export function textParagraph(text: string, bold = false): Paragraph {
   return koreanParagraph({
-    children: [koreanRun(text, bold)],
+    children: text.split(/\r\n|\r|\n/).map((line, index) =>
+      new TextRun({ text: line, bold, ...KOREAN_RUN_DEFAULTS, ...(index ? { break: 1 } : {}) })
+    ),
     spacing: { after: 120 }
   });
 }
@@ -90,9 +92,7 @@ function questionParagraphs(question: SelectedQuestion): Paragraph[] {
   } else if (question.responseType === "choice_single" || question.responseType === "checklist") {
     const options = (question.choices ?? []).map((choice) => choice.trim()).filter(Boolean);
     const multi = question.responseType === "checklist";
-    paragraphs.push(
-      textParagraph(multi ? "해당되는 항목을 모두 고르세요." : "하나만 고르세요.")
-    );
+    // 선택 개수는 문항 본문을 따른다. 일괄 안내는 '2개 선택' 등과 충돌한다.
     paragraphs.push(
       textParagraph(options.map((option) => `${multi ? "□" : "○"} ${option}`).join("    "))
     );
@@ -107,7 +107,8 @@ function questionParagraphs(question: SelectedQuestion): Paragraph[] {
 function sectionForAudience(
   draft: SurveyDraft,
   audienceItems: SelectedQuestion[],
-  audienceLabel: string
+  audienceLabel: string,
+  pageBreakBefore: boolean
 ): FileChild[] {
   if (audienceItems.length === 0) {
     return [];
@@ -169,6 +170,7 @@ function sectionForAudience(
     koreanParagraph({
       children: [koreanRun(`${draft.title} (${audienceLabel})`, true)],
       heading: HeadingLevel.HEADING_1,
+      pageBreakBefore,
       alignment: AlignmentType.CENTER,
       spacing: { after: 240 }
     }),
@@ -177,8 +179,7 @@ function sectionForAudience(
       alignment: AlignmentType.CENTER,
       children: [
         koreanRun(draft.surveyDate),
-        koreanRun("\n"),
-        koreanRun(draft.schoolName)
+        new TextRun({ text: draft.schoolName, break: 1, ...KOREAN_RUN_DEFAULTS })
       ]
     }),
     koreanParagraph({ children: [koreanRun("")], spacing: { after: 160 } }),
@@ -195,8 +196,8 @@ export async function buildSurveyDocx(
   items: SelectedQuestion[]
 ): Promise<Buffer> {
   const byAudience = groupByAudience(items);
-  const children = AUDIENCES.flatMap((audience) =>
-    sectionForAudience(draft, byAudience[audience], AUDIENCE_LABELS[audience])
+  const children = AUDIENCES.filter(audience => byAudience[audience].length > 0).flatMap((audience, index) =>
+    sectionForAudience(draft, byAudience[audience], AUDIENCE_LABELS[audience], index > 0)
   );
 
   const document = new Document({

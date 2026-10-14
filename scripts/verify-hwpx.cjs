@@ -37,7 +37,8 @@ function decode(s) {return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/
  let session={status:401}; let reads=0;
  const load=Module._load;
  Module._load=function(id,parent,main){
-   if(id==='@/lib/api')return {requireSchoolSession:async()=>session};
+   if(id==='@/lib/api')return {requireSchoolSession:async()=>session, jsonError:(error,status)=>Response.json({ok:false,error},{status})};
+   if(id==='@/lib/surveyExportResponse')return require('../src/lib/surveyExportResponse.ts');
    if(id==='@/lib/store')return {getDraftBundle:async(schoolId)=>{assert.equal(schoolId,'test-school');reads++;return {draft,items};}};
    if(id==='@/lib/hwpxExport')return {buildSurveyHwpx,hwpxFileName};
    return load.call(this,id,parent,main);

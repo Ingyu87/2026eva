@@ -995,6 +995,18 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-600
   border-bottom: 1px solid var(--line);
 }
 
+dialog.ws-download-dialog {
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  width: min(640px, calc(100% - var(--sp-8)));
+}
+dialog.ws-download-dialog:not([open]) { display: none; }
+dialog.ws-download-dialog::backdrop { background: var(--bg-overlay); }
+.ws-download-error { color: var(--danger); }
+
 .ws-modal-head h2 {
   font-size: var(--fs-section-title);
 }

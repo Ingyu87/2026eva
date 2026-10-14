@@ -30,6 +30,8 @@ import { AnnualStart } from "./AnnualStart";
 import type { PriorSurveyCommit } from "./PriorSurveyImport";
 import { GuideModal } from "./GuideModal";
 import { SettingsModal, type SettingsTab } from "./SettingsModal";
+import { SurveyDownloadDialog } from "./SurveyDownloadDialog";
+import type { SurveyFileFormat } from "@/lib/surveyExport";
 
 /**
  * 문항 구성 작업 화면.
@@ -76,6 +78,7 @@ export function Workspace({
   const [invites, setInvites] = useState<BuilderInviteSummary[]>([]);
   const [submission, setSubmission] = useState<{ submittedAt: string | null; itemCount: number } | null>(null);
   const [notice, setNotice] = useState("");
+  const [downloadFormat, setDownloadFormat] = useState<SurveyFileFormat | null>(null);
 
   const syncAudience = workspace.setActiveAudience;
   useEffect(() => {
@@ -447,6 +450,17 @@ export function Workspace({
     Boolean(draft) && !workspace.displayName && !namePromptDone;
 
   if (!draft) {
+    if (workspace.saveState.kind === "error") {
+      return (
+        <div className="ws-loading">
+          <div className="ws-form">
+            <p role="alert">{workspace.saveState.message || "설문 초안을 불러오지 못했습니다."}</p>
+            <button type="button" className="ws-btn ws-btn--primary" onClick={() => window.location.reload()}>다시 불러오기</button>
+            <button type="button" className="ws-btn ws-btn--ghost" onClick={onLogout}>로그인 화면으로</button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="ws-loading" role="status">
         설문 초안을 불러오는 중…
@@ -545,11 +559,7 @@ export function Workspace({
               <button
                 type="button"
                 className="ws-btn ws-btn--ghost"
-                onClick={() => {
-                  if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
-                    window.location.href = "/api/export/docx";
-                  }
-                }}
+                onClick={() => setDownloadFormat("docx")}
               >
                 설문지 (DOCX)
               </button>
@@ -557,11 +567,7 @@ export function Workspace({
                 type="button"
                 className="ws-btn ws-btn--ghost"
                 title="표와 응답 칸을 유지한 한글 편집용 파일을 내려받습니다."
-                onClick={() => {
-                  if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
-                    window.location.href = "/api/export/hwpx";
-                  }
-                }}
+                onClick={() => setDownloadFormat("hwpx")}
               >
                 한글 (HWPX)
               </button>
@@ -667,6 +673,13 @@ export function Workspace({
       {!isBuilder ? <main className="ra-main" hidden={activeScreen !== "analyze"}>
         <ResultsAnalysis draft={draft} items={workspace.items} />
       </main> : null}
+
+      {downloadFormat && !isBuilder ? (
+        <SurveyDownloadDialog format={downloadFormat} initialAudience={activeAudience} items={workspace.items}
+          pendingCount={workspace.pendingCount} onRetrySave={workspace.retryNow}
+          beforeDownload={() => ensureSynced() && confirmCoverageGaps(workspace.items)}
+          onClose={() => setDownloadFormat(null)} />
+      ) : null}
 
       {guideOpen ? (
         <GuideModal variant={isBuilder ? "builder" : "lead"} onClose={() => setGuideOpen(false)} />
