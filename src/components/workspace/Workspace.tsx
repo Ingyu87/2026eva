@@ -30,6 +30,7 @@ import { AnnualStart } from "./AnnualStart";
 import type { PriorSurveyCommit } from "./PriorSurveyImport";
 import { GuideModal } from "./GuideModal";
 import { SettingsModal, type SettingsTab } from "./SettingsModal";
+import { SurveyPreview } from "./SurveyPreview";
 import { SurveyDownloadDialog } from "./SurveyDownloadDialog";
 import type { SurveyFileFormat } from "@/lib/surveyExport";
 
@@ -64,7 +65,7 @@ export function Workspace({
   const draft = workspace.draft;
 
   const [activeAudience, setActiveAudience] = useState<Audience>(builderAudience ?? "teacher");
-  const [activeScreen, setActiveScreen] = useState<"build" | "analyze" | "annual-start">("build");
+  const [activeScreen, setActiveScreen] = useState<"build" | "preview" | "analyze" | "annual-start">("build");
   const [showExamplesOverride, setShowExamplesOverride] = useState<boolean | null>(null);
   const hasPriorItems = workspace.items.some(item => item.sourceQuestionId.startsWith("prior-"));
   const showExamples = showExamplesOverride ?? !hasPriorItems;
@@ -225,7 +226,8 @@ export function Workspace({
     setActiveScreen("annual-start");
   }, [draft?.id, draft?.mode]);
 
-  const dismissAnnualStart = (next: "build" | "analyze") => {
+  const dismissAnnualStart = (next: "build" | "preview" | "analyze") => {
+    workspace.setEditingItemId(undefined);
     if (draft) {
       try {
         sessionStorage.setItem(`annual-start:${draft.id}`, "1");
@@ -469,7 +471,7 @@ export function Workspace({
   }
 
   return (
-    <div className={activeScreen === "build" ? "ws-root" : "ws-root ws-root--analyze"} style={{"--fs-body": `${fontSize}px`, "--fs-small": `${fontSize-1}px`, "--fs-caption": `${fontSize-2}px`, "--fs-group-title": `${fontSize+1}px`, "--fs-section-title": `${fontSize+4}px`} as CSSProperties}>
+    <div className={activeScreen === "build" || activeScreen === "preview" ? "ws-root" : "ws-root ws-root--analyze"} style={{"--fs-body": `${fontSize}px`, "--fs-small": `${fontSize-1}px`, "--fs-caption": `${fontSize-2}px`, "--fs-group-title": `${fontSize+1}px`, "--fs-section-title": `${fontSize+4}px`} as CSSProperties}>
       <header className="ws-topbar">
         <div className="ws-topbar-left">
           <span className="ws-school">{draft.schoolName || school.schoolName}</span>
@@ -499,30 +501,14 @@ export function Workspace({
         </div>
 
         <div className="ws-topbar-center">
-          {isBuilder ? (
-            <span className="ws-screen-tab is-active">문항 구성</span>
-          ) : (
-            <div className="ws-screen-tabs" role="tablist" aria-label="화면 전환">
-              <button
-                type="button"
-                className={activeScreen === "build" ? "ws-screen-tab is-active" : "ws-screen-tab"}
-                role="tab"
-                aria-selected={activeScreen === "build"}
-                onClick={() => dismissAnnualStart("build")}
-              >
-                문항 구성
-              </button>
-              <button
-                type="button"
-                className={activeScreen === "analyze" ? "ws-screen-tab is-active" : "ws-screen-tab"}
-                role="tab"
-                aria-selected={activeScreen === "analyze"}
-                onClick={() => dismissAnnualStart("analyze")}
-              >
-                결과 분석 · 내보내기
-              </button>
-            </div>
-          )}
+          <div className="ws-screen-tabs" role="tablist" aria-label="화면 전환">
+            {([{ id: "build", label: "문항 구성" }, { id: "preview", label: "설문 미리보기" },
+              ...(!isBuilder ? [{ id: "analyze", label: "결과 분석 · 내보내기" }] : [])] as const).map(tab => (
+              <button type="button" key={tab.id} role="tab" aria-selected={activeScreen === tab.id}
+                className={activeScreen === tab.id ? "ws-screen-tab is-active" : "ws-screen-tab"}
+                onClick={() => dismissAnnualStart(tab.id as "build" | "preview" | "analyze")}>{tab.label}</button>
+            ))}
+          </div>
         </div>
 
         <div className="ws-topbar-right">
@@ -607,7 +593,7 @@ export function Workspace({
         </div>
       </header>
 
-      {activeScreen === "build" ? (
+      {activeScreen === "build" || activeScreen === "preview" ? (
         <nav className="ws-audience-tabs" aria-label="평가 주체 선택">
           {(builderAudience ? [builderAudience] : AUDIENCES).map((audience) => (
             <button
@@ -659,6 +645,10 @@ export function Workspace({
             ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
           />
         </ResizableColumns>
+      ) : activeScreen === "preview" ? (
+        <SurveyPreview key={activeAudience} draft={draft} audience={activeAudience} items={selectedItems}
+          presence={workspace.presence} onPatch={workspace.patchItem} onMeta={isBuilder ? undefined : workspace.setMeta}
+          onEditingChange={workspace.setEditingItemId} />
       ) : activeScreen === "annual-start" ? (
         <main className="ra-main">
           <AnnualStart
