@@ -7,7 +7,8 @@ import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
-import { googleFormReadyIssues } from "@/lib/googleFormReady";
+import { googleFormReadyIssues, isDuplicateGradeQuestion } from "@/lib/googleFormReady";
+import { orderForPrepend } from "@/lib/order";
 import { confirmCoverageGaps, placementFromSubarea } from "@/lib/evaluationFramework";
 import { questionBank } from "@/lib/questionBank";
 import {
@@ -97,6 +98,7 @@ export function Workspace({
   const [notice, setNotice] = useState("");
   const [downloadFormat, setDownloadFormat] = useState<SurveyFileFormat | null>(null);
   const studentRestoreTried = useRef(false);
+  const gradeEnsureTried = useRef(false);
 
   const syncAudience = workspace.setActiveAudience;
   useEffect(() => {
@@ -309,23 +311,62 @@ export function Workspace({
 
   const counts = useMemo(() => countByAudience(workspace.items), [workspace.items]);
   useEffect(() => {
-    if (isBuilder || !draft || studentRestoreTried.current) {
+    if (isBuilder || !draft) {
       return;
     }
     const hidden = workspace.deletedCounts.student ?? 0;
-    if (counts.student > 0 || hidden === 0) {
+    if (hidden > 0 && !studentRestoreTried.current) {
+      studentRestoreTried.current = true;
+      void workspace.restoreDeleted("student").then((count) => {
+        if (count > 0) {
+          setActiveAudience("student");
+          setNotice(`지운 학생 문항 ${count}개를 되돌렸습니다.`);
+        }
+      }).catch(() => {
+        setNotice("학생 문항을 되돌리지 못했습니다. ‘지운 문항 되돌리기’를 다시 눌러 주세요.");
+      });
       return;
     }
-    studentRestoreTried.current = true;
-    void workspace.restoreDeleted("student").then((count) => {
-      if (count > 0) {
-        setActiveAudience("student");
-        setNotice(`지운 학생 문항 ${count}개를 되돌렸습니다. 학년 문항도 함께 돌아옵니다.`);
+    const students = itemsForAudience(workspace.items, "student");
+    if (gradeEnsureTried.current || students.length === 0) {
+      return;
+    }
+    const existingGrade = students.find((item) => isDuplicateGradeQuestion(item));
+    if (existingGrade) {
+      gradeEnsureTried.current = true;
+      const grades = (existingGrade.choices ?? [])
+        .map((choice) => Number(/^(\d+)학년$/.exec(choice.trim())?.[1]))
+        .filter((grade) => grade >= 1 && grade <= 6);
+      if (grades.length > 0 && !(draft.studentGrades && draft.studentGrades.length > 0)) {
+        workspace.setMeta({ studentGrades: grades });
       }
-    }).catch(() => {
-      setNotice("학생 문항을 되돌리지 못했습니다. ‘지운 문항 되돌리기’를 다시 눌러 주세요.");
-    });
-  }, [counts.student, draft, isBuilder, workspace.deletedCounts.student, workspace.restoreDeleted]);
+      return;
+    }
+    gradeEnsureTried.current = true;
+    const grades = draft.studentGrades && draft.studentGrades.length > 0 ? draft.studentGrades : [4, 5, 6];
+    const id = `custom-grade-${crypto.randomUUID()}`;
+    workspace.addItems([
+      {
+        sourceQuestionId: id,
+        groupId: id,
+        audience: "student",
+        sourceRow: 0,
+        area: "",
+        subarea: "",
+        indicator: "학교 자체 문항",
+        originalQuestion: "현재 몇 학년입니까?",
+        editedQuestion: "현재 몇 학년입니까?",
+        responseType: "choice_single",
+        choices: grades.map((grade) => `${grade}학년`),
+        order: orderForPrepend(students)
+      }
+    ]);
+    if (!(draft.studentGrades && draft.studentGrades.length > 0)) {
+      workspace.setMeta({ studentGrades: grades });
+    }
+    setActiveAudience("student");
+    setNotice("학생 맨 앞에 학년 문항을 다시 넣었습니다. 설정에서 학년을 확인하세요.");
+  }, [counts.student, draft, isBuilder, workspace]);
 
   /** 예시문항 하나가 어느 대상에 담겨 있는지. 카드의 주체 칩이 이 값을 씁니다. */
   const addedByAudience = useMemo(() => {

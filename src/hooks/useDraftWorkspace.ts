@@ -544,14 +544,17 @@ export function useDraftWorkspace(enabled: boolean) {
   );
 
   const addItems = useCallback(
-    (drafts: Array<Omit<NewSelectedQuestion, "id" | "order">>) => {
+    (drafts: Array<Omit<NewSelectedQuestion, "id" | "order"> & { order?: number }>) => {
       const existing = itemsRef.current;
       let cursor = orderForAppend(existing);
       const prepared: NewSelectedQuestion[] = drafts.map((entry) => {
         const sameAudience = existing.filter((item) => item.audience === entry.audience);
-        cursor = Math.max(cursor, orderForAppend(sameAudience));
-        const order = cursor;
-        cursor += 1;
+        const order = entry.order ?? (() => {
+          cursor = Math.max(cursor, orderForAppend(sameAudience));
+          const next = cursor;
+          cursor += 1;
+          return next;
+        })();
         return { ...entry, id: newOpId(), order };
       });
 
