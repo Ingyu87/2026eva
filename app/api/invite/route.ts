@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { WORK_COLORS, defaultWorkColor } from "@/lib/workStatus";
+import { WORK_COLORS, defaultWorkColor, isLeadInviteLabel } from "@/lib/workStatus";
 import { jsonError, jsonOk, requireSchoolSession } from "@/lib/api";
 import { readJson } from "@/lib/draftApi";
 import {
@@ -25,11 +25,19 @@ export async function GET() {
     listBuilderInvites(session.schoolId),
     getOrCreateDraft(session.schoolId, session.schoolName)
   ]);
+  const leftoverLead = invites.filter((invite) => isLeadInviteLabel(invite.label));
+  if (leftoverLead.length > 0) {
+    await Promise.all(
+      leftoverLead.map((invite) => revokeBuilderInvite(session.schoolId, invite.token).catch(() => undefined))
+    );
+  }
   const counts = await countOwnedItems(draft.id);
-  const summaries: BuilderInviteSummary[] = invites.map((invite) => ({
-    ...invite,
-    itemCount: counts[inviteOwnerId(invite.token)] ?? 0
-  }));
+  const summaries: BuilderInviteSummary[] = invites
+    .filter((invite) => !isLeadInviteLabel(invite.label))
+    .map((invite) => ({
+      ...invite,
+      itemCount: counts[inviteOwnerId(invite.token)] ?? 0
+    }));
   return jsonOk({ invites: summaries });
 }
 
@@ -42,6 +50,9 @@ export async function POST(request: Request) {
   const label = body?.label?.trim();
   if (!label) {
     return jsonError("역할 이름을 적으세요.");
+  }
+  if (isLeadInviteLabel(label)) {
+    return jsonError("연구부장은 학교 계정으로 전체 문항을 검토합니다. 제출용 링크를 만들지 않습니다.");
   }
   const audience = isAudience(body?.audience) ? body.audience : undefined;
   const draft = await getOrCreateDraft(session.schoolId, session.schoolName);

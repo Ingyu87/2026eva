@@ -27,6 +27,10 @@ assert.equal(nextWorkStatus({},{confirmReview:true},{id:'lead:school',label:'연
 assert.equal(nextWorkStatus({audience:'parent'},{confirmReview:true},{id:'lead:school',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
 const leftoverLead={kind:'confirmed',actorId:'lead:school',label:'연구부장',color:'purple',at:'2026-01-01T00:00:00.000Z'};
 assert.equal(nextWorkStatus({workStatus:leftoverLead},{confirmReview:true},{id:'lead:school',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
+const {isLeadInviteLabel}=require('../src/lib/workStatus.ts');
+assert.equal(isLeadInviteLabel('연구부장'),true);
+assert.equal(isLeadInviteLabel('교육연구부장'),true);
+assert.equal(isLeadInviteLabel('교무부장'),false);
 console.log('[PASS] 연구부장 수정은 기록에 남기지 않고 부장 기록만 유지');
 let count = 0;
 async function check(name, fn) { await fn(); count++; console.log('[PASS]', name); }
@@ -79,6 +83,10 @@ async function check(name, fn) { await fn(); count++; console.log('[PASS]', name
  const item = id => ({id,sourceQuestionId:'prior-'+id,audience:'teacher',sourceRow:0,area:'Ⅰ. 협력적 학교자치문화',subarea:'Ⅰ-1. 소통과 협력의 학교자치',indicator:'가상 지표',originalQuestion:'가상 문항',editedQuestion:'가상 문항',responseType:'likert_5',order:id==='one'?1:2});
  await store.createDraftItems(draft.id,[item('one'),item('two')]);
  const invite = await store.createBuilderInvite({schoolId:'fake-review-school',schoolName:'가상',draftId:draft.id,label:'가상 교무부장',audience:'teacher'});
+ await check('연구부장 이름으로 제출 링크를 만들지 않음', async () => {
+  await assert.rejects(store.createBuilderInvite({schoolId:'fake-review-school',schoolName:'가상',draftId:draft.id,label:'연구부장'}),store.ForbiddenError);
+  await assert.rejects(store.createBuilderInvite({schoolId:'fake-review-school',schoolName:'가상',draftId:draft.id,label:'교육연구부장'}),store.ForbiddenError);
+ });
  let assigned;
  await check('연구부장이 가져온 문항 배정 및 제출 상태 초기화', async () => {
   await store.submitBuilderInvite(invite.token);

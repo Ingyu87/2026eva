@@ -1,4 +1,4 @@
-import { nextWorkStatus, defaultWorkColor, type WorkActor, type WorkColor } from "./workStatus";
+import { nextWorkStatus, defaultWorkColor, isLeadInviteLabel, type WorkActor, type WorkColor } from "./workStatus";
 import { createHash, randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { isCurrentSubarea, placementFromSubarea } from "./evaluationFramework";
@@ -1258,12 +1258,16 @@ export async function createBuilderInvite(input: {
   color?: WorkColor;
   audience?: Audience;
 }): Promise<BuilderInvite> {
+  const label = input.label.trim();
+  if (isLeadInviteLabel(label)) {
+    throw new ForbiddenError("연구부장은 학교 계정으로 전체 문항을 검토합니다. 제출용 링크를 만들지 않습니다.");
+  }
   const invite: BuilderInvite = {
     token: randomUUID(),
     schoolId: input.schoolId,
     schoolName: input.schoolName,
     draftId: input.draftId,
-    label: input.label.trim(),
+    label,
     color: input.color ?? defaultWorkColor(input.label),
     ...(input.audience ? { audience: input.audience } : {}),
     revoked: false,

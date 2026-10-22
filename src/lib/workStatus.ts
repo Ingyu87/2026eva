@@ -9,6 +9,11 @@ export function isWorkColor(value: unknown): value is WorkColor { return WORK_CO
 export function isLeadActorId(id?: string): boolean {
   return id === "lead" || Boolean(id?.startsWith("lead:"));
 }
+/** 연구부장·교육연구부장은 학교 계정 역할이라 부장 제출 링크를 만들지 않습니다. */
+export function isLeadInviteLabel(label: string): boolean {
+  const name = label.replace(/\s+/g, "");
+  return name === "연구부장" || name.endsWith("연구부장");
+}
 /** 화면에 보여줄 기록. 연구부장 확인은 남기지 않습니다. */
 export function builderWorkStatus(status?: WorkStatus): WorkStatus | undefined {
   if (!status || isLeadActorId(status.actorId)) return undefined;

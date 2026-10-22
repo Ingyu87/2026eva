@@ -1,6 +1,6 @@
 "use client";
 
-import { defaultWorkColor } from "@/lib/workStatus";
+import { defaultWorkColor, isLeadInviteLabel } from "@/lib/workStatus";
 import { useEffect, useRef, useState } from "react";
 import {
   AUDIENCES,
@@ -36,8 +36,9 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
     const response = await fetch("/api/invite");
     const payload = (await response.json()) as ApiEnvelope<{ invites: BuilderInviteSummary[] }>;
     if (payload.ok) {
-      setInvites(payload.data.invites);
-      onChanged?.(payload.data.invites);
+      const visible = payload.data.invites.filter((invite) => !isLeadInviteLabel(invite.label));
+      setInvites(visible);
+      onChanged?.(visible);
     }
   }
 
@@ -74,6 +75,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
     if (!pending.length) return;
     const names = pending.map(row => row.label.trim());
     if (new Set(names).size !== names.length) { setError("역할 이름이 겹칩니다. 구분할 수 있게 이름을 바꿔 주세요."); return; }
+    if (names.some((name) => isLeadInviteLabel(name))) { setError("연구부장은 이 화면에서 바로 검토합니다. 제출용 링크를 만들지 않습니다."); return; }
     creating.current = true; setBusy(true); setError("");
     try {
       for (const row of pending) {
@@ -116,7 +118,7 @@ export function InviteLinks({ onChanged }: { onChanged?: (invites: BuilderInvite
     <div className="ws-form">
       <p className="ws-hint">
         전체 링크를 복사해 메신저로 안내하세요. 부장이 담은 문항은 이 설문에 바로 모이고, 제출을 누르면 아래에
-        표시됩니다. 연구부장도 같은 화면에서 직접 문항을 담을 수 있습니다.
+        표시됩니다. 연구부장은 이 화면에서 바로 문항을 담으므로 제출용 링크를 만들지 않습니다.
       </p>
 
       {invites.length > 0 ? (
