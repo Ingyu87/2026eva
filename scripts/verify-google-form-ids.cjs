@@ -8,6 +8,7 @@ assert.equal(suggestOptionalResponse({ audience: 'parent', editedQuestion: '학�
 assert.equal(suggestOptionalResponse({ audience: 'parent', editedQuestion: '우리 학교는 다문화이해교육과 세계시민교육을 실시하였다.' }), false);
 assert.equal(suggestOptionalResponse({ audience: 'teacher', indicator: '방과후·돌봄교실 내실화', editedQuestion: '방과후학교와 돌봄교실을 체계적으로 운영하고 있다.' }), false);
 assert.equal(isFormRequired({ audience: 'parent', editedQuestion: '해당되는 분만 답하세요' }), false);
+assert.equal(isFormRequired({ audience: 'parent', editedQuestion: '해당하지 않으면 건너뛰세요.' }), false);
 assert.equal(isFormRequired({ audience: 'parent', editedQuestion: '방과후 프로그램은 다양하다.', required: true }), true);
 assert.equal(isDuplicateGradeQuestion({ editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }), true);
 assert.equal(googleFormReadyIssues([{ audience: 'student', editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }], { studentGrades: [4, 5, 6] }).length, 0);
