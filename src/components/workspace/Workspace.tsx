@@ -2,7 +2,7 @@
 
 import { similarQuestion } from "@/lib/questionDuplicates";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from "@/components/ui";
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
@@ -96,6 +96,7 @@ export function Workspace({
   const [submission, setSubmission] = useState<{ submittedAt: string | null; itemCount: number } | null>(null);
   const [notice, setNotice] = useState("");
   const [downloadFormat, setDownloadFormat] = useState<SurveyFileFormat | null>(null);
+  const studentRestoreTried = useRef(false);
 
   const syncAudience = workspace.setActiveAudience;
   useEffect(() => {
@@ -307,6 +308,24 @@ export function Workspace({
   );
 
   const counts = useMemo(() => countByAudience(workspace.items), [workspace.items]);
+  useEffect(() => {
+    if (isBuilder || !draft || studentRestoreTried.current) {
+      return;
+    }
+    const hidden = workspace.deletedCounts.student ?? 0;
+    if (counts.student > 0 || hidden === 0) {
+      return;
+    }
+    studentRestoreTried.current = true;
+    void workspace.restoreDeleted("student").then((count) => {
+      if (count > 0) {
+        setActiveAudience("student");
+        setNotice(`지운 학생 문항 ${count}개를 되돌렸습니다. 학년 문항도 함께 돌아옵니다.`);
+      }
+    }).catch(() => {
+      setNotice("학생 문항을 되돌리지 못했습니다. ‘지운 문항 되돌리기’를 다시 눌러 주세요.");
+    });
+  }, [counts.student, draft, isBuilder, workspace.deletedCounts.student, workspace.restoreDeleted]);
 
   /** 예시문항 하나가 어느 대상에 담겨 있는지. 카드의 주체 칩이 이 값을 씁니다. */
   const addedByAudience = useMemo(() => {

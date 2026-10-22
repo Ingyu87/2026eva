@@ -176,6 +176,11 @@ export function SelectedPanel({
         <button type="button" className={showExamples ? "ws-btn ws-btn--primary" : "ws-btn ws-btn--soft"} aria-expanded={showExamples} title={showExamples ? "예시 목록을 닫고 우리 학교 문항을 넓게 봅니다. 담은 문항은 유지됩니다." : undefined} onClick={onToggleExamples}>
           {showExamples ? "← 예시 닫기" : "예시문항에서 추가"}
         </button>
+        {deletedCount > 0 && onRestoreDeleted ? (
+          <button type="button" className="ws-btn ws-btn--primary" onClick={onRestoreDeleted}>
+            지운 {deletedCount}개 되돌리기
+          </button>
+        ) : null}
         {pendingReview.length > 0 ? (
           <button
             type="button"
