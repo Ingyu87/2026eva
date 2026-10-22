@@ -1,4 +1,5 @@
 import type { WorkColor, WorkStatus } from "./workStatus";
+import { isFormRequired as requiredByQuestion } from "./formRequired";
 export const AUDIENCES = ["teacher", "parent", "student", "staff"] as const;
 
 /**
@@ -71,9 +72,15 @@ export function needsChoices(type: ResponseType): boolean {
   return type === "choice_single" || type === "checklist";
 }
 
-/** 구글폼에서 답을 꼭 받아야 하는지. 값을 안 정하면 필수입니다. */
-export function isFormRequired(item: { required?: boolean }): boolean {
-  return item.required !== false;
+/** 구글폼에서 답을 꼭 받아야 하는지. 직접 정하지 않으면 문항 내용으로 판단합니다. */
+export function isFormRequired(item: {
+  required?: boolean;
+  audience?: string;
+  indicator?: string;
+  editedQuestion?: string;
+  originalQuestion?: string;
+}): boolean {
+  return requiredByQuestion(item);
 }
 
 /** 설문지·미리보기에 쓰는 문항 제목. 선택 응답이면 표시를 붙입니다. */

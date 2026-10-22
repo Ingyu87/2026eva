@@ -388,7 +388,7 @@ export function SelectedPanel({
                           선택
                         </button>
                       </div>
-                      <p className="ws-hint">선택으로 두면 해당되는 사람만 답하면 됩니다. 학부모 일부 문항에 씁니다.</p>
+                      <p className="ws-hint">문장에 맞춰 방과후·돌봄처럼 해당되는 사람만 답할 문항은 선택으로 둡니다. 직접 바꿔도 됩니다.</p>
                     </div>
 
                     {/* 평가지표별 담당부서 지정 — 기본계획 Ⅴ-3-나-3, 서식1 */}
