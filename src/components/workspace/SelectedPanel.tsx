@@ -35,6 +35,40 @@ import { previewOptions, ResponseTypeEditor } from "./ResponseTypeEditor";
  * 저장되는 order는 분수라서 순서를 바꿔도 자기 문서 하나만 고쳐집니다.
  */
 
+function FormRequiredButtons({
+  item,
+  disabled,
+  onPatch
+}: {
+  item: SelectedQuestion;
+  disabled?: boolean;
+  onPatch: (id: string, patch: SelectedQuestionPatch) => void;
+}) {
+  const required = isFormRequired(item);
+  return (
+    <div className="ws-grade-row" role="group" aria-label="구글폼 필수 여부">
+      <button
+        type="button"
+        disabled={disabled}
+        className={required ? "ws-btn ws-btn--primary" : "ws-btn ws-btn--soft"}
+        title="구글폼에서 답을 꼭 받습니다."
+        onClick={() => onPatch(item.id, { required: true })}
+      >
+        필수
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        className={required ? "ws-btn ws-btn--soft" : "ws-btn ws-btn--primary"}
+        title="해당되는 사람만 답하면 됩니다."
+        onClick={() => onPatch(item.id, { required: false })}
+      >
+        선택
+      </button>
+    </div>
+  );
+}
+
 /**
  * 2025 자료로 담아 둔 문항을 찾아 안내 문구를 만듭니다.
  *
@@ -372,22 +406,7 @@ export function SelectedPanel({
 
                     <div className="ws-field">
                       <span>구글폼 응답</span>
-                      <div className="ws-grade-row">
-                        <button
-                          type="button"
-                          className={isFormRequired(item) ? "ws-btn ws-btn--primary" : "ws-btn ws-btn--soft"}
-                          onClick={() => onPatch(item.id, { required: true })}
-                        >
-                          필수
-                        </button>
-                        <button
-                          type="button"
-                          className={isFormRequired(item) ? "ws-btn ws-btn--soft" : "ws-btn ws-btn--primary"}
-                          onClick={() => onPatch(item.id, { required: false })}
-                        >
-                          선택
-                        </button>
-                      </div>
+                      <FormRequiredButtons item={item} onPatch={onPatch} />
                       <p className="ws-hint">문장에 맞춰 방과후·돌봄처럼 해당되는 사람만 답할 문항은 선택으로 둡니다. 직접 바꿔도 됩니다.</p>
                     </div>
 
@@ -408,8 +427,8 @@ export function SelectedPanel({
                     <p className="ws-item-text">{item.editedQuestion}</p>
                     <p className="ws-item-scale">
                       {previewOptions(item.responseType, item.choices)}
-                      {isFormRequired(item) ? "" : " · 선택 응답"}
                     </p>
+                    <FormRequiredButtons item={item} disabled={!mine} onPatch={onPatch} />
                   </>
                 )}
               </div>
