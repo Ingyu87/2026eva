@@ -196,6 +196,9 @@ export function SettingsModal({
                 <p className="ws-hint">
                   고른 학년이 학생용 설문의 첫 문항으로 들어가고, 결과를 학년별로 나눠 봅니다.
                 </p>
+                {(draft.studentGrades ?? []).length === 0 ? (
+                  <p className="ws-custom-error" role="status">학생용 구글폼을 만들려면 학년을 하나 이상 고르세요. 초등은 보통 4·5·6학년입니다.</p>
+                ) : null}
               </div>
 
               <div className="ws-field">

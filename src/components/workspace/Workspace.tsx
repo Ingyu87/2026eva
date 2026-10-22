@@ -48,6 +48,8 @@ export function Workspace({
   builderLabel,
   builderOwnerId,
   builderAudience,
+  openSurveySettings = false,
+  onSurveySettingsOpened,
   onLogout
 }: {
   temporaryStorage?: boolean;
@@ -56,6 +58,8 @@ export function Workspace({
   builderLabel?: string;
   builderOwnerId?: string;
   builderAudience?: Audience;
+  openSurveySettings?: boolean;
+  onSurveySettingsOpened?: () => void;
   onLogout: () => void;
 }) {
   const [fontSize,setFontSize]=useState(22);
@@ -198,6 +202,13 @@ export function Workspace({
     setSettingsTab(tab);
     setSettingsOpen(true);
   };
+  useEffect(() => {
+    if (!openSurveySettings || isBuilder) {
+      return;
+    }
+    openSettings("survey");
+    onSurveySettingsOpened?.();
+  }, [openSurveySettings, isBuilder, onSurveySettingsOpened]);
 
   const myItemCount = workspace.items.filter((item) => (item.ownerId === builderOwnerId || item.workStatus?.actorId === builderOwnerId)).length;
 
@@ -576,6 +587,9 @@ export function Workspace({
                   const formIssues = googleFormReadyIssues(workspace.items, workspace.draft ?? undefined);
                   if (formIssues.length > 0) {
                     setNotice(formIssues[0]);
+                    if (formIssues[0].includes("학년")) {
+                      openSettings("survey");
+                    }
                     return;
                   }
                   if (ensureSynced() && confirmCoverageGaps(workspace.items)) {

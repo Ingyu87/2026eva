@@ -79,6 +79,7 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [openSurveySettings, setOpenSurveySettings] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [linkNotice, setLinkNotice] = useState<"ended" | "invalid" | "confirm" | null>(null);
@@ -230,6 +231,7 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
   }
 
   // 작업 화면은 100dvh를 그대로 써야 해서 바깥 껍데기 없이 그립니다.
+  const needsStudentGrades = Boolean(error && error.includes("학년"));
   if (mode === "user" && school) {
     return (
       <>
@@ -240,18 +242,24 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
         builderLabel={builderLabel}
         builderOwnerId={builderOwnerId}
         builderAudience={builderAudience}
+        openSurveySettings={openSurveySettings}
+        onSurveySettingsOpened={() => setOpenSurveySettings(false)}
         onLogout={() => void logout()}
       />
       {(error || status) ? (
         <div className="ws-overlay" role="dialog" aria-modal="true" aria-label="Google Forms 연결 결과">
           <div className="ws-modal">
             <div className="ws-modal-head">
-              <h2>{error ? "Google Forms를 만들지 못했습니다" : "Google Forms 연결 결과"}</h2>
-              <button type="button" className="ws-btn" autoFocus onClick={() => { setError(""); setStatus(""); }}>확인</button>
+              <h2>{needsStudentGrades ? "학생 설문 학년을 먼저 고르세요" : error ? "Google Forms를 만들지 못했습니다" : "Google Forms 연결 결과"}</h2>
+              <button type="button" className="ws-btn" autoFocus onClick={() => {
+                if (needsStudentGrades) setOpenSurveySettings(true);
+                setError("");
+                setStatus("");
+              }}>{needsStudentGrades ? "설정에서 학년 고르기" : "확인"}</button>
             </div>
             <div className="ws-modal-body">
-              <p role={error ? "alert" : "status"}>{error || status}</p>
-              {error ? <p>저장한 설문 문항은 유지됩니다. 학생 탭의 숫자를 확인하세요. 비어 있으면 ‘지운 문항 되돌리기’를 누르세요.</p> : null}
+              <p role={error ? "alert" : "status"}>{needsStudentGrades ? "설정에서 학생 설문 학년(예: 4·5·6학년)을 고른 뒤에 다시 Google Forms를 누르세요. 학년을 고르지 않으면 이 안내가 반복됩니다. 이미 만든 교원·학부모·직원 폼과 문항은 그대로입니다." : (error || status)}</p>
+              {error && !needsStudentGrades ? <p>저장한 설문 문항은 유지됩니다. 학생 탭의 숫자를 확인하세요. 비어 있으면 ‘지운 문항 되돌리기’를 누르세요.</p> : null}
             </div>
           </div>
         </div>
