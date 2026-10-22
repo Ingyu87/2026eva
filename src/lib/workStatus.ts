@@ -6,6 +6,14 @@ export const WORK_COLOR_LABELS: Record<WorkColor, string> = { purple: "보라", 
 export type WorkActor = { id: string; label: string; color: WorkColor };
 export type WorkStatus = { kind: "edited" | "confirmed"; actorId: string; label: string; color: WorkColor; at: string };
 export function isWorkColor(value: unknown): value is WorkColor { return WORK_COLORS.includes(value as WorkColor); }
+export function isLeadActorId(id?: string): boolean {
+  return id === "lead" || Boolean(id?.startsWith("lead:"));
+}
+/** 화면에 보여줄 기록. 연구부장 확인은 남기지 않습니다. */
+export function builderWorkStatus(status?: WorkStatus): WorkStatus | undefined {
+  if (!status || isLeadActorId(status.actorId)) return undefined;
+  return status;
+}
 export function defaultWorkColor(label: string): WorkColor {
   if (label.includes("교무")) return "purple";
   let hash = 0; for (const char of label) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
@@ -13,8 +21,10 @@ export function defaultWorkColor(label: string): WorkColor {
 }
 const CONTENT_FIELDS = ["editedQuestion", "responseType", "choices", "audience"] as const;
 export function nextWorkStatus(current: SelectedQuestion, patch: SelectedQuestionPatch, actor: WorkActor, at: string): WorkStatus | undefined {
-  // 연구부장의 전체 검토는 부장별 작성 기록을 대체하지 않습니다.
-  if (actor.id.startsWith("lead:")) return current.workStatus;
+  // 연구부장은 전체 문항을 검토하므로 수정·확인 기록에 넣지 않습니다. 기록은 부장 링크 작업만 남깁니다.
+  if (isLeadActorId(actor.id)) {
+    return builderWorkStatus(current.workStatus);
+  }
   const changed = CONTENT_FIELDS.some(key => patch[key] !== undefined && JSON.stringify(patch[key]) !== JSON.stringify(current[key]));
   if (!changed && patch.confirmReview !== true) return current.workStatus;
   return { kind: changed ? "edited" : "confirmed", actorId: actor.id, label: actor.label, color: actor.color, at };

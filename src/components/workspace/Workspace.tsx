@@ -7,6 +7,7 @@ import { ConflictDialog, DisplayNamePrompt, PresenceBadge, SaveStateBadge } from
 import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
+import { googleFormReadyIssues } from "@/lib/googleFormReady";
 import { confirmCoverageGaps, placementFromSubarea } from "@/lib/evaluationFramework";
 import { questionBank } from "@/lib/questionBank";
 import {
@@ -561,6 +562,11 @@ export function Workspace({
                 type="button"
                 className="ws-btn ws-btn--primary"
                 onClick={() => {
+                  const formIssues = googleFormReadyIssues(workspace.items);
+                  if (formIssues.length > 0) {
+                    setNotice(formIssues[0]);
+                    return;
+                  }
                   if (ensureSynced() && confirmCoverageGaps(workspace.items)) {
                     window.location.href = "/api/google/start";
                   }
@@ -643,6 +649,7 @@ export function Workspace({
             onEditingChange={workspace.setEditingItemId}
             canModify={isBuilder && builderAudience ? (item) => item.audience === builderAudience : undefined}
             ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
+            trackReview={isBuilder}
           />
         </ResizableColumns>
       ) : activeScreen === "preview" ? (

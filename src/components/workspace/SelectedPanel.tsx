@@ -2,7 +2,7 @@
 
 import { cachedRecommendations } from "@/lib/recommendationCache";
 
-import { workStatusText } from "@/lib/workStatus";
+import { builderWorkStatus, workStatusText } from "@/lib/workStatus";
 import { useEffect, useRef, useState } from "react";
 import {
   AREAS,
@@ -74,7 +74,8 @@ export function SelectedPanel({
   onReset,
   onEditingChange,
   canModify,
-  ownerTag
+  ownerTag,
+  trackReview = false
 }: {
   draftId: string;
   classificationEnabled?: boolean;
@@ -96,6 +97,8 @@ export function SelectedPanel({
   canModify?: (item: SelectedQuestion) => boolean;
   /** 카드에 붙일 '담은 사람' 표시. */
   ownerTag?: (item: SelectedQuestion) => string | null;
+  /** 부장 링크에서만 켭니다. 연구부장은 전체 검토를 하므로 확인 기록을 남기지 않습니다. */
+  trackReview?: boolean;
 }) {
   const [proposals,setProposals]=useState<Record<string,{subarea:string;responseType:ResponseType;rev:number}>>({});
   const [reviewOnly,setReviewOnly]=useState(false);
@@ -108,7 +111,7 @@ export function SelectedPanel({
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
     if(!classificationEnabled)return;
-    const targets=items.filter(item=>(!canModify||canModify(item))&&(!item.workStatus||!item.subarea||Boolean(legacyNoticeFor(item.subarea)))&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
+    const targets=items.filter(item=>(!canModify||canModify(item))&&((trackReview&&!builderWorkStatus(item.workStatus))||!item.subarea||Boolean(legacyNoticeFor(item.subarea)))&&!attempted.current.has(item.id)&&(item.sourceQuestionId.startsWith("prior-")||!isCurrentSubarea(item.subarea)||item.responseType==="text"&&Boolean(item.choices?.length)));
     if(!targets.length||running.current)return;
     running.current=true;setAiBusy(true);setAiError("");
     targets.forEach(item=>attempted.current.add(item.id));
@@ -122,7 +125,7 @@ export function SelectedPanel({
       }catch{setAiError("자동 분류 연결 실패");}
       finally{running.current=false;setAiBusy(false);}
     })();
-  },[items,retry,canModify,aiBusy,classificationEnabled,draftId]);
+  },[items,retry,canModify,aiBusy,classificationEnabled,draftId,trackReview]);
 
   const [assignmentIds, setAssignmentIds] = useState<string[]>([]);
   const [assignmentToken, setAssignmentToken] = useState("");
@@ -146,6 +149,9 @@ export function SelectedPanel({
   const present = REQUIRED_AREA_CODES.filter((code) => items.some((item) => item.area.startsWith(code)));
   const showWarning = missing.length > 0;
   const legacyCount = items.filter((item) => legacyNoticeFor(item.subarea)).length;
+  const pendingReview = trackReview
+    ? items.filter((item) => !builderWorkStatus(item.workStatus) && (!canModify || canModify(item)))
+    : [];
 
   /** 다른 사람이 지금 보고 있는 문항을 표시합니다. */
   const editorOf = (itemId: string): string | null => {
@@ -166,6 +172,25 @@ export function SelectedPanel({
         <button type="button" className={showExamples ? "ws-btn ws-btn--primary" : "ws-btn ws-btn--soft"} aria-expanded={showExamples} title={showExamples ? "예시 목록을 닫고 우리 학교 문항을 넓게 봅니다. 담은 문항은 유지됩니다." : undefined} onClick={onToggleExamples}>
           {showExamples ? "← 예시 닫기" : "예시문항에서 추가"}
         </button>
+        {pendingReview.length > 0 ? (
+          <button
+            type="button"
+            className="ws-btn ws-btn--soft"
+            title="이 대상의 검토 전 문항을 확인 완료로 표시합니다. 문항 내용은 바꾸지 않습니다."
+            onClick={() => {
+              for (const item of pendingReview) {
+                const proposal = proposals[item.id]?.rev === item.rev ? proposals[item.id] : undefined;
+                const placement = proposal ? placementFromSubarea(proposal.subarea) : null;
+                onPatch(item.id, {
+                  ...(placement ?? {}),
+                  confirmReview: true
+                });
+              }
+            }}
+          >
+            검토 전 {pendingReview.length}개 일괄 완료
+          </button>
+        ) : null}
         {items.length > 0 && onReset ? (
           <button type="button" className="ws-link ws-link--danger" onClick={onReset}>
             모두 비우기
@@ -215,12 +240,12 @@ export function SelectedPanel({
             const proposal = proposals[item.id]?.rev === item.rev ? proposals[item.id] : undefined;
             const mine = canModify ? canModify(item) : true;
             const tag = ownerTag ? ownerTag(item) : null;
-            const visibleStatus = item.workStatus?.actorId.startsWith("lead:") ? undefined : item.workStatus;
+            const visibleStatus = builderWorkStatus(item.workStatus);
             return (
               <div
                 key={item.id}
                 className={
-                  [visibleStatus ? `work-color-${visibleStatus.color}` : item.workStatus ? "" : "work-pending", editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
+                  [visibleStatus ? `work-color-${visibleStatus.color}` : trackReview && !visibleStatus ? "work-pending" : "", editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
                     .filter(Boolean)
                     .reduce((acc, cls) => `${acc} ${cls}`, "ws-item")
                 }
@@ -273,8 +298,8 @@ export function SelectedPanel({
 
                 <div className="ws-work-status">
                   {reviewOnly && !mine && <span className="ws-hint">연구부장에게 이 문항의 분류 수정을 요청하세요.</span>}
-                  {visibleStatus ? <span className="work-badge" title={workStatusText(visibleStatus)}>{workStatusText(visibleStatus)}</span> : !item.workStatus ? <span className="work-badge">검토 전</span> : null}
-                  {mine && !item.workStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
+                  {visibleStatus ? <span className="work-badge" title={workStatusText(visibleStatus)}>{workStatusText(visibleStatus)}</span> : trackReview ? <span className="work-badge">검토 전</span> : null}
+                  {trackReview && mine && !visibleStatus && !proposal && !aiBusy && <button type="button" className="ws-btn ws-btn--soft" onClick={() => startEdit(item.id)}>검토</button>}
                 </div>
                 {reviewOnly && legacy && mine ? <div className="ws-review-proposal">
                   <span className="ws-hint">세부영역</span>
@@ -285,7 +310,7 @@ export function SelectedPanel({
                   </select>
                   <button type="button" className="ws-btn ws-btn--primary" disabled={!(classificationDrafts[item.id] ?? proposal?.subarea)} onClick={()=>onPatch(item.id,placementFromSubarea(classificationDrafts[item.id] ?? proposal?.subarea ?? "")??{area:"",subarea:""})}>분류 적용</button>
                 </div> : null}
-                {!reviewOnly && proposal && mine && (!item.workStatus || !item.subarea || legacy) ? <div className="ws-review-proposal">
+                {!reviewOnly && proposal && mine && ((trackReview && !visibleStatus) || !item.subarea || legacy) ? <div className="ws-review-proposal">
                   <select className="ws-select" aria-label={`${index+1}번 세부영역`} value={proposal.subarea} onChange={e=>setProposals(current=>({...current,[item.id]:{...proposal,subarea:e.target.value}}))}>
                     <option value="">평가영역 집계 제외</option>
                     {AREAS.map(area=><optgroup key={area.code} label={area.name}>{area.subareas.map(name=><option key={name}>{name}</option>)}</optgroup>)}

@@ -23,7 +23,11 @@ assert.equal(nextWorkStatus({subarea:'옛 분류',workStatus:previousStatus},{su
 console.log('[PASS] 분류만 변경하면 문항 수정·확인 상태 유지');
 assert.equal(nextWorkStatus({workStatus:previousStatus},{editedQuestion:'전체 검토 수정',confirmReview:true},{id:'lead:school',label:'연구부장',color:'purple'},new Date().toISOString()),previousStatus);
 assert.equal(nextWorkStatus({},{editedQuestion:'연구부장 작성'},{id:'lead:school',label:'다른 표시 이름',color:'purple'},new Date().toISOString()),undefined);
-console.log('[PASS] 연구부장 수정은 부장 기록을 덮어쓰거나 새 색상 기록을 만들지 않음');
+assert.equal(nextWorkStatus({},{confirmReview:true},{id:'lead:school',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
+assert.equal(nextWorkStatus({audience:'parent'},{confirmReview:true},{id:'lead:school',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
+const leftoverLead={kind:'confirmed',actorId:'lead:school',label:'연구부장',color:'purple',at:'2026-01-01T00:00:00.000Z'};
+assert.equal(nextWorkStatus({workStatus:leftoverLead},{confirmReview:true},{id:'lead:school',label:'연구부장',color:'purple'},new Date().toISOString()),undefined);
+console.log('[PASS] 연구부장 수정은 기록에 남기지 않고 부장 기록만 유지');
 let count = 0;
 async function check(name, fn) { await fn(); count++; console.log('[PASS]', name); }
 (async () => {

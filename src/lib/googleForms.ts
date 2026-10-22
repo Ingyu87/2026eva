@@ -15,6 +15,7 @@ import {
   type SurveyDraft
 } from "./types";
 import { groupByAudience } from "./draftItems";
+import { isDuplicateGradeQuestion } from "./googleFormReady";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -317,7 +318,11 @@ async function createGoogleFormForAudience(
   }
 
   const questionLinks: GoogleFormQuestionLink[] = [];
-  for (const item of items.slice().sort((a, b) => a.order - b.order)) {
+  const formItems = items
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .filter((item) => !(audience === "student" && studentGrades.length > 0 && isDuplicateGradeQuestion(item)));
+  for (const item of formItems) {
     const builtItem = questionItem(
       item.editedQuestion || item.originalQuestion,
       "",

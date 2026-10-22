@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 require('./load-ts.cjs');
 const { createGoogleFormsByAudienceFromDraft } = require('../src/lib/googleForms.ts');
+const { isDuplicateGradeQuestion, googleFormReadyIssues } = require('../src/lib/googleFormReady.ts');
+assert.equal(isDuplicateGradeQuestion({ editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }), true);
+assert.equal(googleFormReadyIssues([{ audience: 'student', editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }]).length, 0);
 
 // 실제 장애였던 UUID 전송을 차단하고, Google 응답 ID와 앱 문항 연결을 검증합니다.
 const requestsSeen = [];
@@ -15,7 +18,10 @@ global.fetch = async (url, options) => {
 };
 (async () => {
   const draft = { id: 'uuid-with-hyphens', title: '가상 설문', schoolName: '검증용', studentGrades: [4, 5, 6], introByAudience: { teacher: '교원 안내', student: '학생 안내' } };
-  const items = ['teacher', 'student'].map(audience => ({ id: 'app-' + audience, audience, editedQuestion: '가상 문항', responseType: 'likert_5', order: 1, area: '영역', subarea: '세부영역', indicator: '지표' }));
+  const items = [
+    ...['teacher', 'student'].map(audience => ({ id: 'app-' + audience, audience, editedQuestion: '가상 문항', responseType: 'likert_5', order: 1, area: '영역', subarea: '세부영역', indicator: '지표' })),
+    { id: 'app-grade-dup', audience: 'student', editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'], order: 0, area: '', subarea: '', indicator: '학교 자체 문항' }
+  ];
   const forms = await createGoogleFormsByAudienceFromDraft(draft, items, 'fake-token');
   assert.equal(forms.teacher.questionLinks[0].itemId, '101');
   assert.equal(forms.teacher.questionLinks[0].selectedQuestionId, 'app-teacher');
