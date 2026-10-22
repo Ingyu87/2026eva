@@ -113,6 +113,17 @@ async function check(name, fn) { await fn(); count++; console.log('[PASS]', name
   await store.revokeBuilderInvite('fake-review-school',invite.token);
   await assert.rejects(store.assignDraftItems('fake-review-school',draft.id,invite.token,[{id:'two',rev:1}]),store.ForbiddenError);
  });
+ await check('지운 문항은 표식만 남기고 대상별로 되돌린다', async () => {
+  const [row]=await store.createDraftItems(draft.id,[{...item('student-restore'),audience:'student',id:'student-restore'}]);
+  await store.deleteDraftItem(draft.id,row.id,row.rev);
+  const hidden=await store.getDraftBundle('fake-review-school','가상 검증 학교');
+  assert.equal(hidden.items.some(entry=>entry.id===row.id),false);
+  assert.ok((hidden.deletedCounts?.student ?? 0) >= 1);
+  const restored=await store.restoreDeletedItems(draft.id,'student');
+  assert.equal(restored.some(entry=>entry.id===row.id && !entry.deleted),true);
+  const live=await store.getDraftBundle('fake-review-school','가상 검증 학교');
+  assert.equal(live.items.some(entry=>entry.id===row.id),true);
+ });
 
  const actor={id:'actor-test',label:'수정자표시검증전용',color:'purple'};
  const [original]=await store.createDraftItems(draft.id,[{...item('status'),workStatus:{kind:'edited',label:'위조',at:'fake',color:'blue'}}]);

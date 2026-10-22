@@ -65,7 +65,18 @@ export function Workspace({
   const workspace = useDraftWorkspace(true);
   const draft = workspace.draft;
 
-  const [activeAudience, setActiveAudience] = useState<Audience>(builderAudience ?? "teacher");
+  const [activeAudience, setActiveAudience] = useState<Audience>(() => {
+    if (builderAudience) return builderAudience;
+    try {
+      const stored = localStorage.getItem("school-eval-audience");
+      if (stored && (AUDIENCES as readonly string[]).includes(stored)) return stored as Audience;
+    } catch { /* 저장이 막혀도 교원 탭으로 시작합니다. */ }
+    return "teacher";
+  });
+  useEffect(() => {
+    if (isBuilder) return;
+    try { localStorage.setItem("school-eval-audience", activeAudience); } catch { /* 무시 */ }
+  }, [activeAudience, isBuilder]);
   const [activeScreen, setActiveScreen] = useState<"build" | "preview" | "analyze" | "annual-start">("build");
   const [showExamplesOverride, setShowExamplesOverride] = useState<boolean | null>(null);
   const hasPriorItems = workspace.items.some(item => item.sourceQuestionId.startsWith("prior-"));
@@ -562,7 +573,7 @@ export function Workspace({
                 type="button"
                 className="ws-btn ws-btn--primary"
                 onClick={() => {
-                  const formIssues = googleFormReadyIssues(workspace.items);
+                  const formIssues = googleFormReadyIssues(workspace.items, workspace.draft ?? undefined);
                   if (formIssues.length > 0) {
                     setNotice(formIssues[0]);
                     return;
@@ -650,6 +661,14 @@ export function Workspace({
             canModify={isBuilder && builderAudience ? (item) => item.audience === builderAudience : undefined}
             ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
             trackReview={isBuilder}
+            deletedCount={isBuilder ? 0 : workspace.deletedCounts[activeAudience] ?? 0}
+            onRestoreDeleted={isBuilder ? undefined : () => {
+              void workspace.restoreDeleted(activeAudience).then((count) => {
+                setNotice(count > 0 ? `지운 ${AUDIENCE_SHORT_LABELS[activeAudience]} 문항 ${count}개를 되돌렸습니다.` : "되돌릴 문항이 없습니다.");
+              }).catch((error: unknown) => {
+                setNotice(error instanceof Error ? error.message : "되돌리지 못했습니다.");
+              });
+            }}
           />
         </ResizableColumns>
       ) : activeScreen === "preview" ? (

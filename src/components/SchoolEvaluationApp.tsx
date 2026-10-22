@@ -251,7 +251,7 @@ export function SchoolEvaluationApp({ temporaryStorage = false }: { temporarySto
             </div>
             <div className="ws-modal-body">
               <p role={error ? "alert" : "status"}>{error || status}</p>
-              {error ? <p>저장한 설문 문항은 유지됩니다. 위 오류 내용을 확인한 뒤 다시 시도해 주세요.</p> : null}
+              {error ? <p>저장한 설문 문항은 유지됩니다. 학생 탭의 숫자를 확인하세요. 비어 있으면 ‘지운 문항 되돌리기’를 누르세요.</p> : null}
             </div>
           </div>
         </div>

@@ -17,10 +17,14 @@ export function isDuplicateGradeQuestion(item: Pick<SelectedQuestion, "editedQue
 }
 
 export function googleFormReadyIssues(
-  items: Array<Pick<SelectedQuestion, "audience" | "editedQuestion" | "originalQuestion" | "responseType" | "choices" | "deleted">>
+  items: Array<Pick<SelectedQuestion, "audience" | "editedQuestion" | "originalQuestion" | "responseType" | "choices" | "deleted">>,
+  draft?: { studentGrades?: number[] }
 ): string[] {
   const live = items.filter((item) => !item.deleted);
   const issues: string[] = [];
+  if (live.some((item) => item.audience === "student") && !(draft?.studentGrades && draft.studentGrades.length > 0)) {
+    issues.push("설정(⚙)에서 학생 설문 학년을 먼저 고르세요. 학생용 폼 맨 앞에 학년 문항이 들어갑니다.");
+  }
   for (const item of live) {
     if (item.audience === "student" && isDuplicateGradeQuestion(item)) {
       continue;

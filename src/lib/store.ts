@@ -542,18 +542,22 @@ export async function getDraftBundle(schoolId: string, schoolName: string): Prom
   const draft = await getOrCreateDraft(schoolId, schoolName);
   const db = getFirebaseDb();
 
-  const items: SelectedQuestion[] = db
+  const allItems: SelectedQuestion[] = db
     ? (await db.collection(DRAFTS).doc(draft.id).collection(ITEMS).get()).docs
         .map((doc) => hydrateItem(doc.id, doc.data()))
-        .filter((item) => !item.deleted)
-    : Array.from(memoryStateFor(draft.id).items.values()).filter((item) => !item.deleted);
+    : Array.from(memoryStateFor(draft.id).items.values());
+  const items = allItems.filter((item) => !item.deleted);
+  const deletedCounts = AUDIENCES.reduce((acc, audience) => {
+    acc[audience] = allItems.filter((item) => item.deleted && item.audience === audience).length;
+    return acc;
+  }, {} as Record<Audience, number>);
 
   const since = [draft.updatedAt, ...items.map((item) => item.updatedAt)].reduce(
     (max, value) => (value > max ? value : max),
     draft.updatedAt
   );
 
-  return { draft, items, since };
+  return { draft, items, since, deletedCounts };
 }
 
 /**
@@ -876,6 +880,46 @@ export async function deleteDraftItem(
     updatedAt: now,
     updatedBy
   });
+}
+
+/** 삭제 표식만 남은 문항을 다시 살립니다. 문장 내용은 그대로입니다. */
+export async function restoreDeletedItems(
+  draftId: string,
+  audience: Audience
+): Promise<SelectedQuestion[]> {
+  const now = nowIso();
+  const db = getFirebaseDb();
+
+  if (db) {
+    const snapshot = await db.collection(DRAFTS).doc(draftId).collection(ITEMS).where("deleted", "==", true).get();
+    const targets = snapshot.docs
+      .map((doc) => hydrateItem(doc.id, doc.data()))
+      .filter((item) => item.audience === audience);
+    if (targets.length === 0) {
+      return [];
+    }
+    const restored: SelectedQuestion[] = [];
+    const batch = db.batch();
+    for (const item of targets) {
+      const next = { ...item, deleted: false, rev: item.rev + 1, updatedAt: now };
+      batch.set(db.collection(DRAFTS).doc(draftId).collection(ITEMS).doc(item.id), next, { merge: true });
+      restored.push(next);
+    }
+    await batch.commit();
+    return restored;
+  }
+
+  const state = memoryStateFor(draftId);
+  const restored: SelectedQuestion[] = [];
+  for (const [id, item] of state.items.entries()) {
+    if (!item.deleted || item.audience !== audience) {
+      continue;
+    }
+    const next = { ...item, deleted: false, rev: item.rev + 1, updatedAt: now };
+    state.items.set(id, next);
+    restored.push(next);
+  }
+  return restored;
 }
 
 /** 보관 기간이 지난 삭제 표식을 정리합니다. */

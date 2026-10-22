@@ -130,6 +130,12 @@ export function useDraftWorkspace(enabled: boolean) {
   const [conflict, setConflict] = useState<DraftConflict | null>(null);
   const [displayName, setDisplayNameState] = useState<string>("");
   const [pendingCount, setPendingCount] = useState(0);
+  const [deletedCounts, setDeletedCounts] = useState<Record<Audience, number>>({
+    teacher: 0,
+    parent: 0,
+    student: 0,
+    staff: 0
+  });
 
   const sinceRef = useRef<string | null>(null);
   const draftIdRef = useRef<string | null>(null);
@@ -390,6 +396,9 @@ export function useDraftWorkspace(enabled: boolean) {
         itemsRef.current = bundle.items;
         draftRef.current = restoredDraft;
         setItems(bundle.items);
+        if (bundle.deletedCounts) {
+          setDeletedCounts(bundle.deletedCounts);
+        }
         // 지난번에 못 보낸 편집이 남아 있으면 자동으로 이어서 보냅니다.
         if (refreshPending(bundle.draft.id) > 0) {
           void flush();
@@ -571,11 +580,28 @@ export function useDraftWorkspace(enabled: boolean) {
 
   const removeItem = useCallback(
     (itemId: string) => {
+      const target = itemsRef.current.find((item) => item.id === itemId);
       setItems((current) => current.filter((item) => item.id !== itemId));
+      if (target) {
+        setDeletedCounts((current) => ({
+          ...current,
+          [target.audience]: (current[target.audience] ?? 0) + 1
+        }));
+      }
       push({ kind: "delete", opId: newOpId(), itemId });
     },
     [push]
   );
+
+  const restoreDeleted = useCallback(async (audience: Audience) => {
+    const data = await call<{ items: SelectedQuestion[] }>("/api/draft/restore", {
+      method: "POST",
+      body: JSON.stringify({ audience })
+    });
+    acceptWrite(data.items);
+    setDeletedCounts((current) => ({ ...current, [audience]: 0 }));
+    return data.items.length;
+  }, [acceptWrite]);
 
   /**
    * 문항을 한 칸 옮깁니다.
@@ -667,6 +693,8 @@ export function useDraftWorkspace(enabled: boolean) {
     addItems,
     patchItem,
     removeItem,
+    restoreDeleted,
+    deletedCounts,
     moveItem,
     resolveConflict,
     retryNow,

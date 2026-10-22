@@ -3,7 +3,8 @@ require('./load-ts.cjs');
 const { createGoogleFormsByAudienceFromDraft } = require('../src/lib/googleForms.ts');
 const { isDuplicateGradeQuestion, googleFormReadyIssues } = require('../src/lib/googleFormReady.ts');
 assert.equal(isDuplicateGradeQuestion({ editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }), true);
-assert.equal(googleFormReadyIssues([{ audience: 'student', editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }]).length, 0);
+assert.equal(googleFormReadyIssues([{ audience: 'student', editedQuestion: '현재 몇 학년입니까?', responseType: 'choice_single', choices: ['4학년', '5학년', '6학년'] }], { studentGrades: [4, 5, 6] }).length, 0);
+assert.match(googleFormReadyIssues([{ audience: 'student', editedQuestion: '가상 문항', responseType: 'likert_5' }])[0], /학생 설문 학년/);
 
 // 실제 장애였던 UUID 전송을 차단하고, Google 응답 ID와 앱 문항 연결을 검증합니다.
 const requestsSeen = [];

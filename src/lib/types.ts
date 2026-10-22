@@ -279,6 +279,8 @@ export type DraftBundle = {
   items: SelectedQuestion[];
   /** 다음 동기화 요청에 그대로 되돌려 보낼 커서. */
   since: string;
+  /** 삭제 표식만 남은 문항 수. 구글폼 실패로는 생기지 않으며, 비우기를 되돌릴 때 씁니다. */
+  deletedCounts?: Record<Audience, number>;
 };
 
 /** 같은 초안을 보고 있는 다른 사람. 30초간 갱신이 없으면 사라집니다. */

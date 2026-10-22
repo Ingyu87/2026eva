@@ -75,7 +75,9 @@ export function SelectedPanel({
   onEditingChange,
   canModify,
   ownerTag,
-  trackReview = false
+  trackReview = false,
+  deletedCount = 0,
+  onRestoreDeleted
 }: {
   draftId: string;
   classificationEnabled?: boolean;
@@ -99,6 +101,8 @@ export function SelectedPanel({
   ownerTag?: (item: SelectedQuestion) => string | null;
   /** 부장 링크에서만 켭니다. 연구부장은 전체 검토를 하므로 확인 기록을 남기지 않습니다. */
   trackReview?: boolean;
+  deletedCount?: number;
+  onRestoreDeleted?: () => void;
 }) {
   const [proposals,setProposals]=useState<Record<string,{subarea:string;responseType:ResponseType;rev:number}>>({});
   const [reviewOnly,setReviewOnly]=useState(false);
@@ -230,6 +234,11 @@ export function SelectedPanel({
           <div className="ws-empty">
             <p>담은 문항이 없습니다.</p>
             <p className="ws-hint">{showExamples ? "가운데에서 문항을 클릭하면 여기에 담깁니다." : "‘예시문항에서 추가’를 누르면 예시를 고르거나 새 문항을 직접 작성할 수 있습니다."}</p>
+            {deletedCount > 0 && onRestoreDeleted ? (
+              <button type="button" className="ws-btn ws-btn--primary" onClick={onRestoreDeleted}>
+                지운 {deletedCount}개 문항 되돌리기
+              </button>
+            ) : null}
           </div>
         ) : (
           items.map((item, index) => {
