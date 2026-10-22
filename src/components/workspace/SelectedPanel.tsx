@@ -18,6 +18,7 @@ import {
   RESPONSE_TYPE_LABELS,
   RESPONSE_TYPES,
   needsChoices,
+  isFormRequired,
   type ResponseType,
   type SelectedQuestionPatch,
   type BuilderInviteSummary,
@@ -369,6 +370,27 @@ export function SelectedPanel({
                       onChange={(patch) => onPatch(item.id, patch)}
                     />
 
+                    <div className="ws-field">
+                      <span>구글폼 응답</span>
+                      <div className="ws-grade-row">
+                        <button
+                          type="button"
+                          className={isFormRequired(item) ? "ws-btn ws-btn--primary" : "ws-btn ws-btn--soft"}
+                          onClick={() => onPatch(item.id, { required: true })}
+                        >
+                          필수
+                        </button>
+                        <button
+                          type="button"
+                          className={isFormRequired(item) ? "ws-btn ws-btn--soft" : "ws-btn ws-btn--primary"}
+                          onClick={() => onPatch(item.id, { required: false })}
+                        >
+                          선택
+                        </button>
+                      </div>
+                      <p className="ws-hint">선택으로 두면 해당되는 사람만 답하면 됩니다. 학부모 일부 문항에 씁니다.</p>
+                    </div>
+
                     {/* 평가지표별 담당부서 지정 — 기본계획 Ⅴ-3-나-3, 서식1 */}
                     <input
                       className="ws-input"
@@ -386,6 +408,7 @@ export function SelectedPanel({
                     <p className="ws-item-text">{item.editedQuestion}</p>
                     <p className="ws-item-scale">
                       {previewOptions(item.responseType, item.choices)}
+                      {isFormRequired(item) ? "" : " · 선택 응답"}
                     </p>
                   </>
                 )}

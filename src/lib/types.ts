@@ -71,6 +71,17 @@ export function needsChoices(type: ResponseType): boolean {
   return type === "choice_single" || type === "checklist";
 }
 
+/** 구글폼에서 답을 꼭 받아야 하는지. 값을 안 정하면 필수입니다. */
+export function isFormRequired(item: { required?: boolean }): boolean {
+  return item.required !== false;
+}
+
+/** 설문지·미리보기에 쓰는 문항 제목. 선택 응답이면 표시를 붙입니다. */
+export function surveyQuestionText(item: Pick<SelectedQuestion, "editedQuestion" | "originalQuestion" | "required">): string {
+  const title = item.editedQuestion || item.originalQuestion;
+  return isFormRequired(item) ? title : `${title} (선택)`;
+}
+
 /**
  * 영역 평균점수 계산에 들어가는 유형인지.
  *
@@ -132,6 +143,11 @@ export type SelectedQuestion = {
   responseType: ResponseType;
   /** 선택형일 때의 보기 목록. */
   choices?: string[];
+  /**
+   * 구글폼에서 필수 응답인지. 없으면 필수입니다.
+   * 학부모 일부 문항처럼 해당되는 사람만 답하면 되면 false로 둡니다.
+   */
+  required?: boolean;
   /** 평가지표 담당부서. (기본계획 Ⅴ-3-나-3, 서식1) */
   department?: string;
   /** 분수 인덱스. 이동·삽입 시 자기 문서 하나만 쓰기 위해 실수를 사용합니다. */
@@ -164,6 +180,7 @@ export type SelectedQuestionPatch = Partial<
     | "audience"
     | "choices"
     | "department"
+    | "required"
   >
 > & { confirmReview?: boolean };
 
@@ -183,7 +200,7 @@ export type NewSelectedQuestion = Pick<
   | "responseType"
   | "order"
 > &
-  Partial<Pick<SelectedQuestion, "choices" | "department">>;
+  Partial<Pick<SelectedQuestion, "choices" | "department" | "required">>;
 
 /**
  * 문항 하나가 구글폼의 어느 문항으로 만들어졌는지 기록한 연결표.

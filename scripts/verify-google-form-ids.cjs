@@ -29,6 +29,11 @@ global.fetch = async (url, options) => {
   assert.equal(forms.student.gradeQuestion.itemId, '101');
   assert.equal(forms.student.questionLinks[0].itemId, '102');
   assert.equal(forms.student.questionLinks[0].selectedQuestionId, 'app-student');
+  assert.equal(requestsSeen[0][1].createItem.item.questionItem.question.required, true);
   assert.equal(requestsSeen[1][1].createItem.item.questionItem.question.required, true);
-  console.log('PASS: Google 발급 ID 연결, 대상별 위치, 학생 필수 학년 문항');
+  const optional = { id: 'app-optional', audience: 'parent', editedQuestion: '해당되는 분만 답하세요', responseType: 'text', order: 1, area: '영역', subarea: '세부영역', indicator: '지표', required: false };
+  await createGoogleFormsByAudienceFromDraft({ ...draft, title: '선택 검증' }, [optional], 'fake-token');
+  const optionalRequest = requestsSeen[requestsSeen.length - 1].find(request => request.createItem?.item?.questionItem);
+  assert.equal(optionalRequest.createItem.item.questionItem.question.required, false);
+  console.log('PASS: Google 발급 ID 연결, 대상별 위치, 학생 필수 학년 문항, 선택 응답');
 })().catch(e => { console.error(e); process.exitCode = 1; });

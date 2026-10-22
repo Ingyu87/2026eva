@@ -23,7 +23,8 @@ import {
   LIKERT_5_OPTIONS,
   YES_NO_OPTIONS,
   type SelectedQuestion,
-  type SurveyDraft
+  type SurveyDraft,
+  surveyQuestionText
 } from "./types";
 import { groupByAudience } from "./draftItems";
 
@@ -81,7 +82,7 @@ export function cell(children: Paragraph[], width: number): TableCell {
 }
 
 function questionParagraphs(question: SelectedQuestion): Paragraph[] {
-  const paragraphs = [textParagraph(question.editedQuestion || question.originalQuestion)];
+  const paragraphs = [textParagraph(surveyQuestionText(question))];
 
   if (question.responseType === "likert_5") {
     paragraphs.push(textParagraph(LIKERT_5_OPTIONS.map((option, index) => `${index + 1}. ${option}`).join("  ")));
@@ -151,7 +152,7 @@ function sectionForAudience(
         cantSplit: true,
         children: [
           surveyCell([centered(String(index + 1))], widths[0]),
-          surveyCell(scale ? [textParagraph(question.editedQuestion || question.originalQuestion)] : questionParagraphs(question), widths[1]),
+          surveyCell(scale ? [textParagraph(surveyQuestionText(question))] : questionParagraphs(question), widths[1]),
           ...(scale ? LIKERT_5_OPTIONS.map(() => surveyCell([centered("")], scaleWidth)) : [])
         ]
       }));

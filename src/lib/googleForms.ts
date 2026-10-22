@@ -12,7 +12,8 @@ import {
   type GoogleFormQuestionLink,
   type ResponseType,
   type SelectedQuestion,
-  type SurveyDraft
+  type SurveyDraft,
+  isFormRequired
 } from "./types";
 import { groupByAudience } from "./draftItems";
 import { isDuplicateGradeQuestion } from "./googleFormReady";
@@ -175,7 +176,8 @@ function questionItem(
   description: string,
   responseType: ResponseType,
   choices: string[] | undefined,
-  itemId: string
+  itemId: string,
+  required: boolean
 ) {
   const safeTitle = formsSingleLineText(title, " ");
   const safeDescription = formsSingleLineText(description, " ");
@@ -185,7 +187,7 @@ function questionItem(
       description: safeDescription,
       questionItem: {
         question: {
-          required: false,
+          required,
           textQuestion: {
             paragraph: true
           }
@@ -195,10 +197,10 @@ function questionItem(
   }
 
   if (responseType === "likert_3") {
-    return choiceItem(safeTitle, safeDescription, LIKERT_3_OPTIONS, "RADIO", false, itemId);
+    return choiceItem(safeTitle, safeDescription, LIKERT_3_OPTIONS, "RADIO", required, itemId);
   }
   if (responseType === "yes_no") {
-    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO", false, itemId);
+    return choiceItem(safeTitle, safeDescription, YES_NO_OPTIONS, "RADIO", required, itemId);
   }
 
   // 선택형은 학교가 쓴 보기를 씁니다. 비어 있으면 폼 생성이 실패하므로 막아 둡니다.
@@ -212,12 +214,12 @@ function questionItem(
       safeDescription,
       options,
       responseType === "checklist" ? "CHECKBOX" : "RADIO",
-      false,
+      required,
       itemId
     );
   }
 
-  return choiceItem(safeTitle, safeDescription, LIKERT_5_OPTIONS, "RADIO", false, itemId);
+  return choiceItem(safeTitle, safeDescription, LIKERT_5_OPTIONS, "RADIO", required, itemId);
 }
 
 /** 학생용 폼 맨 앞에 넣는 학년 분류 문항. 학년별 결과 분해의 전제라 필수·단일 선택입니다. */
@@ -328,7 +330,8 @@ async function createGoogleFormForAudience(
       "",
       item.responseType,
       item.choices,
-      item.id
+      item.id,
+      isFormRequired(item)
     );
     requests.push({
       createItem: {
@@ -409,7 +412,7 @@ export async function createGoogleFormsByAudienceFromDraft(
     const sourceFingerprint = createHash("sha256").update(JSON.stringify({
       title: draft.title, schoolName: draft.schoolName, intro: draft.introByAudience[audience],
       grades: audience === "student" ? draft.studentGrades : undefined,
-      items: items.slice().sort((a, b) => a.order - b.order).map(item => ({ id: item.id, question: item.editedQuestion || item.originalQuestion, responseType: item.responseType, choices: item.choices }))
+      items: items.slice().sort((a, b) => a.order - b.order).map(item => ({ id: item.id, question: item.editedQuestion || item.originalQuestion, responseType: item.responseType, choices: item.choices, required: isFormRequired(item) }))
     })).digest("hex");
     const existing = draft.googleFormsByAudience?.[audience];
     if (existing?.sourceFingerprint === sourceFingerprint) {

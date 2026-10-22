@@ -94,7 +94,7 @@ export function SurveyPreview({ draft, audience, items, presence, onPatch, onMet
                     <button type="button" className="survey-preview-question" aria-label={`${number}번 문항 수정`}
                       ref={element => { if (element) buttons.current.set(item.id, element); else buttons.current.delete(item.id); }}
                       onClick={() => { setEditing(item.id); onEditingChange(item.id); }}>
-                      {item.editedQuestion || item.originalQuestion}
+                      {item.editedQuestion || item.originalQuestion}{item.required === false ? " (선택)" : ""}
                       <span className="survey-preview-edit-label">수정</span>
                     </button>
                     {editor ? <p className="ws-hint">{editor.displayName || "다른 사용자"} 수정 중</p> : null}

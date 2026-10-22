@@ -4,7 +4,7 @@ import { groupByAudience } from "./draftItems";
 import { docxFileName } from "./docxExport";
 import {
   AUDIENCES, AUDIENCE_LABELS, LIKERT_5_OPTIONS, LIKERT_3_OPTIONS, YES_NO_OPTIONS,
-  type SelectedQuestion, type SurveyDraft
+  type SelectedQuestion, type SurveyDraft, surveyQuestionText
 } from "./types";
 
 /** XML 1.0 text only: user-entered questions must never become HWPX markup. */
@@ -30,7 +30,7 @@ export async function buildSurveyHwpx(draft: SurveyDraft, items: SelectedQuestio
     `<hp:tc name="" header="${header ? 1 : 0}" hasMargin="1" protect="0" editable="0" dirty="0" borderFillIDRef="3"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${content}</hp:subList><hp:cellAddr colAddr="${col}" rowAddr="${row}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="${width}" height="1800"/><hp:cellMargin left="300" right="300" top="300" bottom="300"/></hp:tc>`
   ).replace('right="300" top="300"', `right="${col === 1 && !header ? 700 : 300}" top="300"`);
   const questionContent = (q: SelectedQuestion) => {
-    let content = paragraph(q.editedQuestion || q.originalQuestion);
+    let content = paragraph(surveyQuestionText(q));
     if (q.responseType === "text") return content + paragraph("답변:") + paragraph("");
     const options = q.responseType === "likert_3" ? LIKERT_3_OPTIONS
       : q.responseType === "yes_no" ? YES_NO_OPTIONS : q.choices ?? [];
@@ -45,7 +45,7 @@ export async function buildSurveyHwpx(draft: SurveyDraft, items: SelectedQuestio
     let rows = `<hp:tr>${labels.map((label, col) => cell(paragraph(label, 6, 14), 0, col, widths[col], true)).join("")}</hp:tr>`;
     questions.forEach((q, index) => {
       const row = index + 1;
-      rows += `<hp:tr>${cell(paragraph(String(firstNumber + index), 6, 15), row, 0, widths[0])}${cell(scale ? paragraph(q.editedQuestion || q.originalQuestion) : questionContent(q), row, 1, widths[1])}${scale ? widths.slice(2).map((width, col) => cell(paragraph("", 6, 15), row, col + 2, width)).join("") : ""}</hp:tr>`;
+      rows += `<hp:tr>${cell(paragraph(String(firstNumber + index), 6, 15), row, 0, widths[0])}${cell(scale ? paragraph(surveyQuestionText(q)) : questionContent(q), row, 1, widths[1])}${scale ? widths.slice(2).map((width, col) => cell(paragraph("", 6, 15), row, col + 2, width)).join("") : ""}</hp:tr>`;
     });
     const id = ++tableId;
     const control = `<hp:tbl id="${id}" zOrder="${id - 1001}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="TABLE" repeatHeader="1" rowCnt="${questions.length + 1}" colCnt="${widths.length}" cellSpacing="0" borderFillIDRef="3" noAdjust="0"><hp:sz width="49600" widthRelTo="ABSOLUTE" height="${(questions.length + 1) * 2400}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="0" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="150" bottom="150"/><hp:inMargin left="300" right="300" top="300" bottom="300"/>${rows}</hp:tbl>`;
