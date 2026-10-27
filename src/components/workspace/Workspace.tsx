@@ -453,6 +453,20 @@ export function Workspace({
     return true;
   };
 
+  /** 미리보기에서 문항 사이에 넣는다. 영역·지표는 이웃 문항을 따른다. */
+  const insertQuestionAt = ({ text, responseType, choices, order, neighbor }: {
+    text: string; responseType: ResponseType; choices?: string[]; order: number; neighbor?: SelectedQuestion;
+  }) => {
+    if (!confirmDuplicate(text, activeAudience)) return;
+    const id = `custom-${crypto.randomUUID()}`;
+    workspace.addItems([{
+      sourceQuestionId: id, groupId: id, audience: activeAudience, sourceRow: 0,
+      area: neighbor?.area ?? "", subarea: neighbor?.subarea ?? "", indicator: neighbor?.indicator ?? "학교 자체 문항",
+      originalQuestion: text, editedQuestion: text, responseType, choices, order
+    }]);
+    setNotice("문항을 추가했습니다.");
+  };
+
   const resetAudience = () => {
     const targets = itemsForAudience(workspace.items, activeAudience);
     if (targets.length === 0) {
@@ -748,6 +762,7 @@ export function Workspace({
       ) : activeScreen === "preview" ? (
         <SurveyPreview key={activeAudience} draft={draft} audience={activeAudience} items={selectedItems}
           presence={workspace.presence} onPatch={workspace.patchItem} onMeta={isBuilder ? undefined : workspace.setMeta}
+          onInsert={isBuilder ? undefined : insertQuestionAt}
           onEditingChange={workspace.setEditingItemId} />
       ) : activeScreen === "annual-start" ? (
         <main className="ra-main">

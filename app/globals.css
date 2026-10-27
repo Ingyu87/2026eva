@@ -1030,6 +1030,11 @@ dialog.ws-download-dialog::backdrop { background: var(--bg-overlay); }
 .survey-preview-question:hover, .survey-preview-question:focus-visible { background: var(--brand-050); outline: 2px solid var(--brand-200); }
 .survey-preview-edit-label { display: inline-block; margin-left: var(--sp-2); font-size: var(--fs-caption); color: var(--brand-700); }
 .survey-preview-edit { background: var(--brand-050); }
+.survey-preview-table .survey-preview-slot td { padding: 0; border-style: dashed; border-color: var(--line); }
+.survey-preview-add { display: block; width: 100%; padding: var(--sp-1) var(--sp-3); text-align: center; font-size: var(--fs-caption); color: var(--text-muted); opacity: 0.5; }
+.survey-preview-add:hover, .survey-preview-add:focus-visible { opacity: 1; color: var(--brand-700); background: var(--brand-050); outline: 2px solid var(--brand-200); }
+.survey-preview-slot .ws-form { padding: var(--sp-3); }
+.survey-preview-slot-actions { display: flex; gap: var(--sp-2); }
 .survey-preview-options { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
 .survey-preview-answer { width: 100%; padding: var(--sp-4); border-bottom: 1px solid var(--line-strong); color: var(--text-muted); }
 .survey-preview-caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
