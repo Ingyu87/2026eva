@@ -8,7 +8,7 @@ import { ResultsAnalysis } from "@/components/results/ResultsAnalysis";
 import { useDraftWorkspace } from "@/hooks/useDraftWorkspace";
 import { countByAudience, itemsForAudience } from "@/lib/draftItems";
 import { googleFormReadyIssues, isDuplicateGradeQuestion } from "@/lib/googleFormReady";
-import { orderForPrepend } from "@/lib/order";
+import { orderBetween, orderForPrepend } from "@/lib/order";
 import { confirmCoverageGaps, placementFromSubarea } from "@/lib/evaluationFramework";
 import { questionBank } from "@/lib/questionBank";
 import {
@@ -750,6 +750,11 @@ export function Workspace({
             ownerTag={(item) => item.ownerLabel ?? (isBuilder ? "연구부장" : null)}
             trackReview={isBuilder}
             deletedCount={isBuilder ? 0 : workspace.deletedCounts[activeAudience] ?? 0}
+            onInsert={isBuilder ? undefined : (index, question) => insertQuestionAt({
+              ...question,
+              order: orderBetween(selectedItems[index - 1]?.order ?? null, selectedItems[index]?.order ?? null),
+              neighbor: selectedItems[index - 1] ?? selectedItems[index]
+            })}
             onRestoreDeleted={isBuilder ? undefined : () => {
               void workspace.restoreDeleted(activeAudience).then((count) => {
                 setNotice(count > 0 ? `지운 ${AUDIENCE_SHORT_LABELS[activeAudience]} 문항 ${count}개를 되돌렸습니다.` : "되돌릴 문항이 없습니다.");

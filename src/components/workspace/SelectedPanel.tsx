@@ -3,7 +3,7 @@
 import { cachedRecommendations } from "@/lib/recommendationCache";
 
 import { builderWorkStatus, workStatusText } from "@/lib/workStatus";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   AREAS,
   placementFromSubarea,
@@ -12,6 +12,7 @@ import {
   REQUIRED_AREA_CODES,
   SUBAREA_CHANGES_2025_TO_2026
 } from "@/lib/evaluationFramework";
+import { InsertQuestionSlot } from "./InsertQuestionSlot";
 import { SubareaField } from "./SubareaField";
 import {
   AUDIENCE_LABELS,
@@ -112,7 +113,8 @@ export function SelectedPanel({
   ownerTag,
   trackReview = false,
   deletedCount = 0,
-  onRestoreDeleted
+  onRestoreDeleted,
+  onInsert
 }: {
   draftId: string;
   classificationEnabled?: boolean;
@@ -138,6 +140,8 @@ export function SelectedPanel({
   trackReview?: boolean;
   deletedCount?: number;
   onRestoreDeleted?: () => void;
+  /** index번째 자리(0부터)에 새 문항을 넣는다. 없으면 추가 버튼을 보이지 않는다. */
+  onInsert?: (index: number, question: { text: string; responseType: ResponseType; choices?: string[] }) => void;
 }) {
   const [proposals,setProposals]=useState<Record<string,{subarea:string;responseType:ResponseType;rev:number}>>({});
   const [reviewOnly,setReviewOnly]=useState(false);
@@ -291,8 +295,9 @@ export function SelectedPanel({
             const tag = ownerTag ? ownerTag(item) : null;
             const visibleStatus = builderWorkStatus(item.workStatus);
             return (
+              <Fragment key={item.id}>
+              {onInsert && !reviewOnly ? <InsertQuestionSlot position={index + 1} onOpen={stopEdit} onSubmit={question => onInsert(index, question)} /> : null}
               <div
-                key={item.id}
                 className={
                   [visibleStatus ? `work-color-${visibleStatus.color}` : trackReview && !visibleStatus ? "work-pending" : "", editing ? "is-editing" : "", legacy ? "is-legacy" : "", mine ? "" : "is-locked"]
                     .filter(Boolean)
@@ -432,6 +437,8 @@ export function SelectedPanel({
                   </>
                 )}
               </div>
+              {onInsert && !reviewOnly && index === items.length - 1 ? <InsertQuestionSlot position={items.length + 1} onOpen={stopEdit} onSubmit={question => onInsert(items.length, question)} /> : null}
+              </Fragment>
             );
           })
         )}

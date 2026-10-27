@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { orderBetween } from "@/lib/order";
 import { AUDIENCE_LABELS, LIKERT_3_OPTIONS, LIKERT_5_OPTIONS, YES_NO_OPTIONS,
   type Audience, type Presence, type ResponseType, type SelectedQuestion, type SelectedQuestionPatch, type SurveyDraft, type SurveyDraftPatch } from "@/lib/types";
+import { InsertQuestionSlot } from "./InsertQuestionSlot";
 import { ResponseTypeEditor } from "./ResponseTypeEditor";
 
 /** 인쇄물의 내용·순서를 보여 주되 저장은 기존 문항별 큐에만 맡긴다. */
@@ -21,9 +22,6 @@ export function SurveyPreview({ draft, audience, items, presence, onPatch, onMet
   const [editing, setEditing] = useState<string | null>(null);
   const [editIntro, setEditIntro] = useState(false);
   const [jump, setJump] = useState("");
-  const [inserting, setInserting] = useState<number | null>(null);
-  const [newText, setNewText] = useState("");
-  const [newType, setNewType] = useState<{ responseType: ResponseType; choices?: string[] }>({ responseType: "likert_5" });
   const rows = useRef(new Map<string, HTMLTableRowElement>());
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   useEffect(() => () => onEditingChange(undefined), [onEditingChange]);
@@ -37,33 +35,13 @@ export function SurveyPreview({ draft, audience, items, presence, onPatch, onMet
     setEditing(null); onEditingChange(undefined);
     if (previous) requestAnimationFrame(() => buttons.current.get(previous)?.focus());
   };
-  const closeInsert = () => { setInserting(null); setNewText(""); setNewType({ responseType: "likert_5" }); };
-  const submitInsert = (index: number) => {
-    const text = newText.trim();
-    if (!text || !onInsert) return;
-    const before = items[index - 1]?.order ?? null;
-    const after = items[index]?.order ?? null;
-    const choices = newType.choices?.map(choice => choice.trim()).filter(Boolean);
-    onInsert({ text, responseType: newType.responseType, choices: choices?.length ? choices : undefined,
-      order: orderBetween(before, after), neighbor: items[index - 1] ?? items[index] });
-    closeInsert();
+  const submitInsert = (index: number, question: { text: string; responseType: ResponseType; choices?: string[] }) => {
+    onInsert?.({ ...question, order: orderBetween(items[index - 1]?.order ?? null, items[index]?.order ?? null), neighbor: items[index - 1] ?? items[index] });
   };
   /** index번 문항 앞(= index-1번과 index번 사이)에 넣는 자리. */
   const insertSlot = (index: number, colSpan: number) => !onInsert ? null : <tr className="survey-preview-slot" key={`slot-${index}`}>
-    <td colSpan={colSpan}>{inserting === index ? <div className="ws-form survey-preview-edit"
-      onKeyDown={event => { if (event.key === "Escape" && !event.nativeEvent.isComposing) closeInsert(); }}>
-      <label className="ws-field"><span>{index + 1}번 자리에 새 문항 추가</span>
-        <textarea className="ws-textarea" rows={3} autoFocus value={newText} onChange={event => setNewText(event.target.value)} />
-      </label>
-      <ResponseTypeEditor responseType={newType.responseType} choices={newType.choices}
-        onChange={patch => setNewType(current => ({ ...current, ...patch }))} />
-      <div className="survey-preview-slot-actions">
-        <button type="button" className="ws-btn ws-btn--primary" disabled={!newText.trim()} onClick={() => submitInsert(index)}>문항 추가</button>
-        <button type="button" className="ws-btn ws-btn--soft" onClick={closeInsert}>취소</button>
-      </div>
-    </div> : <button type="button" className="survey-preview-add" onClick={() => { setEditing(null); onEditingChange(undefined); setInserting(index); }}>
-      ＋ 여기에 문항 추가<span className="survey-preview-caption"> ({index + 1}번 자리)</span>
-    </button>}</td>
+    <td colSpan={colSpan}><InsertQuestionSlot position={index + 1}
+      onOpen={() => { setEditing(null); onEditingChange(undefined); }} onSubmit={question => submitInsert(index, question)} /></td>
   </tr>;
   const groups: { scale: boolean; start: number; items: SelectedQuestion[] }[] = [];
   items.forEach((item, index) => {
