@@ -136,23 +136,18 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
       {analysis.result ? (
         <ResultSection step="opinion" title="4. 평가 의견 작성">
 
-          <p className="ws-hint">학교평가위원회에서 확인한 우수한 점과 개선할 점을 작성하세요. 내려받은 DOCX는 한글·Word에서 열어 수정할 수 있습니다. 수정 후 표와 쪽 나눔을 확인하세요.</p>
-          <details className="ra-ai-options"><summary>평가 의견 작성 요령과 예시</summary>
-            <p>평가 결과에는 확인한 사실을, 원인에는 근거가 있는 설명을 적습니다. 개선 방안에는 할 일·담당·시기와 다음 연도 교육계획에 반영할 방법을 적으세요. 점수 차이만으로 원인을 단정하지 마세요.</p>
-            <p><strong>가상 예시 — 실제 결과로 복사하지 마세요.</strong> 안내 방식 개선이 필요한 경우, 설문과 안내 기록을 대조하고 → 확인된 원인 또는 추가 확인할 사항을 적고 → 담당 부서가 다음 학기 안내 일정과 전달 방법을 교육계획에 반영하도록 작성할 수 있습니다.</p>
-            <p>우수한 점은 계속할 활동과 근거를, 개선할 점은 바꿀 활동과 확인 방법을 구체적으로 적으세요.</p>
-          </details>
+          <p className="ws-hint">결과를 분석해 우수한 점·개선할 점을 각각 2개 이상 작성하고 교육청 지원 요청까지 채웁니다. 작성된 내용을 수정하고 공식 양식의 평가서로 내려받으세요.</p>
           {!draftAnalysis ? <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || reviewDirty} onClick={() => { setDraftAnalysis(emptyManualAnalysis()); setDirty(true); }}>AI 없이 직접 작성</button> : null}
-          <details className="ra-ai-options"><summary>AI 초안 도움받기 (선택)</summary>
-          <p className="ws-hint">Google Gemini에 학교명, 문항, 계산된 점수와 아래 학교 활동을 보냅니다. 서술형 응답 원문은 보내지 않습니다. 이름·연락처 등 개인정보를 학교 활동에 넣지 마세요. AI 의견은 근거와 실제 운영 내용을 확인한 뒤 사용하세요.</p>
+          <div className="ra-ai-options"><h3 className="ws-group-title">평가 결과로 학교평가서 작성</h3>
+          <p className="ws-hint">Google Gemini에 학교명, 문항, 계산된 점수, 서술형 주제별 언급 건수와 아래 학교 활동을 보냅니다. 서술형 응답 원문은 보내지 않습니다. 이름·연락처 등 개인정보를 학교 활동에 넣지 마세요. 작성된 의견과 근거 점수를 함께 확인할 수 있습니다.</p>
           <label className="ws-field">
-            <span>학교교육목표·중점 활동 (선택)</span>
+            <span>학교교육목표·실시한 활동·서술형 의견 요약 (선택)</span>
             <textarea
               className="ws-textarea"
               rows={2}
               value={schoolContext}
               onChange={(event) => setSchoolContext(event.target.value)}
-              placeholder="예: 소통과 신뢰를 바탕으로 한 학교자치 문화 조성"
+              placeholder="예: 월 1회 학년 협의회 운영. 학부모 의견 요약: 행사 안내를 더 일찍 받고 싶다는 의견."
             />
           </label>
           <label className="ws-check"><input type="checkbox" checked={transmissionConfirmed} onChange={e => setTransmissionConfirmed(e.target.checked)} />전송 항목을 확인했습니다.</label>
@@ -163,10 +158,10 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
               disabled={analysis.busy || reviewDirty || analysis.saveConflict || !transmissionConfirmed}
               onClick={() => { if (!draftAnalysis || window.confirm('AI 초안으로 현재 평가 의견을 바꿀까요? 저장할 내용은 먼저 저장하세요.')) void analysis.runAnalysis(schoolContext); }}
             >
-              {analysis.analyzing ? "해석 중… (수십 초 걸릴 수 있음)" : "AI 해석 실행"}
+              {analysis.analyzing ? "해석 중… (수십 초 걸릴 수 있음)" : "평가 결과 분석하고 평가서 작성"}
             </button>
           </div>
-          </details>
+          </div>
 
           {draftAnalysis ? (<fieldset className="ra-editor-fieldset" disabled={analysis.busy || reviewDirty}>
             <AiAnalysisEditor
@@ -558,6 +553,18 @@ function AiAnalysisEditor({
           ))}
         </div>
       ) : null}
+
+      <div className="ra-area-block">
+        <h3 className="ws-group-title">학교교육활동 특색사례 (선택)</h3>
+        {analysis.featuredCases.map((entry, index) => (
+          <div key={index}>
+            <label className="ws-field"><span>세부영역</span><select className="ws-input" value={entry.subarea} onChange={e => onChange({ ...analysis, featuredCases: analysis.featuredCases.map((c, i) => i === index ? { ...c, subarea: e.target.value } : c) })}><option value="">선택하세요</option>{SUBAREAS.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+            <label className="ws-field"><span>사례 내용</span><textarea className="ws-textarea" rows={3} value={entry.content} onChange={e => onChange({ ...analysis, featuredCases: analysis.featuredCases.map((c, i) => i === index ? { ...c, content: e.target.value } : c) })} /></label>
+            <button type="button" className="ws-btn ws-btn--soft" onClick={() => onChange({ ...analysis, featuredCases: analysis.featuredCases.filter((_, i) => i !== index) })}>사례 삭제</button>
+          </div>
+        ))}
+        <button type="button" className="ws-btn ws-btn--soft" onClick={() => onChange({ ...analysis, featuredCases: [...analysis.featuredCases, { subarea: '', content: '' }] })}>특색사례 추가</button>
+      </div>
 
       <label className="ws-field">
         <span>종합의견</span>

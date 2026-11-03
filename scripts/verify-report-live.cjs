@@ -1,0 +1,22 @@
+require('./load-ts.cjs');
+require('@next/env').loadEnvConfig(process.cwd());
+const { AREAS } = require('../src/lib/evaluationFramework.ts');
+const { analyzeResults } = require('../src/lib/aiAnalysis.ts');
+const { computeQuestionStat, computeAreaStats } = require('../src/lib/scoring.ts');
+const { buildReportDocxSubmit } = require('../src/lib/reportDocx.ts');
+const { reportReadiness } = require('../src/lib/reportReadiness.ts');
+const fs = require('node:fs');
+(async () => {
+ const items=['teacher','parent','student'].flatMap(a=>AREAS.flatMap((area,i)=>[0,1].map(n=>({id:`${a}-${i}-${n}`,groupId:`${i}-${n}`,audience:a,area:area.name,subarea:area.subareas[n],indicator:area.subareas[n].split('. ')[1],responseType:'likert_5',originalQuestion:`우리 학교는 ${area.subareas[n].split('. ')[1]}을 위해 노력한다.`,editedQuestion:`우리 학교는 ${area.subareas[n].split('. ')[1]}을 위해 노력한다.`}))));
+ const stats=items.map((q,i)=>computeQuestionStat(q.id,q.audience,i%2?['보통이다','그렇다','그렇지 않다']:['매우 그렇다','그렇다','매우 그렇다']));
+ const areaStats=computeAreaStats(items.map(q=>({...q,questionId:q.id})),stats);
+ const start=Date.now();
+ const aiAnalysis=await analyzeResults({schoolName:'가상검증초등학교',schoolContext:'월 1회 학년 협의회를 운영하여 수업 사례를 나누었다.',items,questionStats:stats,areaStats,maskedFreeText:[]});
+ const result={itemsSnapshot:items,questionStats:stats,areaStats,aiAnalysis};
+ const issues=reportReadiness(result);
+ fs.mkdirSync('output/report-verification',{recursive:true});
+ fs.writeFileSync('output/report-verification/synthetic-analysis.json',JSON.stringify(aiAnalysis,null,2));
+ fs.writeFileSync('output/report-verification/synthetic-report.docx',await buildReportDocxSubmit({schoolName:'가상검증초등학교'},items,result));
+ console.log(JSON.stringify({seconds:Math.round((Date.now()-start)/1000),areas:aiAnalysis.areas.length,findings:aiAnalysis.areas.flatMap(a=>a.findings).length,consulting:aiAnalysis.consultingNeeds.length,cases:aiAnalysis.featuredCases.length,issues}));
+ if(issues.length)process.exitCode=1;
+})().catch(e=>{console.error(e.message);process.exitCode=1;});

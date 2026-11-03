@@ -47,6 +47,7 @@ check(result.areaStats[0].mean===4.5,'실제 업로드 응답 평균 4.5');
 check((await school.request(`/api/export/report-docx?type=submit&resultId=${result.id}`)).status===400,'평가 의견 없는 제출본 차단');
 check((await school.request(`/api/export/report-docx?type=draft&resultId=${result.id}`)).status===200,'AI 없이 작성용 DOCX 생성');
 const analysis={areas:areaNames.map((area,i)=>({area,findings:[{category:'우수한 점',subarea:subareas[i],indicator:`검증 지표 ${i+1}`,content:`가상 자료로 확인한 영역 ${i+1} 의견`,cause:'검토한 원인',action:'차년도 계획 반영',evidence:[]}]})),consultingNeeds:[],featuredCases:[],overallOpinion:'검증용 종합의견이 문서에 보존됩니다.'};
+analysis.areas.forEach(a => a.findings.push({...a.findings[0],category:'개선할 점',content:'가상 자료의 개선 의견'}));
 await school.data('/api/results/analysis','PATCH',{resultId:result.id,aiAnalysis:analysis,expectedUpdatedAt:result.updatedAt});
 check((await school.request('/api/results/analysis','PATCH',{resultId:result.id,aiAnalysis:analysis,expectedUpdatedAt:result.updatedAt})).status===409,'오래된 평가 의견 덮어쓰기 차단');
 const restored=await school.data('/api/results');
@@ -75,7 +76,7 @@ check((await builderReq('/api/draft')).status===200,'부장 링크로 문항 작
 check((await builderReq('/api/results')).status===401,'일반 부장의 응답 원문·결과 접근 차단');
 check((await builderReq('/api/results','PATCH',metadata)).status===401,'일반 부장의 검토 기록 수정 차단');
 check((await builderReq('/api/draft/items','POST',{items:[{...items[0],id:'forbidden'}]})).status===403,'담당 대상 밖의 문항 추가 차단');
-check((await builderReq('/api/draft/items/student-0','PATCH',{expectedRev:0,patch:{editedQuestion:'허용하지 않은 수정'}})).status===403,'다른 작성자의 문항 수정 차단');
+check((await builderReq('/api/draft/items/student-0','PATCH',{expectedRev:0,patch:{editedQuestion:'허용하지 않은 수정'}})).status===200,'담당 대상의 다른 작성자 문항 공동 수정 허용');
 await school.data('/api/invite','PATCH',{token:invite.token});
 check((await builderReq('/api/draft')).status===401,'끊은 부장 링크의 기존 세션 접근 차단');
 await school.data('/api/draft/items/teacher-0','PATCH',{expectedRev:0,patch:{editedQuestion:'집계 후 변경한 문항'}});
@@ -84,7 +85,7 @@ check(doc.status===200,'직접 작성한 의견으로 제출본 생성');
 const buffer=Buffer.from(await doc.arrayBuffer());
 const zip=await JSZip.loadAsync(buffer);const xml=await zip.file('word/document.xml').async('string');
 check(xml.includes(analysis.overallOpinion),'종합의견 DOCX 반영');
-check(xml.includes('parent 검증 문항 1') && xml.includes('student 검증 문항 1'),'같은 그룹의 대상별 수정 문항 모두 보존');
+check(xml.includes('teacher 검증 문항 1') && !xml.includes('parent 검증 문항 1'), '연결된 원본 문항은 교원용 표현으로 통일');
 check(!xml.includes('집계 후 변경한 문항'),'집계 후 문항 변경이 과거 보고서에 섞이지 않음');
 check(!xml.includes('평균점수</w:t>'),'제출본 문항별 점수 제외');
 mkdirSync('tmp/review',{recursive:true});writeFileSync('tmp/review/submit.docx',buffer);
@@ -96,6 +97,11 @@ check(empty.results.length===0 && empty.uploads.length===0,'응답·분석 자�
 check((await school.data('/api/draft')).items.length===9,'결과 삭제 후 설문 문항 유지');
 console.log(`완료: ${passed}개 통과`);
 if (process.env.KEEP_REVIEW_FIXTURE === '1') {
+  const current=(await school.data('/api/draft')).items;
+  for(const id of ['teacher-0','student-0']) {
+    const item=current.find(i=>i.id===id);
+    await school.data(`/api/draft/items/${id}`,'PATCH',{expectedRev:item.rev,patch:{editedQuestion:items.find(i=>i.id===id).editedQuestion}});
+  }
   const freshIds=[];for (const a of ['teacher','parent','student']) freshIds.push(await upload(a));
   await school.data('/api/results/aggregate','POST',{uploadIds:freshIds});
   writeFileSync('tmp/review/ui-school.txt',schoolName);

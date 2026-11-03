@@ -10,7 +10,7 @@ const items = ['teacher','parent','student'].flatMap(a => AREAS.map((area,i) => 
 const stats = items.map(i=>computeQuestionStat(i.id,i.audience,['매우 그렇다','그렇다']));
 const areaItems = items.map(i=>({...i,questionId:i.id}));
 const analysis = emptyManualAnalysis();
-analysis.areas.forEach(a=>{ a.findings[0].content='실제 자료로 확인할 가상 의견'; a.findings[0].indicator='평가지표'; });
+analysis.areas.forEach(a=>{ a.findings.forEach(f => { f.content='실제 자료로 확인할 가상 의견'; f.indicator='평가지표'; }); });
 const result = {itemsSnapshot:items, questionStats:stats, areaStats:computeAreaStats(areaItems,stats), aiAnalysis:analysis};
 check(reportReadiness(result).length===0,'전 대상·영역·문항·직접 작성 의견 충족');
 const empty = items.map(i=>computeQuestionStat(i.id,i.audience,['','무응답']));
@@ -22,3 +22,7 @@ check(reportReadiness(bad).length>0,'추가 의견의 잘못된 세부영역 차
 const review = structuredClone(result);review.aiAnalysis.consultingNeeds[0].needsReview=true;
 check(reportReadiness(review).length>0,'컨설팅 의견의 검토 미완료 차단');
 console.log(`완료: ${count}개 통과`);
+
+const missingCategory = structuredClone(result);
+missingCategory.aiAnalysis.areas.forEach(a => { a.findings = a.findings.filter(f => f.category === '우수한 점'); });
+check(reportReadiness(missingCategory).some(s => s.includes('2개 이상')), '개선할 점 2개 미만 제출 차단');

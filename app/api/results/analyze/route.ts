@@ -2,8 +2,11 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { resolveDraftContext, draftWriteError } from "@/lib/draftApi";
 import { analyzeResults } from "@/lib/aiAnalysis";
 import { maskPersonalInfo } from "@/lib/piiMask";
-import { ConflictError, getDraftBundle, getSurveyResult, updateSurveyResultAnalysis } from "@/lib/store";
+import { ConflictError, getResultUpload, getDraftBundle, getSurveyResult, updateSurveyResultAnalysis } from "@/lib/store";
+import { summarizeFreeText } from "@/lib/freeTextSummary";
 import type { Audience } from "@/lib/types";
+
+export const maxDuration = 300;
 
 type Body = {
   resultId?: string;
@@ -41,18 +44,23 @@ export async function POST(request: Request) {
   const maskedFreeText: Array<{ audience: Audience; text: string }> = [];
 
   try {
+    const analysisItems = result.itemsSnapshot ?? items;
+    const uploads = await Promise.all((result.uploadIds ?? []).map(id => getResultUpload(context.draftId, id)));
+    const sourceUploads = uploads.filter((u): u is NonNullable<typeof u> => u !== null).map(u => ({ ...u, mapping: result.uploadMappings?.[u.id] ?? u.mapping }));
+    const freeTextSummary = summarizeFreeText(sourceUploads, analysisItems);
     const aiAnalysis = await analyzeResults({
       schoolName: draft.schoolName,
       schoolContext: body.schoolContext ? maskPersonalInfo(body.schoolContext) : undefined,
       items: result.itemsSnapshot ?? items,
       questionStats: result.questionStats,
       areaStats: result.areaStats,
-      maskedFreeText
+      maskedFreeText,
+      freeTextSummary
     });
     const updated = await updateSurveyResultAnalysis(context.draftId, result.id, aiAnalysis, result.updatedAt);
     return jsonOk({ result: updated });
   } catch (error) {
     if (error instanceof ConflictError) return draftWriteError(error);
-    return jsonError(error instanceof Error ? error.message : "AI 해석에 실패했습니다.", 500);
+    return jsonError(error instanceof Error && error.name === "TimeoutError" ? "분석 응답이 지연되었습니다. 잠시 후 평가서 작성을 다시 실행해 주세요." : error instanceof Error ? error.message : "AI 해석에 실패했습니다.", 500);
   }
 }

@@ -1,8 +1,7 @@
 /**
  * 학교평가서 DOCX (spec.md 7.3, 가이드북 60~61쪽 서식3-1·3-2).
  *
- * 템플릿 치환이 아니라 코드로 문서를 직접 만듭니다 — 두 서식 모두 "행을 가감하여
- * 작성"이 전제라 고정 서식 파일을 채우는 방식이 불가능합니다(spec.md 7.3).
+ * 2026-11 제공된 공식 HWP의 항목·순서를 기준으로 편집 가능한 DOCX를 생성합니다.
  *
  * 제출용(submit)에는 문항별 점수를 넣지 않습니다. 가이드북 p.51·p.60:
  * "평가문항별 점수는 학교 자체 보관하며 영역별 평균점수 결과만 학교평가서에 작성".
@@ -19,6 +18,7 @@ import {
   TableCell,
   TableRow,
   TableLayoutType,
+  TextRun,
   WidthType,
   type FileChild
 } from "docx";
@@ -26,7 +26,7 @@ import { cell, koreanParagraph, koreanRun, textParagraph, KOREAN_RUN_DEFAULTS } 
 import { AREAS } from "./evaluationFramework";
 import { roundToOneDecimal } from "./scoring";
 import {
-  AUDIENCES,
+
   AUDIENCE_SHORT_LABELS,
   type AiFinding,
   type AiFindingCategory,
@@ -38,6 +38,8 @@ import {
   type SurveyResult
 } from "./types";
 
+const AUDIENCES: Audience[] = ["student", "parent", "teacher", "staff"];
+
 const GRADE4_ORDER: Grade4[] = ["매우 우수", "우수", "보통", "미흡"];
 const FINDING_CATEGORIES: AiFindingCategory[] = ["우수한 점", "개선할 점", "컨설팅장학 등 교육청 지원이 필요한 부분"];
 
@@ -47,8 +49,8 @@ function headerCell(text: string, width: number, columnSpan = 1, rowSpan = 1): T
     columnSpan,
     rowSpan,
     shading: { type: ShadingType.SOLID, color: "F2F3FD", fill: "F2F3FD" },
-    margins: { top: 100, bottom: 100, left: 100, right: 100 },
-    children: [koreanParagraph({ alignment: AlignmentType.CENTER, children: [koreanRun(text, true)] })]
+    margins: { top: 40, bottom: 40, left: 40, right: 40 },
+    children: [koreanParagraph({ alignment: AlignmentType.CENTER, keepNext: true, spacing: { after: 0, line: 220 }, children: [new TextRun({ text, bold: true, ...KOREAN_RUN_DEFAULTS, size: 16 })] })]
   });
 }
 
@@ -57,14 +59,14 @@ function centerCell(text: string, width: number): TableCell {
 }
 
 function textCell(text: string, width: number): TableCell {
-  return cell(text.split('\n').map(line => textParagraph(line)), width);
+  return cell(text.split('\n').map(line => koreanParagraph({ spacing: { after: 0, line: 240 }, children: [new TextRun({ text: line, ...KOREAN_RUN_DEFAULTS, size: 20 })] })), width);
 }
 
 function groupByGroupId(items: SelectedQuestion[]): SelectedQuestion[][] {
   const order: string[] = [];
   const groups = new Map<string, SelectedQuestion[]>();
   for (const item of items) {
-    const key = JSON.stringify([item.groupId, item.area, item.subarea, item.indicator, item.editedQuestion || item.originalQuestion]);
+    const key = JSON.stringify([item.groupId || item.id, item.area, item.subarea, item.indicator, (item.editedQuestion || item.originalQuestion) === item.originalQuestion ? "original" : item.editedQuestion]);
     if (!groups.has(key)) {
       order.push(key);
       groups.set(key, []);
@@ -136,24 +138,17 @@ function findingsTable(findings: AiFinding[]): Table {
     if (items.length === 0) {
       return [
         new TableRow({
-          cantSplit: true,
+          cantSplit: false,
           children: [centerCell(category, 15), textCell("", 15), textCell("", 15), textCell("", 55)]
         })
       ];
     }
     return items.map(
-      (finding, index) =>
+      (finding) =>
         new TableRow({
-          cantSplit: true,
+          cantSplit: false,
           children: [
-            index === 0
-              ? new TableCell({
-                  width: { size: 15, type: WidthType.PERCENTAGE },
-                  rowSpan: items.length,
-                  verticalAlign: "center",
-                  children: [koreanParagraph({ alignment: AlignmentType.CENTER, children: [koreanRun(category)] })]
-                })
-              : undefined,
+            centerCell(category, 15),
             textCell(finding.subarea, 15),
             textCell(finding.indicator, 15),
             textCell(
@@ -171,9 +166,9 @@ function findingsTable(findings: AiFinding[]): Table {
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
-        cantSplit: true,
+        cantSplit: false,
         tableHeader: true,
-        children: [headerCell("구분", 15), headerCell("세부영역", 15), headerCell("지표", 15), headerCell("내용", 55)]
+        children: [headerCell("구분", 15), headerCell("세부영역", 15), headerCell("평가지표", 15), headerCell("내용", 55)]
       }),
       ...rows
     ]
@@ -205,7 +200,7 @@ function itemListTable(items: SelectedQuestion[]): Table {
   const groups = groupByGroupId(items.filter((item) => !item.deleted));
 
   const rows = groups.map((group) => {
-    const primary = group[0];
+    const primary = group.find(item => item.audience === "teacher") ?? group[0];
     const audiencesInGroup = new Set(group.map((item) => item.audience));
     return new TableRow({
       cantSplit: true,
@@ -228,13 +223,14 @@ function itemListTable(items: SelectedQuestion[]): Table {
         cantSplit: true,
         tableHeader: true,
         children: [
-          headerCell("영역", 12),
-          headerCell("세부영역", 15),
-          headerCell("평가지표", 18),
-          headerCell("평가문항", 35),
-          ...AUDIENCES.map((audience) => headerCell(AUDIENCE_SHORT_LABELS[audience], 5))
+          headerCell("영역", 12, 1, 2),
+          headerCell("세부영역", 15, 1, 2),
+          headerCell("평가지표", 18, 1, 2),
+          headerCell("평가문항", 35, 1, 2),
+          headerCell("평가주체", 20, 4)
         ]
       }),
+      new TableRow({ cantSplit: true, tableHeader: true, children: AUDIENCES.map(audience => headerCell(AUDIENCE_SHORT_LABELS[audience], 5)) }),
       ...rows
     ]
   });
@@ -253,6 +249,7 @@ export async function buildReportDocxSubmit(
   );
 
   const children: FileChild[] = [
+    textParagraph("[서식3-1] 학교평가서1(학교평가 영역별 결과 분석 및 종합의견)"),
     title("2026학년도 학교평가 영역별 결과 분석 및 종합의견"),
     schoolNameLine(draft),
     textParagraph("학교평가 영역별 평가 결과 (해당란에 “✔” 표시)", true),
@@ -269,7 +266,7 @@ export async function buildReportDocxSubmit(
     findingsTable(findings),
     ...(result.aiAnalysis?.overallOpinion ? [textParagraph('종합의견', true), textParagraph(result.aiAnalysis.overallOpinion)] : []),
     koreanParagraph({ children: [koreanRun("")], spacing: { after: 240 } }),
-    textParagraph("2026학년도 학교교육활동 특색사례 (※ 자율 선택 작성)", true),
+    textParagraph("2026학년도 학교교육활동 특색사례 (※ 자율 선택 작성, 학교평가 결과 연계 컨설팅 시 활용 예정)", true),
     featuredCasesTable(result.aiAnalysis?.featuredCases ?? []),
     koreanParagraph({
       children: [
@@ -279,7 +276,9 @@ export async function buildReportDocxSubmit(
       ],
       spacing: { before: 240 }
     }),
+    textParagraph("※ 교육지원청(교육연구정보원)제출 및 학교 누리집 탑재: 학교평가서 [서식3-1], [서식3-2] 전체"),
     new Paragraph({ pageBreakBefore: true, children: [] }),
+    textParagraph("[서식3-2] 학교평가서2(평가지표 및 평가문항)"),
     title("2026학년도 학교평가서"),
     schoolNameLine(draft),
     koreanParagraph({

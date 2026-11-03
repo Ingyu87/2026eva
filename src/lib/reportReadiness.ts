@@ -53,6 +53,10 @@ export function reportReadiness(result: SurveyResult): string[] {
     if ((entry.content.trim() || entry.subarea.trim()) && (!entry.content.trim() || !isCurrentSubarea(entry.subarea))) issues.push('작성한 특색사례의 내용과 세부영역을 확인하세요.');
   }
   const findings = [...(result.aiAnalysis?.areas.flatMap(a => a.findings) ?? []), ...(result.aiAnalysis?.consultingNeeds ?? [])];
+  for (const category of ['우수한 점', '개선할 점']) {
+    const completed = findings.filter(f => f.category === category && f.content.trim() && f.indicator.trim() && isCurrentSubarea(f.subarea));
+    if (new Set(completed.map(f => JSON.stringify([f.subarea, f.indicator]))).size < 2) issues.push(`${category}을 세부영역·평가지표와 함께 2개 이상 작성하세요.`);
+  }
   if (findings.some(f => f.needsReview)) issues.push('AI가 확인을 요청한 평가 의견의 근거를 검토하세요.');
   return [...new Set(issues)];
 }

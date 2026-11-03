@@ -48,13 +48,15 @@ async function generateContent(
   const apiKey = requiredEnv("GEMINI_API_KEY");
   const model = options.model ?? resolveGeminiModel(options.task);
 
-  const response = await fetch(`${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`, {
+  const response = await fetch(`${GEMINI_API_BASE}/${model}:generateContent`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(120_000),
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       contents: [{ role: "user", parts }],
       generationConfig: {
         temperature: options.temperature ?? 0.2,
+        ...(model === "gemini-3.8-flash" && (!options.task || options.task === "analysis") ? { thinkingConfig: { thinkingLevel: "low" } } : {}),
         responseMimeType: "application/json",
         ...(options.responseSchema ? { responseSchema: options.responseSchema } : {})
       }

@@ -7,7 +7,7 @@ const validation = require('../src/lib/reportReadiness.ts');
 const { emptyManualAnalysis } = require('../src/lib/manualAnalysis.ts');
 const { computeAreaStats, computeQuestionStat } = require('../src/lib/scoring.ts');
 const good = emptyManualAnalysis();
-good.areas.forEach(a => Object.assign(a.findings[0], { indicator: '검증 지표', content: '가상 자료의 검토 의견' }));
+good.areas.forEach(a => a.findings.forEach(f => Object.assign(f, { indicator: '검증 지표', content: '가상 자료의 검토 의견' })));
 const items = ['teacher', 'parent', 'student'].flatMap(a => AREAS.map((area, i) => ({
   id: `${a}-${i}`, audience: a, area: area.name, subarea: area.subareas[0], responseType: 'likert_5'
 })));

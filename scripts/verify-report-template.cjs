@@ -1,0 +1,20 @@
+require('./load-ts.cjs');
+const assert = require('node:assert/strict');
+const {summarizeFreeText}=require('../src/lib/freeTextSummary.ts');
+const {buildReportDocxSubmit}=require('../src/lib/reportDocx.ts');
+const {AREAS}=require('../src/lib/evaluationFramework.ts');
+const JSZip=require('jszip');
+(async()=>{
+ const q={id:'text',audience:'student',responseType:'text'};
+ const upload={audience:'student',headers:['메모','의견'],mapping:[{column:'의견',questionId:'text'}],rows:[['비공개','김철수 급식과 안전'],['숨김','급식']]};
+ const summary=summarizeFreeText([upload],[q]);
+ assert(summary.includes('급식 언급 2건'));assert(!summary.includes('김철수'));assert(!summary.includes('비공개'));
+ const base={groupId:'same',area:AREAS[0].name,subarea:AREAS[0].subareas[0],indicator:'지표'};
+ const items=[{...base,id:'s',audience:'student',originalQuestion:'학생 원문',editedQuestion:'학생 원문'},{...base,id:'t',audience:'teacher',originalQuestion:'교원 원문',editedQuestion:'교원 원문'},{...base,id:'p',audience:'parent',originalQuestion:'학부모 원문',editedQuestion:'별도로 수정한 질문'}];
+ const doc=await buildReportDocxSubmit({schoolName:'가상학교'},items,{areaStats:[]});
+ const zip=await JSZip.loadAsync(doc);const xml=await zip.file('word/document.xml').async('string');
+ assert(xml.includes('교원 원문'));assert(!xml.includes('학생 원문'));assert(xml.includes('별도로 수정한 질문'));
+ assert(xml.indexOf('학생')<xml.indexOf('학부모'));assert(xml.indexOf('학부모')<xml.indexOf('교원'));
+ for(const t of ['[서식3-1]','[서식3-2]','평가지표','학교 누리집 탑재'])assert(xml.includes(t));
+ console.log('[PASS] 서술형 건수·원문 제외·공식 순서·교원 표현 통일·별도 수정 문항 보존');
+})().catch(e=>{console.error(e);process.exitCode=1;});
