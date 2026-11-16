@@ -6,7 +6,7 @@ import { useResultsAnalysis } from "@/hooks/useResultsAnalysis";
 import { canExport } from "@/lib/exportGate";
 import { emptyManualAnalysis } from '@/lib/manualAnalysis';
 import { AREAS, SUBAREAS } from '@/lib/evaluationFramework';
-import { reportReadiness, resultDataIssues } from '@/lib/reportReadiness';
+import { reportReadiness } from '@/lib/reportReadiness';
 import {
   AUDIENCES,
   AUDIENCE_SHORT_LABELS,
@@ -26,7 +26,6 @@ import {
 export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: SelectedQuestion[] }) {
   const analysis = useResultsAnalysis(items);
   const [schoolContext, setSchoolContext] = useState("");
-  const [indicatorTemplate, setIndicatorTemplate] = useState<File>();
   const [draftAnalysis, setDraftAnalysis] = useState<AiAnalysis | null>(null);
   const [dirty, setDirty] = useState(false);
   const [reviewDirty, setReviewDirty] = useState(false);
@@ -48,7 +47,6 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
   }, [dirty, reviewDirty, preservedEdit]);
 
   const hasAnyUpload = AUDIENCES.some((audience) => analysis.uploads[audience].status !== "idle");
-  const dataIssues = analysis.result ? resultDataIssues(analysis.result) : [];
   const hasUnresolvedColumn = analysis.uploadedAudiences.some((audience) =>
     analysis.uploads[audience].columns.some((column) => column.status === "unmatched")
   );
@@ -126,7 +124,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
         <ResultSection step="stats" title="3. 집계 결과">
 
           <p className="ws-hint">
-            4단계 판정은 반올림 전 원값 기준입니다. 3.96은 표시가 4.0이어도 우수입니다. (가이드북 p.51)
+            평가 등급은 반올림하기 전 점수로 정합니다. 예를 들어 평균이 3.96점이면 화면에는 4.0점으로 표시되지만, 등급은 ‘우수’입니다. (가이드북 p.51)
           </p>
           <AreaStatsTable areaStats={analysis.result.areaStats} />
         </ResultSection>
@@ -136,7 +134,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
       {analysis.result ? (
         <ResultSection step="opinion" title="4. 평가 의견 작성">
 
-          <p className="ws-hint">결과를 분석해 우수한 점·개선할 점을 각각 2개 이상 작성하고 교육청 지원 요청까지 채웁니다. 작성된 내용을 수정하고 공식 양식의 평가서로 내려받으세요.</p>
+          <p className="ws-hint">설문 결과를 바탕으로 우수한 점과 개선할 점을 각각 2개 이상 작성하세요. 교육청의 지원이 필요한 내용도 적을 수 있습니다. 저장한 의견은 학교평가서에 들어갑니다.</p>
           {!draftAnalysis ? <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || reviewDirty} onClick={() => { setDraftAnalysis(emptyManualAnalysis()); setDirty(true); }}>AI 없이 직접 작성</button> : null}
           <div className="ra-ai-options"><h3 className="ws-group-title">평가 결과로 학교평가서 작성</h3>
           <p className="ws-hint">Google Gemini에 학교명, 문항, 계산된 점수, 서술형 주제별 언급 건수와 아래 학교 활동을 보냅니다. 서술형 응답 원문은 보내지 않습니다. 이름·연락처 등 개인정보를 학교 활동에 넣지 마세요. 작성된 의견과 근거 점수를 함께 확인할 수 있습니다.</p>
@@ -200,57 +198,16 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
       {analysis.result ? (
         <ResultSection step="export" title="5. 보고서 내려받기">
 
-          {reportReadiness(analysis.result).length ? <div className="ra-warn"><strong>제출 전 확인할 내용</strong><ul>{reportReadiness(analysis.result).map(issue => <li key={issue}>{issue}</li>)}</ul></div> : <p role="status">필수 대상·영역과 평가 의견이 갖춰졌습니다. 학교평가위원회 검토 후 제출하세요.</p>}
-          <p className="ws-hint">DOCX는 편집 가능한 초안입니다. 제출 전 대상별 전 영역의 결과, 평가 의견, 학교명·학년도 및 서식3-1·3-2를 학교평가위원회에서 확인하세요. 문항별 점수는 보관용에만 포함됩니다.</p>
-          {!analysis.result.aiAnalysis ? <p className="ra-warn">평가 의견을 아직 저장하지 않았습니다. DOCX의 빈칸을 한글·Word에서 작성하거나 위에서 직접 작성하세요.</p> : null}
-          {!canExport('report-docx', draft, analysis.result).allowed ? <p className="ra-warn">{canExport('report-docx', draft, analysis.result).reason}</p> : null}
-          <details className="ra-ai-options"><summary>한글·Word에서 이어 작성하는 방법</summary>
-            <ol><li>작성용 DOCX를 내려받아 원본을 보관하세요.</li><li>한글·Word에서 열어 다른 이름으로 저장한 뒤 빈칸을 작성하세요.</li><li>학교명·학년도와 반복 머리글, 쪽 경계의 표, 마지막 문항까지 확인하세요.</li><li>문서에서 수정한 내용은 앱에 자동 반영되지 않습니다. 앱에서 다시 내려받으면 문서에서 수정한 부분이 포함되지 않으므로, 최종 파일은 학교에서 별도로 관리하세요.</li></ol>
-          </details>
-          <details className="ra-ai-options">
-            <summary>교육청 양식 직접 선택 (XLSX)</summary>
-            <p className="ws-hint">공통 양식이 없거나 학교가 별도로 받은 양식이 있으면 2026 평가지표 및 현황 파일을 선택하세요. 이 파일에 집계 결과를 채워 내려받으며, 다른 학교의 양식은 바뀌지 않습니다. 전년도 양식과 평가문항 예시 자료는 사용할 수 없습니다.</p>
-            <label className="ws-field"><span>2026 평가지표 및 현황 양식 (600KB 이하)</span><input type="file" accept=".xlsx" disabled={analysis.busy} onChange={event => setIndicatorTemplate(event.target.files?.[0])} /></label>
-            <p className="ws-hint">{indicatorTemplate ? `선택한 양식: ${indicatorTemplate.name}. 아래 ‘평가지표 및 현황 (XLSX)’을 누르세요.` : "파일을 선택하지 않으면 관리자가 등록한 공통 양식을 사용합니다."}</p>
-          </details>
+          {reportReadiness(analysis.result).length ? <div className="ra-warn"><strong>제출 전 확인할 내용</strong><ul>{reportReadiness(analysis.result).map(issue => <li key={issue}>{issue}</li>)}</ul></div> : <p role="status">필수 응답 자료와 평가 의견이 입력되었습니다. 학교평가위원회에서 내용을 검토한 뒤 제출하세요.</p>}
+          <p className="ws-hint">설문 결과를 교내에 공유할 때는 HTML 보고서를, 교육청 양식으로 학교평가서를 작성할 때는 HWPX 파일을 내려받으세요. HWPX는 한글에서 열어 편집할 수 있습니다.</p>
+          {!analysis.result.aiAnalysis ? <p className="ra-warn">평가 의견을 아직 저장하지 않았습니다. ‘평가 의견 작성’에서 입력하거나 작성용 HWPX를 내려받아 한글에서 작성하세요.</p> : null}
           <div className="ra-actions">
-            <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || dirty || !canExport('report-docx', draft, analysis.result).allowed} onClick={() => void analysis.downloadReportDocx('draft')}>한글·Word에서 이어 쓸 작성용 (DOCX)</button>
-            <button type="button" className="ws-btn ws-btn--soft" disabled={analysis.busy || dirty} onClick={() => void analysis.downloadResultHtml()}>
-              설문 결과 보고서 (HTML)
-            </button>
-            <button
-              type="button"
-              className="ws-btn ws-btn--soft"
-              disabled={analysis.busy || dirty || dataIssues.length > 0 || !canExport("indicator-xlsx", draft, analysis.result).allowed}
-              title={canExport("indicator-xlsx", draft, analysis.result).reason ??
-                (dataIssues.length > 0 ? dataIssues.join('\n') :
-                  analysis.busy ? "진행 중인 작업이 끝난 뒤 내려받으세요." : dirty ? "평가 의견을 먼저 저장하세요." : undefined)}
-              onClick={() => void analysis.downloadIndicatorXlsx(indicatorTemplate)}
-            >
-              평가지표 및 현황 (XLSX)
-            </button>
-            <button
-              type="button"
-              className="ws-btn ws-btn--soft"
-              disabled={analysis.busy || dirty || reportReadiness(analysis.result).length > 0 || !canExport("report-docx", draft, analysis.result).allowed}
-              title={
-                canExport("report-docx", draft, analysis.result).reason ??
-                (dirty ? "평가 의견을 먼저 저장하세요." : undefined)
-              }
-              onClick={() => void analysis.downloadReportDocx("submit")}
-            >
-              학교평가서 제출용 (DOCX)
-            </button>
-            <button
-              type="button"
-              className="ws-btn ws-btn--soft"
-              disabled={analysis.busy || dirty || !canExport("report-docx", draft, analysis.result).allowed}
-              title={canExport("report-docx", draft, analysis.result).reason}
-              onClick={() => void analysis.downloadReportDocx("internal")}
-            >
-              학교평가서 보관용 (DOCX)
-            </button>
+            <button type="button" className="ws-btn ws-btn--primary" disabled={analysis.busy || dirty} onClick={() => void analysis.downloadResultHtml()}>교내 공유용 보고서 (HTML)</button>
+            <button type="button" className="ws-btn ws-btn--soft" disabled={analysis.busy || dirty || !canExport('report-hwpx', draft, analysis.result).allowed} title={canExport('report-hwpx', draft, analysis.result).reason} onClick={() => void analysis.downloadReportHwpx('draft')}>학교평가서 작성용 (HWPX)</button>
+            <button type="button" className="ws-btn ws-btn--soft" disabled={analysis.busy || dirty || reportReadiness(analysis.result).length > 0 || !canExport('report-hwpx', draft, analysis.result).allowed} title={canExport('report-hwpx', draft, analysis.result).reason ?? reportReadiness(analysis.result).join(' ')} onClick={() => void analysis.downloadReportHwpx('submit')}>학교평가서 제출용 (HWPX)</button>
           </div>
+          <p className="ws-hint">작성용 HWPX에는 응답 자료나 평가 의견이 없는 항목을 빈칸으로 둡니다. 평가영역을 지정하지 않은 기초자료·자유 의견 문항은 HTML 보고서에만 포함합니다.</p>
+          <p className="ws-hint">제출 전에는 학교명·학년도·평가주체와 표의 쪽 나눔을 확인하세요. 한글에서 수정한 내용은 앱에 반영되지 않으므로, 수정한 파일은 따로 보관하세요.</p>
         </ResultSection>
       ) : null}
       {analysis.result ? <ResultSection step="review" title="학교 내부 검토 기록" initiallyOpen={false}>

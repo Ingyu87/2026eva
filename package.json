@@ -28,7 +28,7 @@
     "verify:analysis": "node scripts/verify-analysis-validation.cjs",
     "verify:operational": "node scripts/verify-operational.cjs",
     "verify:export": "node scripts/verify-survey-export.cjs",
-    "verify:report": "node scripts/verify-report-template.cjs"
+    "verify:report": "node scripts/verify-report-template.cjs && node scripts/verify-result-deliverables.cjs"
   },
   "dependencies": {
     "docx": "^9.5.1",

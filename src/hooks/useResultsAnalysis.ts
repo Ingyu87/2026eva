@@ -318,6 +318,13 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     }
   }
 
+  async function downloadReportHwpx(type: "submit" | "draft") {
+    if (!result) return;
+    setError("");
+    try { await downloadFile(`/api/export/report-hwpx?type=${type}&resultId=${result.id}`); }
+    catch (err) { setError(err instanceof Error ? err.message : "학교평가서를 만들지 못했습니다."); }
+  }
+
   async function loadLatestAnalysis() {
     if (!result || !beginOperation()) return false;
     try {
@@ -390,6 +397,7 @@ export function useResultsAnalysis(items: SelectedQuestion[]) {
     saveAnalysisEdits,
     downloadIndicatorXlsx,
     downloadResultHtml,
-    downloadReportDocx
+    downloadReportDocx,
+    downloadReportHwpx
   };
 }

@@ -20,6 +20,7 @@ export type ExportKind =
   | "result-html"
   /** 평가지표 및 현황 XLSX — 교육지원청 제출. 학년말만. */
   | "indicator-xlsx"
+  | "report-hwpx"
   /** 학교평가서 DOCX — 교육지원청 제출·누리집 탑재. 학년말만. */
   | "report-docx";
 
@@ -30,7 +31,7 @@ export type ExportAvailability = {
 };
 
 /** 학년말 학교평가에서만 만들 수 있는 산출물. */
-const ANNUAL_ONLY: ExportKind[] = ["indicator-xlsx", "report-docx"];
+const ANNUAL_ONLY: ExportKind[] = ["indicator-xlsx", "report-docx", "report-hwpx"];
 
 export function canExport(
   kind: ExportKind,

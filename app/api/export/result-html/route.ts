@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "private, no-store",
       "Content-Disposition": `attachment; filename*=UTF-8''${fileName}`
     }
   });
