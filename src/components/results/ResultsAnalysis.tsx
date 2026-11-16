@@ -225,8 +225,13 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
   );
 }
 
-function ResultSection({ step, title, children, initiallyOpen = true }: { step: string; title: string; children: ReactNode; initiallyOpen?: boolean }) {
-  return <details id={`result-${step}`} className="ws-card ra-fold" open={initiallyOpen}>
+function ResultSection({ step, title, children, initiallyOpen = step === 'upload' }: { step: string; title: string; children: ReactNode; initiallyOpen?: boolean }) {
+  return <details id={`result-${step}`} className="ws-card ra-fold" open={initiallyOpen} onToggle={event => {
+    if (!event.currentTarget.open) return;
+    event.currentTarget.closest('.ra-root')?.querySelectorAll<HTMLDetailsElement>('.ra-fold').forEach(section => {
+      if (section !== event.currentTarget) section.open = false;
+    });
+  }}>
     <summary><h2 className="ra-title">{title}</h2></summary>
     <div className="ra-section">{children}</div>
   </details>;
@@ -303,7 +308,7 @@ function ColumnReviewTable({
           </tr>
         </thead>
         <tbody>
-          {state.columns.map((column) => (
+          {state.columns.filter(column => column.status !== 'excluded').map((column) => (
             <tr key={column.column}>
               <td>{column.column}</td>
               <td>
@@ -422,7 +427,7 @@ function FindingEditor({
       <div className="ra-finding-head">
         {finding.needsReview ? <span className="ra-pill ra-pill--warn">⚠ 확인 필요</span> : null}
       </div>
-      <label className="ws-field">
+      <label className="ws-field ra-finding-content">
         <span>평가 결과</span>
         <textarea
           className="ws-textarea"
@@ -431,7 +436,7 @@ function FindingEditor({
           onChange={(event) => onChange({ content: event.target.value })}
         />
       </label>
-      <label className="ws-field">
+      <label className="ws-field ra-finding-half">
         <span>원인</span>
         <textarea
           className="ws-textarea"
@@ -440,7 +445,7 @@ function FindingEditor({
           onChange={(event) => onChange({ cause: event.target.value })}
         />
       </label>
-      <label className="ws-field">
+      <label className="ws-field ra-finding-half">
         <span>개선 방안</span>
         <textarea
           className="ws-textarea"
@@ -472,44 +477,65 @@ function AiAnalysisEditor({
   saving: boolean;
   saveBlocked: boolean;
 }) {
+  const [section, setSection] = useState('area-0');
+  const [findingIndex, setFindingIndex] = useState(0);
+  const sections = [
+    ...analysis.areas.map((area, index) => ({ id: `area-${index}`, label: area.area })),
+    ...(analysis.consultingNeeds.length ? [{ id: 'consulting', label: '교육청 지원' }] : []),
+    { id: 'cases', label: '특색사례' },
+    { id: 'overall', label: '종합의견' }
+  ];
+  const activeSection = sections.some(entry => entry.id === section) ? section : 'area-0';
+  const findingSelector = (findings: AiFinding[]) => findings.length > 0 ? (
+    <label className="ws-field"><span>편집할 의견</span>
+      <select className="ws-select" value={Math.min(findingIndex, findings.length - 1)} onChange={event => setFindingIndex(Number(event.target.value))}>
+        {findings.map((finding, index) => <option key={index} value={index}>{index + 1}. {finding.category} · {finding.indicator || finding.subarea || '새 의견'}</option>)}
+      </select>
+    </label>
+  ) : null;
   return (
     <div className="ra-analysis">
+      <nav className="ra-opinion-nav" aria-label="평가 의견 구분">
+        {sections.map(entry => <button type="button" key={entry.id} aria-pressed={activeSection === entry.id} className={activeSection === entry.id ? 'ws-btn ws-btn--primary' : 'ws-btn ws-btn--soft'} onClick={() => { setSection(entry.id); setFindingIndex(0); }}>{entry.label}</button>)}
+      </nav>
       {analysis.areas.map((areaAnalysis, areaIndex) => (
-        <div key={areaAnalysis.area} className="ra-area-block">
+        <div key={areaAnalysis.area} className="ra-area-block" hidden={activeSection !== `area-${areaIndex}`}>
           <h3 className="ws-group-title">{areaAnalysis.area}</h3>
-          {areaAnalysis.findings.map((finding, findingIndex) => (
+          {findingSelector(areaAnalysis.findings)}
+          {areaAnalysis.findings.map((finding, index) => index === Math.min(findingIndex, areaAnalysis.findings.length - 1) ? (
             <FindingEditor
-              key={`finding-${findingIndex}`}
+              key={`finding-${index}`}
               finding={finding}
               area={areaAnalysis.area}
               onChange={(patch) => {
                 const nextAreas = analysis.areas.map((area, i) =>
-                  i === areaIndex ? { ...area, findings: updateFinding(area.findings, findingIndex, patch) } : area
+                  i === areaIndex ? { ...area, findings: updateFinding(area.findings, index, patch) } : area
                 );
                 onChange({ ...analysis, areas: nextAreas });
               }}
             />
-          ))}
-          <button type="button" className="ws-btn ws-btn--soft" onClick={() => onChange({ ...analysis, areas: analysis.areas.map((a, i) => i === areaIndex ? { ...a, findings: [...a.findings, { category: '개선할 점', subarea: '', indicator: '', content: '', evidence: [] }] } : a) })}>평가 의견 추가</button>
+          ) : null)}
+          <button type="button" className="ws-btn ws-btn--soft" onClick={() => { setFindingIndex(areaAnalysis.findings.length); onChange({ ...analysis, areas: analysis.areas.map((a, i) => i === areaIndex ? { ...a, findings: [...a.findings, { category: '개선할 점', subarea: '', indicator: '', content: '', evidence: [] }] } : a) }); }}>평가 의견 추가</button>
         </div>
       ))}
 
       {analysis.consultingNeeds.length > 0 ? (
-        <div className="ra-area-block">
+        <div className="ra-area-block" hidden={activeSection !== "consulting"}>
           <h3 className="ws-group-title">컨설팅장학 등 교육청 지원이 필요한 부분</h3>
-          {analysis.consultingNeeds.map((finding, findingIndex) => (
+          {findingSelector(analysis.consultingNeeds)}
+          {analysis.consultingNeeds.map((finding, index) => index === Math.min(findingIndex, analysis.consultingNeeds.length - 1) ? (
             <FindingEditor
-              key={`consulting-${findingIndex}`}
+              key={`consulting-${index}`}
               finding={finding}
               onChange={(patch) =>
-                onChange({ ...analysis, consultingNeeds: updateFinding(analysis.consultingNeeds, findingIndex, patch) })
+                onChange({ ...analysis, consultingNeeds: updateFinding(analysis.consultingNeeds, index, patch) })
               }
             />
-          ))}
+          ) : null)}
         </div>
       ) : null}
 
-      <div className="ra-area-block">
+      <div className="ra-area-block" hidden={activeSection !== "cases"}>
         <h3 className="ws-group-title">학교교육활동 특색사례 (선택)</h3>
         {analysis.featuredCases.map((entry, index) => (
           <div key={index}>
@@ -521,7 +547,7 @@ function AiAnalysisEditor({
         <button type="button" className="ws-btn ws-btn--soft" onClick={() => onChange({ ...analysis, featuredCases: [...analysis.featuredCases, { subarea: '', content: '' }] })}>특색사례 추가</button>
       </div>
 
-      <label className="ws-field">
+      <label className="ws-field" hidden={activeSection !== "overall"}>
         <span>종합의견</span>
         <textarea
           className="ws-textarea"

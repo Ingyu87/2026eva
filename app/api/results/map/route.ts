@@ -2,6 +2,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { resolveDraftContext } from "@/lib/draftApi";
 import { getDraftBundle, getResultUpload, NotFoundError, updateResultUploadMapping } from "@/lib/store";
 import type { ResultColumnMapping } from "@/lib/types";
+import { isTimestampColumn } from '@/lib/resultMetadata';
 
 type Body = {
   uploadId?: string;
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
     for (let i = 0; i < body.mapping.length; i++) {
       const entry = body.mapping[i];
       if (!entry || entry.column !== previous.headers[i]) return jsonError('응답 열 순서가 올바르지 않습니다.');
+      if (isTimestampColumn(entry.column)) {
+        body.mapping[i] = { column: entry.column };
+        continue;
+      }
       if (entry.isGrade && (++grades > 1 || previous.audience !== 'student' || entry.questionId)) return jsonError('학년 열은 학생용에서 하나만 지정하세요.');
       if (entry.questionId) {
         if (ids.has(entry.questionId) || !items.some(item => !item.deleted && item.id === entry.questionId && item.audience === previous.audience)) return jsonError('한 문항에 여러 열을 연결하거나 다른 대상 문항을 연결할 수 없습니다.');

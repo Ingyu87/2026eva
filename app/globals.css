@@ -1537,8 +1537,8 @@ dialog.ws-download-dialog::backdrop { background: var(--bg-overlay); }
   display: flex;
   flex-direction: column;
   gap: var(--sp-6);
-  max-width: 960px;
-  margin: 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .ra-section {
@@ -2016,3 +2016,20 @@ dialog.ws-download-dialog::backdrop { background: var(--bg-overlay); }
 .ws-review-proposal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; }
 .ws-review-proposal select { min-width: 0; max-width: 100%; flex: 1; }
 .ws-work-status { font-size: var(--fs-caption); }
+
+/* 평가 의견은 영역과 항목을 선택해 편집합니다. */
+.ra-opinion-nav { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ra-analysis [hidden] { display: none; }
+.ra-finding { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp-4); }
+.ra-finding > .ws-field { grid-column: span 2; min-width: 0; }
+.ra-finding > .ra-finding-content,
+.ra-finding > .ra-finding-head,
+.ra-finding > .ws-check,
+.ra-finding > .ws-hint,
+.ra-finding > .ra-warn { grid-column: 1 / -1; }
+.ra-finding > .ra-finding-half { grid-column: span 3; }
+.ra-finding-head:empty { display: none; }
+.ra-finding textarea { font-size: var(--fs-body); line-height: var(--lh-body); }
+@media (max-width: 800px) {
+  .ra-finding > .ws-field { grid-column: 1 / -1; }
+}

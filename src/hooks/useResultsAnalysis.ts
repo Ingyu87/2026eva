@@ -52,7 +52,7 @@ async function downloadFile(url: string, options?: RequestInit): Promise<void> {
 
 export type ColumnReview = {
   column: string;
-  status: "question" | "grade" | "unmatched";
+  status: "question" | "grade" | "unmatched" | "excluded";
   questionId?: string;
   isGrade?: boolean;
 };
@@ -80,6 +80,7 @@ type UploadResponse = {
     match:
       | { status: "question"; questionId: string; matchedBy: string }
       | { status: "grade"; matchedBy: string }
+      | { status: "excluded" }
       | { status: "unmatched" };
   }>;
 };

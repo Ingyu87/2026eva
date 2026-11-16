@@ -1,6 +1,7 @@
 import { AREAS } from './evaluationFramework';
 import { AUDIENCE_SHORT_LABELS, type Audience, type ResultUpload, type SelectedQuestion, type SurveyDraft, type SurveyResult } from './types';
 import { splitChecklistAnswer } from './checklistAnswers';
+import { isTimestampColumn } from './resultMetadata';
 
 const esc = (s: unknown) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const audienceOrder: Audience[] = ['student','parent','teacher','staff'];
@@ -16,6 +17,7 @@ const topics: Record<string,string[]> = { '소통·안내':['소통','안내','�
 export function buildVisualResultReport(draft: SurveyDraft, items: SelectedQuestion[], result: SurveyResult, uploads: ResultUpload[]): string {
  const active = items.filter(i=>!i.deleted).sort((a,b)=>a.order-b.order);
  const answers = (id:string) => uploads.flatMap(u=>u.mapping.flatMap(m=>{
+  if(isTimestampColumn(m.column))return [];
   const column=u.headers.indexOf(m.column);
   const item=active.find(i=>i.id===id);
   return m.questionId===id&&item?.audience===u.audience&&column>=0?u.rows.map(r=>(r[column]??'').trim()).filter(Boolean):[];

@@ -10,6 +10,7 @@
  */
 
 import type { GoogleFormInfo, SelectedQuestion } from "./types";
+import { isTimestampColumn } from './resultMetadata';
 
 /** Google Forms API가 제목에 줄바꿈을 허용하지 않아 만든 것과 같은 정규화. googleForms.ts 참고. */
 function normalize(text: string): string {
@@ -21,6 +22,7 @@ function normalize(text: string): string {
 }
 
 export type ColumnMatch =
+  | { status: "excluded" }
   | { status: "question"; questionId: string; matchedBy: "form-snapshot" | "current-text" }
   | { status: "grade"; matchedBy: "form-snapshot" }
   | { status: "unmatched" };
@@ -30,6 +32,7 @@ export function matchColumnToQuestion(
   audienceItems: SelectedQuestion[],
   formInfo?: GoogleFormInfo
 ): ColumnMatch {
+  if (isTimestampColumn(columnHeader)) return { status: 'excluded' };
   const normalizedHeader = normalize(columnHeader);
   if (!normalizedHeader) {
     return { status: "unmatched" };

@@ -6,6 +6,7 @@
  */
 
 import { computeAreaStats, computeQuestionStat, type AreaMeanItem } from "./scoring";
+import { isTimestampColumn } from './resultMetadata';
 import type { AreaStat, QuestionStat, ResultUpload, SelectedQuestion, SurveyResult } from "./types";
 
 function parseGrade(label: string): number | null {
@@ -29,13 +30,14 @@ export function aggregateResultUploads(uploads: ResultUpload[], items: SelectedQ
   for (const upload of uploads) {
     responsesByAudience[upload.audience] = (responsesByAudience[upload.audience] ?? 0) + upload.rows.length;
 
-    const gradeColumnIndex = upload.mapping.findIndex((entry) => entry.isGrade);
+    const gradeColumnIndex = upload.mapping.findIndex((entry) => entry.isGrade && !isTimestampColumn(entry.column));
     const gradesByRow: Array<number | null> =
       gradeColumnIndex === -1
         ? upload.rows.map(() => null)
         : upload.rows.map((row) => parseGrade(row[gradeColumnIndex] ?? ""));
 
     for (let colIndex = 0; colIndex < upload.mapping.length; colIndex += 1) {
+      if (isTimestampColumn(upload.mapping[colIndex].column)) continue;
       const questionId = upload.mapping[colIndex]?.questionId;
       if (!questionId || !itemById.has(questionId)) {
         continue;

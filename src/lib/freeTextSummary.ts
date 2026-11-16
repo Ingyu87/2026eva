@@ -1,4 +1,5 @@
 import type { ResultUpload, SelectedQuestion } from './types';
+import { isTimestampColumn } from './resultMetadata';
 
 // 외부로는 정해진 주제명과 응답 건수만 전달합니다. 원문과 이름은 포함하지 않습니다.
 const TOPICS: Record<string, string[]> = {
@@ -17,6 +18,7 @@ export function summarizeFreeText(uploads: ResultUpload[], items: SelectedQuesti
   for (const upload of uploads) {
     const texts: string[] = [];
     for (const entry of upload.mapping) {
+      if (isTimestampColumn(entry.column)) continue;
       if (!items.some(q => q.id === entry.questionId && q.audience === upload.audience && q.responseType === 'text' && !q.deleted)) continue;
       const col = upload.headers.indexOf(entry.column);
       if (col < 0) continue;
