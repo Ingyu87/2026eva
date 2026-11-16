@@ -22,19 +22,18 @@ export function BuilderIntro({
   return (
     <div className="conflict-overlay" role="dialog" aria-modal="true" aria-label="시작 안내">
       <div className="conflict-dialog">
-        <h3>{label}님, 문항을 고르는 화면입니다</h3>
+        <h3>{label}님 · 설문 문항 작성</h3>
         <p className="conflict-meta">
-          {schoolName} 설문에 들어갈 문항을 담는 곳입니다. 설문 시기, 결과 분석, 제출 서류는
-          연구부장이 맡습니다.
+          {schoolName} 설문에 사용할 문항을 작성하세요.
         </p>
-        <p className="conflict-meta">1. 문항을 검색해 담거나 직접 작성하세요. 영역 분류는 연구부장이 정합니다.</p>
-        <p className="conflict-meta">2. 오른쪽 목록에서 문장을 고칠 수 있습니다. 저장은 자동입니다.</p>
-        <p className="conflict-meta">3. 다 했으면 오른쪽 위 ‘제출’을 누르세요.</p>
+        <p className="conflict-meta">1. 문항을 검색해 추가하거나 직접 작성하세요.</p>
+        <p className="conflict-meta">2. 오른쪽 목록에서 문항을 수정하세요. 수정한 내용은 자동 저장됩니다.</p>
+        <p className="conflict-meta">3. 작성을 마치면 상단 ‘제출’을 누르세요.</p>
         <p className="conflict-meta">
           {audienceLabel
-            ? `이 링크로는 ${audienceLabel}용 문항만 다룰 수 있습니다. `
+            ? `이 링크로는 ${audienceLabel}용 문항을 작성할 수 있습니다. `
             : ""}
-          링크는 다른 사람에게 넘기지 마세요. 창을 닫아도 같은 링크를 다시 열면 이어집니다.
+          같은 링크로 다시 접속할 수 있습니다. 링크는 다른 사람에게 공유하지 마세요.
         </p>
         <div className="conflict-actions">
           <Button type="button" onClick={onStart}>
@@ -54,20 +53,10 @@ export function LeadIntro({ onStart, onGuide }: { onStart: () => void; onGuide: 
   return (
     <div className="conflict-overlay" role="dialog" aria-modal="true" aria-label="시작 안내">
       <div className="conflict-dialog">
-        <h3>이렇게 진행합니다</h3>
-        <p className="conflict-meta">1. 왼쪽 위 배지에서 평가 시기(중간평가 / 학년말)를 확인합니다.</p>
-        <p className="conflict-meta">
-          2. 위쪽 부장 링크 버튼으로 부장마다 링크를 만들어 보냅니다. 부장이 담은 문항은 이 화면에 그대로
-          모입니다.
-        </p>
-        <p className="conflict-meta">
-          3. 연구부장도 같은 화면에서 문항을 담습니다. 오른쪽 아래 영역별 문항 확인에서 Ⅰ·Ⅱ·Ⅲ 영역이 모두
-          채워졌는지 확인하세요.
-        </p>
-        <p className="conflict-meta">
-          4. 부장들이 제출하면 설문지(DOCX)나 Google Forms로 내보냅니다. 응답을 받은 뒤에는 결과 분석에서
-          제출 서류를 만듭니다.
-        </p>
+        <h3>학교 설문 작성</h3>
+        <p className="conflict-meta">1. 평가 시기를 선택하고 대상별 문항을 작성하세요. 부장과 나누어 작성하려면 ‘부장 링크’를 보내세요.</p>
+        <p className="conflict-meta">2. 문항을 검토한 뒤 설문지를 내려받거나 Google Forms를 만드세요.</p>
+        <p className="conflict-meta">3. 응답을 받으면 ‘결과 분석’에서 집계하고 평가 의견과 보고서를 작성하세요.</p>
         <div className="conflict-actions">
           <Button type="button" onClick={onStart}>
             시작하기

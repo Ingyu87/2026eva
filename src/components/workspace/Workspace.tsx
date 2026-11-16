@@ -600,7 +600,7 @@ export function Workspace({
         <div className="ws-topbar-center">
           <div className="ws-screen-tabs" role="tablist" aria-label="화면 전환">
             {([{ id: "build", label: "문항 구성" }, { id: "preview", label: "설문 미리보기" },
-              ...(!isBuilder ? [{ id: "analyze", label: "결과 분석 · 내보내기" }] : [])] as const).map(tab => (
+              ...(!isBuilder ? [{ id: "analyze", label: "결과 분석" }] : [])] as const).map(tab => (
               <button type="button" key={tab.id} role="tab" aria-selected={activeScreen === tab.id}
                 className={activeScreen === tab.id ? "ws-screen-tab is-active" : "ws-screen-tab"}
                 onClick={() => dismissAnnualStart(tab.id as "build" | "preview" | "analyze")}>{tab.label}</button>

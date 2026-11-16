@@ -57,7 +57,7 @@ export function GuideModal({
           </nav>
 
           <div className="guide-main">
-            <p className="ws-hint">예시학교 화면입니다. 사진을 누르면 크게 볼 수 있습니다.</p>
+            {step.image ? <p className="ws-hint">예시 화면 · 클릭하면 확대됩니다.</p> : null}
             {step.image ? (
               <button type="button" className="guide-frame" aria-label={`${step.title} 사진 크게 보기`} onClick={() => setZoom(true)}>
                 <img src={step.image} alt={`${step.title} 실제 작업 화면`} className="guide-image" />
