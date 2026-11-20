@@ -18,11 +18,11 @@ const topics: Record<string,string[]> = { '소통·안내':['소통','안내','�
 /** 외부 연결 없이 열리는 교내 공유 보고서. 연결된 서술형 열의 답변을 문항별로 제공합니다. */
 export function buildVisualResultReport(draft: SurveyDraft, items: SelectedQuestion[], result: SurveyResult, uploads: ResultUpload[]): string {
  const active = items.filter(i=>!i.deleted).sort((a,b)=>a.order-b.order);
- const answers = (id:string) => uploads.flatMap(u=>u.mapping.flatMap(m=>{
+ const answers = (id:string,preserveText=false) => uploads.flatMap(u=>u.mapping.flatMap(m=>{
   if(isTimestampColumn(m.column))return [];
   const column=u.headers.indexOf(m.column);
   const item=active.find(i=>i.id===id);
-  return m.questionId===id&&item?.audience===u.audience&&column>=0?u.rows.map(r=>(r[column]??'')).filter(value=>value.trim()):[];
+  return m.questionId===id&&item?.audience===u.audience&&column>=0?u.rows.map(r=>preserveText ? (r[column]??'') : (r[column]??'').trim()).filter(value=>value.trim()):[];
  }));
  const linkedIds = new Set(uploads.flatMap(upload => upload.mapping.map(entry => entry.questionId)));
  const gradeCounts = new Map<string, number>();
@@ -53,7 +53,7 @@ export function buildVisualResultReport(draft: SurveyDraft, items: SelectedQuest
  const gradeCard = gradeTotal ? `<article class="choice" data-audience="student" data-area=""><h3>학생 학년 분포</h3><p>학년 응답자 ${gradeTotal}명</p>${bars([...gradeCounts].sort(([a],[b])=>a.localeCompare(b,'ko',{numeric:true})), gradeTotal)}</article>` : '';
  const texts=audienceOrder.map(a=>{
   const questions = active.filter(i=>i.audience===a && i.responseType==='text');
-  const byQuestion = questions.map(item => ({item, values: answers(item.id)}));
+  const byQuestion = questions.map(item => ({item, values: answers(item.id,true)}));
   const vals = byQuestion.flatMap(entry => entry.values);
   const breakdown = byQuestion.map(({item,values}) => {
    const counts = Object.entries(topics).map(([topic,words]) => [topic,values.filter(v => words.some(w => v.includes(w))).length] as [string,number]).filter(([,n])=>n>0);

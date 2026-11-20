@@ -206,7 +206,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
             <button type="button" className="ws-btn ws-btn--soft" disabled={analysis.busy || dirty || submissionIssues.length > 0 || !canExport('report-hwpx', draft, analysis.result).allowed} title={canExport('report-hwpx', draft, analysis.result).reason ?? submissionIssues.join(' ')} onClick={() => void analysis.downloadReportHwpx('submit')}>학교평가서 제출용 (HWPX)</button>
           </div>
           <details><summary>파일별 용도와 편집 안내</summary>
-            <p className="ws-hint">HTML은 교내 공유용 보고서입니다. HWPX는 교육청 양식의 학교평가서로, 한글에서 편집할 수 있습니다. 작성용은 응답이나 의견이 없는 항목을 빈칸으로 둡니다.</p>
+            <p className="ws-hint">HTML에는 문항별 집계와 서술형 답변 원문이 들어 있습니다. HWPX는 교육청 양식의 학교평가서로, 한글에서 편집할 수 있습니다. 작성용은 응답이나 의견이 없는 항목을 빈칸으로 둡니다.</p>
             <p className="ws-hint">평가영역이 없는 기초자료·자유 의견 문항은 HTML에만 포함합니다. 한글에서 수정한 파일은 따로 보관하고, 제출 전 학교명·학년도·표의 쪽 나눔을 확인하세요.</p>
           </details>
         </ResultSection>
