@@ -21,6 +21,12 @@ const {canExport}=require('../src/lib/exportGate.ts');
  assert.equal((studentHtml.match(/학생 학년 분포/g)||[]).length,1);
  for(const expected of ['학년 응답자 2명','기억에 남는 활동 · 1건','빠진 질문 · 응답 파일에 연결된 열 없음']) assert(studentHtml.includes(expected));
  for(const excluded of ['사용하지 않은 학년 질문','비공개 의견']) assert(!studentHtml.includes(excluded));
+ const issueQuestion={...items[1],id:'fieldtrip',originalQuestion:'(체험학습 방식) 내년에는 어떤 방식을 선호합니까?',responseType:'choice_single',choices:['교내','교외']};
+ const issueUpload={audience:'parent',headers:['체험'],mapping:[{column:'체험',questionId:'fieldtrip'}],rows:[['교내'],['교외'],['교외'],['']]};
+ const issueHtml=buildResultReportHtml(draft,[issueQuestion],result,[issueUpload]);
+ assert(issueHtml.includes('id="issue-view"') && issueHtml.includes('전체 문항·영역별 평가'));
+ assert(issueHtml.includes('교외 2명') && issueHtml.includes('66.7%'));
+ assert(!html.includes('<div id="issue-view">'));
  const zip=await JSZip.loadAsync(await buildReportHwpx(draft,items,result));const xml=await zip.file('Contents/section0.xml').async('string');assert(xml.includes('검증학교 &lt;&amp;&gt;'));assert(xml.includes('&lt;script&gt;'));assert.equal((xml.match(/✔/g)||[]).length,2); // template instruction and one result
  const header=await zip.file('Contents/header.xml').async('string');
  function assertCellStyle(label,alignment,color) {
