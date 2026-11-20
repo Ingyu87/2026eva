@@ -119,13 +119,13 @@ function renderStatsTable(items: SelectedQuestion[], questionStats: QuestionStat
   const byId = indicatorLookup(items);
   const lines: string[] = [];
 
-  lines.push("[문항별 평균] questionId | 영역 | 세부영역 | 평가지표 | 평가문항 | 주체 | 평균 | 응답자수");
+  lines.push("[문항별 평균] questionId | 영역 | 세부영역 | 평가지표 | 평가문항 | 주체 | 평균 | 응답자수 | 긍정 응답자수");
   for (const stat of questionStats) {
     if (stat.grade !== undefined || stat.responseCount === 0) continue;
     const item = byId.get(stat.questionId);
     if (!item) continue;
     lines.push(
-      `${stat.questionId} | ${item.area} | ${item.subarea} | ${item.indicator} | ${item.editedQuestion || item.originalQuestion} | ${AUDIENCE_SHORT_LABELS[stat.audience]} | ${roundToOneDecimal(stat.mean)} | ${stat.responseCount}`
+      `${stat.questionId} | ${item.area} | ${item.subarea} | ${item.indicator} | ${item.editedQuestion || item.originalQuestion} | ${AUDIENCE_SHORT_LABELS[stat.audience]} | ${roundToOneDecimal(stat.mean)} | ${stat.responseCount} | ${stat.distribution[0] + stat.distribution[1]}`
     );
   }
 
@@ -193,6 +193,7 @@ function buildPrompt(input: AnalysisInput): string {
     "",
     "공식 학교평가서에 바로 들어갈 완결된 한국어 문장으로 작성하세요. 사용자에게 분석이나 작성을 떠넘기는 안내문은 쓰지 마세요.",
     `영역과 세부영역은 다음 목록을 그대로 사용하세요: ${JSON.stringify(AREAS)}`,
+    "학교평가위원회의 관점에서 학교가 잘한 일과 다음 학년도에 바꿀 일을 판단하세요. content에는 판단과 이를 뒷받침하는 실제 문항의 응답을 연결하세요. cause는 자료에서 확인되는 이유가 있을 때만 쓰고, action에는 그 판단에서 도출한 구체적인 운영 방안을 쓰세요. 세 칸을 이어 읽으면 하나의 평가 문단이 되게 하세요. 담당자에게 확인을 지시하는 메모, 점수 나열, 근거 없는 인과 설명은 제외하세요.",
     "각 의견은 내용·원인·개선방안을 합쳐 3~5문장으로 간결하게 작성하세요. 같은 근거를 반복하지 마세요.",
     "응답이 있는 모든 영역을 분석하고, 전체 평가서에서 우수한 점과 개선할 점을 각각 2개 이상 작성하세요. 높은 점수와 낮은 점수를 받은 문항의 세부영역·평가지표를 우선 선정하고 근거를 연결하세요.",
     "개선할 점에 연결되는 구체적인 컨설팅장학·교육청 지원 요청을 작성하세요. 학교 활동 자료가 있으면 해당 자료로 특색사례를 작성하고, 없으면 featuredCases는 빈 배열로 반환하세요.",

@@ -15,6 +15,7 @@ export function isAnalysisStructure(value: unknown): value is AiAnalysis {
         || !text(f.subarea) || !text(f.indicator) || !text(f.content)
         || (f.cause !== undefined && !text(f.cause)) || (f.action !== undefined && !text(f.action))
         || (f.needsReview !== undefined && typeof f.needsReview !== 'boolean')
+        || (f.supportingQuestionIds !== undefined && (!Array.isArray(f.supportingQuestionIds) || !f.supportingQuestionIds.every(text)))
         || !Array.isArray(f.evidence)) return false;
     return f.evidence.every(e => record(e) && text(e.questionId) && text(e.subject)
       && typeof e.value === 'number' && Number.isFinite(e.value));

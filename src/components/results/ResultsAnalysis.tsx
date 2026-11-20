@@ -162,6 +162,7 @@ export function ResultsAnalysis({ draft, items }: { draft: SurveyDraft; items: S
 
           {draftAnalysis ? (<fieldset className="ra-editor-fieldset" disabled={analysis.busy || reviewDirty}>
             <AiAnalysisEditor
+              items={analysis.result?.itemsSnapshot ?? items}
               analysis={draftAnalysis}
               onChange={next => { setDraftAnalysis(next); setDirty(true); setSaveNotice(''); }}
               onSave={() => void analysis.saveAnalysisEdits(draftAnalysis).then(saved => { if (saved) { setDirty(false); setSaveNotice('평가 의견을 저장했습니다.'); } })}
@@ -406,10 +407,12 @@ function updateFinding(list: AiFinding[], index: number, patch: Partial<AiFindin
 }
 
 function FindingEditor({
+  items = [],
   finding,
   area,
   onChange
 }: {
+  items?: SelectedQuestion[];
   finding: AiFinding;
   /** 영역별 의견은 해당 영역만, 컨설팅 의견은 전체 세부영역을 선택합니다. */
   area?: string;
@@ -461,6 +464,12 @@ function FindingEditor({
           onChange={(event) => onChange({ action: event.target.value })}
         />
       </label>
+      {items.length > 0 && <label className="ws-field"><span>보고서 근거 문항 (여러 개 선택 가능)</span>
+        <select multiple size={4} className="ws-select" value={finding.supportingQuestionIds ?? []}
+          onChange={event => onChange({supportingQuestionIds: Array.from(event.target.selectedOptions, option => option.value)})}>
+          {items.filter(item => !item.deleted).map(item => <option key={item.id} value={item.id}>{AUDIENCE_SHORT_LABELS[item.audience]} · {item.editedQuestion || item.originalQuestion}</option>)}
+        </select>
+      </label>}
       {finding.needsReview ? <label className="ws-check"><input type="checkbox" onChange={() => onChange({ needsReview: false })} />집계 근거와 실제 운영 내용을 확인하고 평가 의견을 수정했습니다.</label> : null}
       {finding.evidence.length > 0 ? (
         <p className="ws-hint">
@@ -472,12 +481,14 @@ function FindingEditor({
 }
 
 function AiAnalysisEditor({
+  items,
   analysis,
   onChange,
   onSave,
   saving,
   saveBlocked
 }: {
+  items: SelectedQuestion[];
   analysis: AiAnalysis;
   onChange: (next: AiAnalysis) => void;
   onSave: () => void;
@@ -513,6 +524,7 @@ function AiAnalysisEditor({
             <FindingEditor
               key={`finding-${index}`}
               finding={finding}
+              items={items}
               area={areaAnalysis.area}
               onChange={(patch) => {
                 const nextAreas = analysis.areas.map((area, i) =>

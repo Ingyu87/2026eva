@@ -410,6 +410,7 @@ export type AiFinding = {
   cause?: string;
   action?: string;
   evidence: AiEvidence[];
+  supportingQuestionIds?: string[];
   /** 환각 방지 검증에 최종 실패해 내용을 비운 경우. 화면에 "⚠ 확인 필요"로 표시합니다. */
   needsReview?: boolean;
 };
