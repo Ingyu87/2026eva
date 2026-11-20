@@ -22,6 +22,17 @@ const {canExport}=require('../src/lib/exportGate.ts');
  for(const expected of ['학년 응답자 2명','기억에 남는 활동 · 1건','빠진 질문 · 응답 파일에 연결된 열 없음']) assert(studentHtml.includes(expected));
  for(const excluded of ['사용하지 않은 학년 질문','비공개 의견']) assert(!studentHtml.includes(excluded));
  const zip=await JSZip.loadAsync(await buildReportHwpx(draft,items,result));const xml=await zip.file('Contents/section0.xml').async('string');assert(xml.includes('검증학교 &lt;&amp;&gt;'));assert(xml.includes('&lt;script&gt;'));assert.equal((xml.match(/✔/g)||[]).length,2); // template instruction and one result
+ const header=await zip.file('Contents/header.xml').async('string');
+ function assertCellStyle(label,alignment,color) {
+  const cell=xml.match(/<hp:tc\b.*?<\/hp:tc>/gs).find(c=>c.includes('<hp:t>'+label+'</hp:t>'));
+  assert(cell,'셀을 찾을 수 없음: '+label);
+  const para=cell.match(/paraPrIDRef="(\d+)"/)[1],char=cell.match(/charPrIDRef="(\d+)"/)[1];
+  assert(header.match(new RegExp('<hh:paraPr id="'+para+'"[^>]*>[\\s\\S]*?</hh:paraPr>'))[0].includes('horizontal="'+alignment+'"'));
+  assert(header.match(new RegExp('<hh:charPr id="'+char+'"[^>]*>'))[0].includes('textColor="'+color+'"'));
+ }
+ assertCellStyle('문항 &lt;script&gt;alert(1)&lt;/script&gt;','JUSTIFY','#000000');
+ assertCellStyle('구분','CENTER','#000000');
+ assertCellStyle('✔','CENTER','#000000');
  for(const q of items)assert(xml.includes(q.originalQuestion.replace(/</g,'&lt;').replace(/>/g,'&gt;')));
  assert.equal((xml.match(/<hp:tbl\b/g)||[]).length,6);
  assert(!/<hp:run[^>]*\/><hp:t>/.test(xml));

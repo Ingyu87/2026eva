@@ -30,6 +30,31 @@ export async function buildReportHwpx(draft:SurveyDraft,items:SelectedQuestion[]
  const zip=new JSZip();for(const [name,b64] of Object.entries(template))zip.file(name,Buffer.from(b64,'base64'));
  let xml=await zip.file('Contents/section0.xml')!.async('string');
  xml=xml.replaceAll('○○○학교',esc(draft.schoolName));
+ let header=await zip.file('Contents/header.xml')!.async('string');
+ // Clone only styles used by filled cells. Titles and table headings share the original definitions.
+ const cache=new Map<string,string>();
+ function styleId(kind:'char'|'para',id:string,alignment:'JUSTIFY'|'CENTER'):string {
+  const key=kind+id+(kind==='para'?alignment:'');
+  const cached=cache.get(key);
+  if(cached)return cached;
+  const tag='hh:'+kind+'Pr';
+  const pattern=new RegExp('<'+tag+' id="'+id+'"[^>]*>[\\s\\S]*?</'+tag+'>');
+  const source=header.match(pattern)?.[0];
+  if(!source)throw new Error('원본 양식의 서식 정의를 찾을 수 없습니다.');
+  const changed=kind==='char'?source.replace(/textColor="[^"]*"/,'textColor="#000000"'):source.replace(/horizontal="[^"]*"/g,`horizontal="${alignment}"`);
+  if(changed===source){cache.set(key,id);return id;}
+  const group='hh:'+kind+'Properties';
+  const next=1+Math.max(...Array.from(header.matchAll(new RegExp('<'+tag+' id="(\\d+)"','g')),m=>Number(m[1])));
+  const copy=changed.replace(/ id="\d+"/,` id="${next}"`);
+  header=header.replace(new RegExp('(<'+group+' itemCnt=")(\\d+)'),(_m,p,n)=>p+(Number(n)+1))
+   .replace('</'+group+'>',()=>copy+'</'+group+'>');
+  cache.set(key,String(next));return String(next);
+ }
+ function writeCell(cell:string,value:string,alignment:'JUSTIFY'|'CENTER',row?:number,col?:number,span=1):string {
+  return fillCell(cell,value,row,col,span)
+   .replace(/charPrIDRef="(\d+)"/g,(_m,id)=>`charPrIDRef="${styleId('char',id,alignment)}"`)
+   .replace(/paraPrIDRef="(\d+)"/g,(_m,id)=>`paraPrIDRef="${styleId('para',id,alignment)}"`);
+ }
  const tables=xml.match(/<hp:tbl\b.*?<\/hp:tbl>/gs)??[];
  if(tables.length!==6)throw new Error('교육청 양식의 표 구성이 다릅니다.');
  let areaTable=tables[1];
@@ -40,7 +65,7 @@ export async function buildReportHwpx(draft:SurveyDraft,items:SelectedQuestion[]
    if(ci===0)return c;
    const a=subjects[Math.floor((ci-1)/4)],grade=['매우 우수','우수','보통','미흡'][(ci-1)%4];
    const stat=result.areaStats.find(s=>s.area===AREAS[ri-2].name&&s.audience===a);
-   return fillCell(c,stat&&stat.subtotal.some(n=>n>0)&&stat.grade4===grade?'✔':'');
+   return writeCell(c,stat&&stat.subtotal.some(n=>n>0)&&stat.grade4===grade?'✔':'','CENTER');
   });ar[ri]='<hp:tr>'+updated.join('')+'</hp:tr>';
  }
  areaTable=tableRows(areaTable,ar);
@@ -48,13 +73,13 @@ export async function buildReportHwpx(draft:SurveyDraft,items:SelectedQuestion[]
  const fr=rows(tables[2]),body:string[]=[fr[0]!];const seed=cells(fr[1]);let row=1;
  for(const category of ['우수한 점','개선할 점']){
   const ff=findings.filter(f=>f.category===category);const values=ff.length?ff.map(f=>[category,f.subarea,f.indicator,[f.content,f.cause,f.action].filter(Boolean).join('\n')]):[[category,'','','']];
-  values.forEach((v,i)=>{body.push('<hp:tr>'+seed.map((c,j)=>j===0&&i>0?'':fillCell(c,v[j],row,j,j===0?values.length:1)).join('')+'</hp:tr>');row++;});
+  values.forEach((v,i)=>{body.push('<hp:tr>'+seed.map((c,j)=>j===0&&i>0?'':writeCell(c,v[j],j===0?'CENTER':'JUSTIFY',row,j,j===0?values.length:1)).join('')+'</hp:tr>');row++;});
  }
  const consult=(result.aiAnalysis?.consultingNeeds??[]).map(f=>[f.subarea,f.indicator,f.content,f.cause,f.action].filter(Boolean).join('\n')).join('\n\n');
- body.push('<hp:tr>'+cells(fr[fr.length-1]).map((c,i)=>fillCell(c,i===0?'컨설팅장학 등 교육청 지원이 필요한 부분':consult,row,i)).join('')+'</hp:tr>');
+ body.push('<hp:tr>'+cells(fr[fr.length-1]).map((c,i)=>writeCell(c,i===0?'컨설팅장학 등 교육청 지원이 필요한 부분':consult,i===0?'CENTER':'JUSTIFY',row,i)).join('')+'</hp:tr>');
  const findingsTable=tableRows(tables[2],body);
  const cr=rows(tables[3]),cases=result.aiAnalysis?.featuredCases??[],caseSeed=cells(cr[1]);
- const casesTable=tableRows(tables[3],[cr[0]!,...(cases.length?cases:[{subarea:'',content:''}]).map((c,i)=>'<hp:tr>'+caseSeed.map((cell,j)=>fillCell(cell,j===0?c.subarea:c.content,i+1,j)).join('')+'</hp:tr>')]);
+ const casesTable=tableRows(tables[3],[cr[0]!,...(cases.length?cases:[{subarea:'',content:''}]).map((c,i)=>'<hp:tr>'+caseSeed.map((cell,j)=>writeCell(cell,j===0?c.subarea:c.content,'JUSTIFY',i+1,j)).join('')+'</hp:tr>')]);
  const qr=rows(tables[5]),qseed=cells(qr[2]);
  type Group={area:string;subarea:string;indicator:string;text:string;audiences:Set<Audience>};
  const groups=new Map<string,Group>();
@@ -72,7 +97,7 @@ export async function buildReportHwpx(draft:SurveyDraft,items:SelectedQuestion[]
   return '<hp:tr>'+qseed.map((c,j)=>{
    if(j===0&&!firstArea||j===1&&!firstSub)return '';
    const span=j===0?ordered.filter(x=>x.area===g.area).length:j===1?ordered.filter(x=>x.subarea===g.subarea&&x.area===g.area).length:1;
-   return fillCell(c,vals[j],i+2,j,span);
+   return writeCell(c,vals[j],j>=1&&j<=3?'JUSTIFY':'CENTER',i+2,j,span);
   }).join('')+'</hp:tr>';
  });
  const questionTable=tableRows(tables[5],[qr[0]!,qr[1]!,...qbody]);
@@ -81,6 +106,7 @@ export async function buildReportHwpx(draft:SurveyDraft,items:SelectedQuestion[]
  // Cached line coordinates belong to the blank template, not the filled paragraphs.
  xml=xml.replace(/<hp:linesegarray>.*?<\/hp:linesegarray>/gs,'');
  let id=0;xml=xml.replace(/<hp:p id="[^"]*"/g,()=>`<hp:p id="${++id}"`);
+ zip.file('Contents/header.xml',header);
  zip.file('Contents/section0.xml',xml);zip.remove('Preview/PrvImage.png');zip.file('Preview/PrvText.txt',`${draft.schoolName} 2026학년도 학교평가서`);
  zip.file('mimetype','application/hwp+zip',{compression:'STORE'});
  return zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'});
