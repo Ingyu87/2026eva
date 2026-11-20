@@ -10,7 +10,7 @@ const {canExport}=require('../src/lib/exportGate.ts');
  const items=[{id:'q',order:1,audience:'parent',area:AREAS[0].name,subarea:AREAS[0].subareas[0],indicator:'지표',originalQuestion:'문항 <script>alert(1)</script>',responseType:'likert_5'},{id:'c',order:2,audience:'parent',area:AREAS[0].name,subarea:AREAS[0].subareas[0],indicator:'선택',originalQuestion:'선택 문항',responseType:'checklist',choices:['A','B']},{id:'t',order:3,audience:'parent',area:AREAS[0].name,subarea:AREAS[0].subareas[0],indicator:'의견',originalQuestion:'의견 문항',responseType:'text'}];
  const result={responsesByAudience:{parent:2},questionStats:[{questionId:'q',audience:'parent',distribution:[1,1,0,0,0],responseCount:2,mean:4.5}],areaStats:[{area:AREAS[0].name,audience:'parent',subtotal:[1,1,0,0,0],mean:4.5,grade4:'매우 우수'}]};
  const upload={audience:'parent',headers:['메모','의견','선택'],mapping:[{column:'선택',questionId:'c'},{column:'의견',questionId:'t'}],rows:[['숨김','개인 비공개 독서 의견','A, B'],['','','']]};
- const html=buildResultReportHtml(draft,items,result,[upload]);assert(html.includes('100%'));assert(!html.includes('개인 비공개'));assert(!html.includes('<script>alert'));assert(html.includes('&lt;script&gt;'));assert(html.includes('자료 없음'));assert(!html.includes('<footer'));
+ const html=buildResultReportHtml(draft,items,result,[upload]);assert(html.includes('100%'));assert(html.includes('<li>개인 비공개 독서 의견</li>'));assert(!html.includes('<script>alert'));assert(html.includes('&lt;script&gt;'));assert(html.includes('자료 없음'));assert(!html.includes('<footer'));
  const studentItems = [
   { ...items[1], id:'old-grade', audience:'student', originalQuestion:'사용하지 않은 학년 질문' },
   { ...items[2], id:'comment', audience:'student', originalQuestion:'기억에 남는 활동' },
@@ -19,8 +19,9 @@ const {canExport}=require('../src/lib/exportGate.ts');
  const studentUpload = {audience:'student',headers:['학년','의견'],mapping:[{column:'학년',isGrade:true},{column:'의견',questionId:'comment'}],rows:[['5학년','비공개 의견'],['6학년','']]};
  const studentHtml = buildResultReportHtml(draft,studentItems,result,[studentUpload]);
  assert.equal((studentHtml.match(/학생 학년 분포/g)||[]).length,1);
- for(const expected of ['학년 응답자 2명','기억에 남는 활동 · 1건','빠진 질문 · 응답 파일에 연결된 열 없음']) assert(studentHtml.includes(expected));
- for(const excluded of ['사용하지 않은 학년 질문','비공개 의견']) assert(!studentHtml.includes(excluded));
+ for(const expected of ['학년 응답자 2명','의견 · 1건','빠진 질문 · 응답 파일에 연결된 열 없음']) assert(studentHtml.includes(expected));
+ for(const excluded of ['사용하지 않은 학년 질문']) assert(!studentHtml.includes(excluded));
+ assert(studentHtml.includes('<li>비공개 의견</li>'));
  const issueQuestion={...items[1],id:'fieldtrip',originalQuestion:'(체험학습 방식) 내년에는 어떤 방식을 선호합니까?',responseType:'choice_single',choices:['교내','교외']};
  const issueUpload={audience:'parent',headers:['체험'],mapping:[{column:'체험',questionId:'fieldtrip'}],rows:[['교내'],['교외'],['교외'],['']]};
  const issueHtml=buildResultReportHtml(draft,[issueQuestion],result,[issueUpload]);
