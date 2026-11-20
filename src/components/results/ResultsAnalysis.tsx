@@ -296,9 +296,16 @@ function ColumnReviewTable({
   disabled: boolean;
   onChange: (column: string, patch: { questionId?: string; isGrade?: boolean; status: "question" | "grade" | "unmatched" }) => void;
 }) {
+  const linkedIds = new Set(state.columns.map(column => column.questionId));
+  const missingText = itemsForAudience.filter(item => item.responseType === "text" && !linkedIds.has(item.id));
   return (
     <div className="ra-mapping-block">
       <h3 className="ws-group-title">{AUDIENCE_SHORT_LABELS[audience]} — {state.filename}</h3>
+      {missingText.length > 0 && <details className="ra-warn">
+        <summary>응답 파일에 연결되지 않은 서술형 문항 {missingText.length}개</summary>
+        <p>원본 파일에 해당 문항 열이 있는지 확인하세요. 열이 빠졌다면 원본을 다시 올려 주세요.</p>
+        <ul>{missingText.map(item => <li key={item.id}>{item.editedQuestion || item.originalQuestion}</li>)}</ul>
+      </details>}
       <table className="ra-table">
         <thead>
           <tr>

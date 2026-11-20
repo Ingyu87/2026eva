@@ -11,6 +11,16 @@ const {canExport}=require('../src/lib/exportGate.ts');
  const result={responsesByAudience:{parent:2},questionStats:[{questionId:'q',audience:'parent',distribution:[1,1,0,0,0],responseCount:2,mean:4.5}],areaStats:[{area:AREAS[0].name,audience:'parent',subtotal:[1,1,0,0,0],mean:4.5,grade4:'매우 우수'}]};
  const upload={audience:'parent',headers:['메모','의견','선택'],mapping:[{column:'선택',questionId:'c'},{column:'의견',questionId:'t'}],rows:[['숨김','개인 비공개 독서 의견','A, B'],['','','']]};
  const html=buildResultReportHtml(draft,items,result,[upload]);assert(html.includes('100%'));assert(!html.includes('개인 비공개'));assert(!html.includes('<script>alert'));assert(html.includes('&lt;script&gt;'));assert(html.includes('자료 없음'));assert(!html.includes('<footer'));
+ const studentItems = [
+  { ...items[1], id:'old-grade', audience:'student', originalQuestion:'사용하지 않은 학년 질문' },
+  { ...items[2], id:'comment', audience:'student', originalQuestion:'기억에 남는 활동' },
+  { ...items[2], id:'missing', audience:'student', originalQuestion:'빠진 질문' }
+ ];
+ const studentUpload = {audience:'student',headers:['학년','의견'],mapping:[{column:'학년',isGrade:true},{column:'의견',questionId:'comment'}],rows:[['5학년','비공개 의견'],['6학년','']]};
+ const studentHtml = buildResultReportHtml(draft,studentItems,result,[studentUpload]);
+ assert.equal((studentHtml.match(/학생 학년 분포/g)||[]).length,1);
+ for(const expected of ['학년 응답자 2명','기억에 남는 활동 · 1건','빠진 질문 · 응답 파일에 연결된 열 없음']) assert(studentHtml.includes(expected));
+ for(const excluded of ['사용하지 않은 학년 질문','비공개 의견']) assert(!studentHtml.includes(excluded));
  const zip=await JSZip.loadAsync(await buildReportHwpx(draft,items,result));const xml=await zip.file('Contents/section0.xml').async('string');assert(xml.includes('검증학교 &lt;&amp;&gt;'));assert(xml.includes('&lt;script&gt;'));assert.equal((xml.match(/✔/g)||[]).length,2); // template instruction and one result
  for(const q of items)assert(xml.includes(q.originalQuestion.replace(/</g,'&lt;').replace(/>/g,'&gt;')));
  assert.equal((xml.match(/<hp:tbl\b/g)||[]).length,6);
